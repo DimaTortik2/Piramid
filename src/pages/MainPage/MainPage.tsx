@@ -10,7 +10,7 @@ interface MainPageProps {}
 
 export function MainPage({}: MainPageProps) {
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-125 flex-col justify-end gap-4 py-2">
+    <div className="mx-auto flex min-h-full w-full max-w-125 flex-col justify-end gap-4 px-1 py-3">
       <WelcomeBanner pyramidClassName="w-[17.5rem]" />
       <ActionCard
         title={<>История матчей</>}

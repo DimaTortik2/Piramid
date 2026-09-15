@@ -31,6 +31,7 @@ export const router = createBrowserRouter([
             path: ':slug',
             element: <LecturePage />,
             loader: lectureLoader,
+            handle: { hideNavBar: true },
           },
         ],
       },

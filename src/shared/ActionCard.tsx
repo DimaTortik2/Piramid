@@ -19,7 +19,7 @@ export function ActionCard({
   return (
     <div
       className={cn(
-        'bg-primary text-primary-foreground rounded-lg p-5',
+        'bg-background text-foreground rounded-lg p-5',
         className
       )}
       {...props}

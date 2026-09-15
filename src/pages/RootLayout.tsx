@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useMatches } from 'react-router-dom';
 import {
   HouseIcon,
   TextAlignCenterIcon,
@@ -63,6 +63,10 @@ export const NavBar = ({ className }: { className?: string }) => {
 };
 
 export function RootLayout() {
+  const matches = useMatches();
+  const hideNavBar = matches.some(
+    (match) => (match.handle as { hideNavBar?: boolean })?.hideNavBar
+  );
   return (
     <div
       className="text-foreground flex h-dvh w-full flex-col bg-cover bg-center bg-no-repeat"
@@ -72,7 +76,7 @@ export function RootLayout() {
         <NavigationLoader />
         <Outlet />
       </main>
-      <NavBar />
+      {!hideNavBar && <NavBar />}
     </div>
   );
 }

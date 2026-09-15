@@ -1,13 +1,47 @@
-import { Link } from "react-router-dom";
+import { cn } from '@/shared/lib/utils/cn';
+import { Link } from 'react-router-dom';
 
-interface LecturesListPageProps {
-  
-}
+interface LecturesListPageProps {}
 
-export function LecturesListPage({  }: LecturesListPageProps) {
+const ListElement = ({ title, desc }: { title: string; desc: string }) => {
   return (
-    <div>
-      <Link to={'first'}>first</Link>
+    <div
+      className={cn(
+        'bg-background text-foreground hover:bg-background/90 rounded-lg p-5 text-sm',
+        'w-full whitespace-nowrap transition-colors active:scale-[0.98]'
+      )}
+    >
+      <p className="text-lg">{title}</p>
+      <span className="text-muted-foreground">{desc}</span>
+    </div>
+  );
+};
+
+const LECTURES_DATA: {
+  title: string;
+  desc: string;
+  to: string;
+}[] = [
+  {
+    title: 'Базовые правила',
+    desc: 'То, без чего нельзя начать.',
+    to: '/first',
+  },
+  {
+    title: 'Другая очень важная тема',
+    desc: 'Про кии и мячики',
+    to: '/second',
+  },
+];
+
+export function LecturesListPage({}: LecturesListPageProps) {
+  return (
+    <div className="mx-auto flex w-full max-w-125 flex-col gap-3 px-1 py-3">
+      {LECTURES_DATA.map((d) => (
+        <Link to={'/lectures/' + d.to}>
+          <ListElement desc={d.desc} title={d.title} />
+        </Link>
+      ))}
     </div>
   );
 }

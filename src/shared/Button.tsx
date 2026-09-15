@@ -39,7 +39,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       disabled,
       ...props
     },
-    ref // ref теперь получаем вторым аргументом!
+    ref
   ) => {
     return (
       <button
@@ -62,7 +62,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           />
         )}
 
-        {/* Обертка для контента, чтобы скрыть его при загрузке, сохраняя ширину кнопки */}
         <span
           className={cn(
             'inline-flex items-center gap-2',

@@ -10,8 +10,13 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
 
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
+  --color-reader-background: var(--reader-background);
+  --color-reader-foreground: var(--reader-foreground);
+  --color-reader-muted-foreground: var(--reader-muted-foreground);
+  --color-reader-accent-foreground: var(--reader-accent-foreground);
+
+  --color-piramid-border: var(--piramid-border);
+  --color-piramid-balls: var(--piramid-balls);
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -20,34 +25,47 @@
 
 @layer base {
   :root {
-    --background: oklch(0.2134 0 0);
-    --foreground: oklch(1 0 0);
-    --muted-foreground: oklch(69.926% 0.00008 271.152);
-    --super-muted-foreground: oklch(46.76% 0.00005 271.152);
+    --background: oklch(97% 0.003 75);
+    --foreground: oklch(20% 0.005 75);
+    --muted-foreground: oklch(50% 0.005 75);
 
-    --primary: oklch(0.2134 0 0);
-    --primary-foreground: oklch(1 0 0);
+    --reader-background: oklch(22% 0.006 65);
+    --reader-foreground: oklch(90% 0.01 75);
+    --reader-muted-foreground: oklch(65% 0.008 70);
+    --reader-accent-foreground: oklch(76% 0.11 65);
 
-    --destructive: oklch(0.6 0.2 25);
-    --destructive-foreground: oklch(0.985 0 0);
+    --primary: oklch(92% 0.003 75);
+    --primary-foreground: oklch(15% 0.005 75);
+
+    --piramid-border: oklch(15.391% 0.00207 106.777);
+    --piramid-balls: oklch(98.511% 0.00011 271.152);
 
     --radius: 1.5rem;
   }
 
   .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
+    --background: oklch(15% 0.005 70);
+    --foreground: oklch(90% 0.003 70);
+    --muted-foreground: oklch(65% 0.005 70);
 
-    --primary: oklch(0.7 0.15 250);
-    --primary-foreground: oklch(0.145 0 0);
+    --reader-background: oklch(22% 0.006 65);
+    --reader-foreground: oklch(90% 0.01 75);
+    --reader-muted-foreground: oklch(65% 0.008 70);
+    --reader-accent-foreground: oklch(76% 0.11 65);
 
-    --destructive: oklch(0.5 0.2 25);
-    --destructive-foreground: oklch(0.985 0 0);
+    --primary: oklch(92% 0.003 75);
+    --primary-foreground: oklch(15% 0.005 75);
+
+    --piramid-border: oklch(15.391% 0.00207 106.777);
+    --piramid-balls: oklch(98.511% 0.00011 271.152);
+
+
   }
 }
 
 @layer base {
-  html, body {
+  html,
+  body {
     overscroll-behavior-y: none;
   }
 
