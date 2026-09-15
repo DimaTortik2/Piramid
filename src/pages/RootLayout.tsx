@@ -6,6 +6,7 @@ import {
 } from '@phosphor-icons/react';
 import { cn } from '@/shared/lib/utils/cn';
 import suknoBg from '@/assets/sukno.jpg';
+import { NavigationLoader } from '@/shared/Loaders/NavigationLoader';
 
 const NAV_ITEMS = [
   {
@@ -68,6 +69,7 @@ export function RootLayout() {
       style={{ backgroundImage: `url(${suknoBg})` }}
     >
       <main className="relative z-10 flex-1 overflow-y-auto">
+        <NavigationLoader />
         <Outlet />
       </main>
       <NavBar />

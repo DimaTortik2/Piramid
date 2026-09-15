@@ -1,4 +1,6 @@
-import { LecturesPage } from '@/pages/LecturesPage';
+import { LecturePage } from '@/pages/Lectures/Lecture/LecturePage';
+import { lectureLoader } from '@/pages/Lectures/Lecture/loader/lectureLoader';
+import { LecturesListPage } from '@/pages/Lectures/List/LecturesListPage';
 import { MainPage } from '@/pages/MainPage/MainPage';
 import { RootLayout } from '@/pages/RootLayout';
 import { TrainingPage } from '@/pages/TrainingPage';
@@ -20,7 +22,17 @@ export const router = createBrowserRouter([
       },
       {
         path: 'lectures',
-        element: <LecturesPage />,
+        children: [
+          {
+            index: true,
+            element: <LecturesListPage />,
+          },
+          {
+            path: ':slug',
+            element: <LecturePage />,
+            loader: lectureLoader,
+          },
+        ],
       },
       {
         path: 'training',

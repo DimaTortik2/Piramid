@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import 'tailwindcss-safe-area';
 @import 'sonner/dist/styles.css';
+@plugin '@tailwindcss/typography';
 
 @theme {
   --color-background: var(--background);
