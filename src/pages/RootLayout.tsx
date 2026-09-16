@@ -1,12 +1,12 @@
-import { NavLink, Outlet, useMatches } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useMatches } from 'react-router-dom';
 import {
   HouseIcon,
   TextAlignCenterIcon,
   BarbellIcon,
 } from '@phosphor-icons/react';
 import { cn } from '@/shared/lib/utils/cn';
-import suknoBg from '@/assets/sukno.jpg';
 import { NavigationLoader } from '@/shared/Loaders/NavigationLoader';
+import { BilliardsBackground } from '@/shared/BilliardsBackground';
 
 const NAV_ITEMS = [
   {
@@ -67,15 +67,21 @@ export function RootLayout() {
   const hideNavBar = matches.some(
     (match) => (match.handle as { hideNavBar?: boolean })?.hideNavBar
   );
+   const location = useLocation();
   return (
     <div
-      className="text-foreground flex min-h-dvh w-full flex-col bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: `url(${suknoBg})` }}
+      className="animate-app-fade-in relative text-foreground flex min-h-dvh w-full flex-col bg-cover bg-center bg-no-repeat"
     >
+      <BilliardsBackground className="h-full w-full"/>
       <main className="relative z-10 flex-1">
         <NavigationLoader />
         <Outlet />
       </main>
+       <div
+        key={location.pathname}
+        aria-hidden="true"
+        className="animate-page-reveal pointer-events-none fixed inset-0 z-40 bg-[#0d0b09]"
+      />
       {!hideNavBar && <NavBar className='sticky z-50 bottom-0' />}
     </div>
   );

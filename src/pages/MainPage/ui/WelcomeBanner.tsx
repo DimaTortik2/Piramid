@@ -17,6 +17,7 @@ export function WelcomeBanner({
       <div
         className={cn(
           'relative z-0 flex w-[140px] justify-center transition-all duration-300',
+          '[clip-path:inset(-100%_-100%_0px_-100%)]',
           pyramidClassName
         )}
         aria-hidden="true"
@@ -105,7 +106,7 @@ export function WelcomeBanner({
 
       <ActionCard
         title={
-          <span className="text-[28px] leading-tight tracking-wide text-foreground dark:text-neutral-50">
+          <span className="text-foreground text-[28px] leading-tight tracking-wide dark:text-neutral-50">
             Снова привет
           </span>
         }

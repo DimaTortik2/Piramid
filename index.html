@@ -4,12 +4,12 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>piramid</title>
+    <title>Piramid</title>
     <style>
       body {
         margin: 0;
         padding: 0;
-        background-color: #212121;
+        background-color: #0d0b09;
       }
       .perspective-container {
         perspective: 800px;
@@ -38,7 +38,7 @@
         width: 100vw;
         height: 100vh;
         height: 100dvh;
-        background-color: #212121;
+        background-color: #0d0b09;
 
         display: flex;
         flex-direction: column;
@@ -50,20 +50,23 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        
+        /* Скрываем по умолчанию и плавно проявляем через 1 секунду */
+        opacity: 0;
+        animation: fade-in 1s ease-out 0.5s forwards;
+      }
+
+      @keyframes fade-in {
+        to {
+          opacity: 1;
+        }
       }
       .loader-container svg {
         width: calc((1vh + 1vw) * 15);
         height: calc((1vh + 1vw) * 15);
-        color: #219644;
+        color: #ffffff;
       }
-      .loader-label {
-        text-align: center;
-        color: #ffffff77;
-        font-weight: 600;
-        font-family: sans-serif;
-        font-size: 20px;
-        line-height: 1.4;
-      }
+    
     </style>
   </head>
   <body>
@@ -80,7 +83,6 @@
               class="circle-loader"
             />
           </svg>
-          <p class="loader-label">Грузимся...</p>
         </div>
       </div>
     </div>

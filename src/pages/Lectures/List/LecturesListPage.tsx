@@ -7,7 +7,7 @@ const ListElement = ({ title, desc }: { title: string; desc: string }) => {
   return (
     <div
       className={cn(
-        'bg-background text-foreground hover:bg-background/90 rounded-lg p-5 text-sm',
+        'bg-background/80 text-foreground hover:bg-background/90 rounded-lg p-5 text-sm backdrop-blur-lg shadow-2xl',
         'w-full whitespace-nowrap transition-colors active:scale-[0.98]'
       )}
     >

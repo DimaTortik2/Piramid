@@ -7,7 +7,7 @@ interface LoaderProps {
 }
 
 export const Loader: React.FC<LoaderProps> = ({
-  text = 'Грузимся...',
+  text ,
   fullScreen = true,
   className = '',
 }) => {
@@ -86,7 +86,7 @@ export const Loader: React.FC<LoaderProps> = ({
         role="status"
         aria-busy="true"
         aria-live="polite"
-        className={`loader-fade-in perspective-container flex flex-col items-center justify-center bg-[#212121] select-none ${
+        className={`loader-fade-in perspective-container flex flex-col items-center justify-center bg-[#0d0b09] select-none ${
           fullScreen
             ? 'pointer-events-auto fixed inset-0 z-[9999] h-[100dvh] w-screen touch-none'
             : 'h-full w-full p-8'
@@ -96,7 +96,7 @@ export const Loader: React.FC<LoaderProps> = ({
           <svg
             viewBox="0 0 200 200"
             stroke="currentColor"
-            className="h-[calc((1vh+1vw)*15)] w-[calc((1vh+1vw)*15)] text-[#219644]"
+            className="h-[calc((1vh+1vw)*15)] w-[calc((1vh+1vw)*15)] text-spinner-accent"
           >
             <circle
               cx="100"

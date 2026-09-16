@@ -15,6 +15,8 @@
   --color-reader-muted-foreground: var(--reader-muted-foreground);
   --color-reader-accent-foreground: var(--reader-accent-foreground);
 
+  --color-spinner-accent: var(--spinner-accent);
+
   --color-piramid-border: var(--piramid-border);
   --color-piramid-balls: var(--piramid-balls);
 
@@ -34,6 +36,8 @@
     --reader-muted-foreground: oklch(65% 0.008 70);
     --reader-accent-foreground: oklch(76% 0.125 142);
 
+    --spinner-accent: oklch(1 0 0);
+
     --primary: oklch(92% 0.003 75);
     --primary-foreground: oklch(15% 0.005 75);
 
@@ -52,6 +56,8 @@
     --reader-foreground: oklch(90% 0.01 75);
     --reader-muted-foreground: oklch(65% 0.008 70);
     --reader-accent-foreground: oklch(76% 0.125 142);
+
+    --spinner-accent: oklch(1 0 0);
 
     --primary: oklch(92% 0.003 75);
     --primary-foreground: oklch(15% 0.005 75);
@@ -89,4 +95,32 @@ button:hover {
 
 * {
   -ms-overflow-style: none;
+}
+
+@keyframes app-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-app-fade-in {
+  animation: app-fade-in 0.6s ease-out forwards;
+}
+
+@keyframes fade-out-overlay {
+  0% {
+    opacity: 1;
+    visibility: visible;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+.animate-page-reveal {
+  animation: fade-out-overlay 0.5s ease-out forwards;
 }
