@@ -38,7 +38,7 @@ export function LecturesListPage({}: LecturesListPageProps) {
   return (
     <div className="mx-auto flex w-full max-w-125 flex-col gap-3 px-1 py-3">
       {LECTURES_DATA.map((d) => (
-        <Link to={'/lectures/' + d.to}>
+        <Link key={d.to} to={'/lectures/' + d.to}>
           <ListElement desc={d.desc} title={d.title} />
         </Link>
       ))}

@@ -69,14 +69,14 @@ export function RootLayout() {
   );
   return (
     <div
-      className="text-foreground flex h-dvh w-full flex-col bg-cover bg-center bg-no-repeat"
+      className="text-foreground flex min-h-dvh w-full flex-col bg-cover bg-center bg-no-repeat"
       style={{ backgroundImage: `url(${suknoBg})` }}
     >
-      <main className="relative z-10 flex-1 overflow-y-auto">
+      <main className="relative z-10 flex-1">
         <NavigationLoader />
         <Outlet />
       </main>
-      {!hideNavBar && <NavBar />}
+      {!hideNavBar && <NavBar className='sticky z-50 bottom-0' />}
     </div>
   );
 }

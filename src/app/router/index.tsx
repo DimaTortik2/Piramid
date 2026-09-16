@@ -1,10 +1,5 @@
-import { LecturePage } from '@/pages/Lectures/Lecture/LecturePage';
-import { lectureLoader } from '@/pages/Lectures/Lecture/loader/lectureLoader';
-import { LecturesListPage } from '@/pages/Lectures/List/LecturesListPage';
-import { MainPage } from '@/pages/MainPage/MainPage';
-import { RootLayout } from '@/pages/RootLayout';
-import { TrainingPage } from '@/pages/TrainingPage';
 import { createBrowserRouter } from 'react-router-dom';
+import { RootLayout } from '@/pages/RootLayout';
 
 export const router = createBrowserRouter([
   {
@@ -18,26 +13,44 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <MainPage />,
+        lazy: async () => {
+          const { MainPage } = await import('@/pages/MainPage/MainPage');
+          return { Component: MainPage };
+        },
       },
       {
         path: 'lectures',
         children: [
           {
             index: true,
-            element: <LecturesListPage />,
+            lazy: async () => {
+              const { LecturesListPage } =
+                await import('@/pages/Lectures/List/LecturesListPage');
+              return { Component: LecturesListPage };
+            },
           },
           {
             path: ':slug',
-            element: <LecturePage />,
-            loader: lectureLoader,
+            lazy: async () => {
+              const { LecturePage } =
+                await import('@/pages/Lectures/Lecture/LecturePage');
+              const { lectureLoader } =
+                await import('@/pages/Lectures/Lecture/loader/lectureLoader');
+              return {
+                Component: LecturePage,
+                loader: lectureLoader,
+              };
+            },
             handle: { hideNavBar: true },
           },
         ],
       },
       {
         path: 'training',
-        element: <TrainingPage />,
+        lazy: async () => {
+          const { TrainingPage } = await import('@/pages/TrainingPage');
+          return { Component: TrainingPage };
+        },
       },
     ],
   },

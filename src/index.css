@@ -32,7 +32,7 @@
     --reader-background: oklch(22% 0.006 65);
     --reader-foreground: oklch(90% 0.01 75);
     --reader-muted-foreground: oklch(65% 0.008 70);
-    --reader-accent-foreground: oklch(76% 0.11 65);
+    --reader-accent-foreground: oklch(76% 0.125 142);
 
     --primary: oklch(92% 0.003 75);
     --primary-foreground: oklch(15% 0.005 75);
@@ -51,15 +51,13 @@
     --reader-background: oklch(22% 0.006 65);
     --reader-foreground: oklch(90% 0.01 75);
     --reader-muted-foreground: oklch(65% 0.008 70);
-    --reader-accent-foreground: oklch(76% 0.11 65);
+    --reader-accent-foreground: oklch(76% 0.125 142);
 
     --primary: oklch(92% 0.003 75);
     --primary-foreground: oklch(15% 0.005 75);
 
     --piramid-border: oklch(15.391% 0.00207 106.777);
     --piramid-balls: oklch(98.511% 0.00011 271.152);
-
-
   }
 }
 
