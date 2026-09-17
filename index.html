@@ -2,8 +2,16 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <title>Piramid</title>
     <style>
       body {
@@ -50,7 +58,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        
+
         /* Скрываем по умолчанию и плавно проявляем через 1 секунду */
         opacity: 0;
         animation: fade-in 1s ease-out 0.5s forwards;
@@ -66,7 +74,6 @@
         height: calc((1vh + 1vw) * 15);
         color: #ffffff;
       }
-    
     </style>
   </head>
   <body>
