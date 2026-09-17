@@ -11,9 +11,7 @@ export function WelcomeBanner({
   pyramidClassName,
 }: WelcomeBannerProps) {
   return (
-    <section
-      className={cn('relative flex w-full flex-col items-center', className)}
-    >
+    <section className={cn('relative flex w-full flex-col items-center', className)}>
       <div
         className={cn(
           'relative z-0 flex w-[140px] justify-center transition-all duration-300',
@@ -34,72 +32,47 @@ export function WelcomeBanner({
             className="stroke-piramid-border"
           />
 
-          <g className="fill-piramid-balls">
+          <defs>
+            <radialGradient
+              id="ball-volume"
+              cx="35%"
+              cy="35%"
+              r="65%"
+              fx="35%"
+              fy="35%"
+            >
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="40%" stopColor="#f8fafc" />
+              <stop offset="85%" stopColor="#cbd5e1" />
+              <stop offset="100%" stopColor="#94a3b8" />
+            </radialGradient>
+          </defs>
+
+          <g fill="url(#ball-volume)">
+            {/* Ряд 5 (нижний — 5 шаров) */}
             <circle cx="66.5" cy="188.5" r="19.5" />
             <circle cx="105.5" cy="188.5" r="19.5" />
             <circle cx="144.5" cy="188.5" r="19.5" />
             <circle cx="183.5" cy="188.5" r="19.5" />
             <circle cx="222.5" cy="188.5" r="19.5" />
-            <circle
-              cx="83.4854"
-              cy="156.484"
-              r="19.5"
-              transform="rotate(-49.6758 83.4854 156.484)"
-            />
-            <circle
-              cx="104.271"
-              cy="123.485"
-              r="19.5"
-              transform="rotate(-49.6758 104.271 123.485)"
-            />
-            <circle
-              cx="125.056"
-              cy="90.485"
-              r="19.5"
-              transform="rotate(-49.6758 125.056 90.485)"
-            />
-            <circle
-              cx="122.485"
-              cy="156.484"
-              r="19.5"
-              transform="rotate(-49.6758 122.485 156.484)"
-            />
-            <circle
-              cx="143.271"
-              cy="123.485"
-              r="19.5"
-              transform="rotate(-49.6758 143.271 123.485)"
-            />
-            <circle
-              cx="162.485"
-              cy="156.484"
-              r="19.5"
-              transform="rotate(-49.6758 162.485 156.484)"
-            />
-            <circle
-              cx="203.485"
-              cy="156.484"
-              r="19.5"
-              transform="rotate(-49.6758 203.485 156.484)"
-            />
-            <circle
-              cx="183.271"
-              cy="123.485"
-              r="19.5"
-              transform="rotate(-49.6758 183.271 123.485)"
-            />
-            <circle
-              cx="164.056"
-              cy="90.485"
-              r="19.5"
-              transform="rotate(-49.6758 164.056 90.485)"
-            />
-            <circle
-              cx="145.841"
-              cy="57.4854"
-              r="19.5"
-              transform="rotate(-49.6758 145.841 57.4854)"
-            />
+
+            {/* Ряд 4 (4 шара) */}
+            <circle cx="83.4854" cy="156.484" r="19.5" />
+            <circle cx="122.485" cy="156.484" r="19.5" />
+            <circle cx="162.485" cy="156.484" r="19.5" />
+            <circle cx="203.485" cy="156.484" r="19.5" />
+
+            {/* Ряд 3 (3 шара) */}
+            <circle cx="104.271" cy="123.485" r="19.5" />
+            <circle cx="143.271" cy="123.485" r="19.5" />
+            <circle cx="183.271" cy="123.485" r="19.5" />
+
+            {/* Ряд 2 (2 шара) */}
+            <circle cx="125.056" cy="90.485" r="19.5" />
+            <circle cx="164.056" cy="90.485" r="19.5" />
+
+            {/* Ряд 1 (1 шар) */}
+            <circle cx="145.841" cy="57.4854" r="19.5" />
           </g>
         </svg>
       </div>
