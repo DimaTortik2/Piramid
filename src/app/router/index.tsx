@@ -20,6 +20,8 @@ export const router = createBrowserRouter([
       },
       {
         path: 'lectures',
+            handle: { pauseBackground: true },
+
         children: [
           {
             index: true,
@@ -41,7 +43,7 @@ export const router = createBrowserRouter([
                 loader: lectureLoader,
               };
             },
-            handle: { hideNavBar: true },
+            handle: { hideNavBar: true, pauseBackground: true },
           },
         ],
       },

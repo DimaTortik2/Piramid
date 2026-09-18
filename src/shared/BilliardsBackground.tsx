@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import Matter from 'matter-js';
 import { cn } from '@/shared/lib/utils/cn';
+import { useMatches } from 'react-router-dom';
 const NOISE_SVG = `data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E`;
 
 const BALL_OPTIONS = {
@@ -12,9 +13,18 @@ const BALL_OPTIONS = {
 export function BilliardsBackground({ className }: { className?: string }) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
+  const matches = useMatches();
+  const runnerRef = useRef<Matter.Runner | null>(null);
+  const renderRef = useRef<Matter.Render | null>(null);
+
+  const isPaused = matches.some(
+    (match) => (match.handle as { pauseBackground?: boolean })?.pauseBackground
+  );
+  const isPausedRef = useRef(isPaused);
+  isPausedRef.current = isPaused;
 
   useEffect(() => {
-    if (!sceneRef.current) return;
+    if (!sceneRef.current || engineRef.current) return;
     const { Engine, Render, Runner, Bodies, World, Body, Events } = Matter;
 
     const engine = Engine.create();
@@ -29,12 +39,27 @@ export function BilliardsBackground({ className }: { className?: string }) {
         height: window.innerHeight,
         wireframes: false,
         background: 'transparent',
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 1.75),
       },
     });
 
-    Render.run(render);
-    const runner = Runner.create();
-    Runner.run(runner, engine);
+    if (render.canvas) {
+      render.canvas.style.width = '100%';
+      render.canvas.style.height = '100%';
+    }
+
+    const runner = Runner.create({
+      delta: 1000 / 60, // Строго 60 FPS
+    });
+
+    renderRef.current = render;
+    runnerRef.current = runner;
+
+    // Нельзя это расскоментировать, т.к. тогда запускаются 2 процесса (от этого и другого useeffect)
+    // if (!isPausedRef.current) {
+    //   Render.run(render);
+    //   Runner.run(runner, engine);
+    // }
 
     // Очищаем вылетевшее вниз
     // И двигаем все вниз для эффекта полета камеры
@@ -44,21 +69,31 @@ export function BilliardsBackground({ className }: { className?: string }) {
       // Смещение 200px за 4 сек при 60 fps
       const driftY = (200 / 4000) * (1000 / 60);
 
-      bodies.forEach((body) => {
-        if (!body.isStatic) {
-          //  Сдвигаем шар вместе с сукном (это не меняет его физический импульс)
-          Body.translate(body, { x: 0, y: driftY });
+      // bodies.forEach((body) => {
+      //   if (!body.isStatic) {
+      //     //  Сдвигаем шар вместе с сукном (это не меняет его физический импульс)
+      //     Body.translate(body, { x: 0, y: driftY });
 
-          // Очищаем то, что улетело за пределы экрана
+      //     // Очищаем то, что улетело за пределы экрана
+      //     if (body.position.y > window.innerHeight + 100) {
+      //       World.remove(engine.world, body);
+      //     }
+      //   }
+      // });
+      for (let i = bodies.length - 1; i >= 0; i--) {
+        const body = bodies[i];
+        if (!body.isStatic) {
+          Body.translate(body, { x: 0, y: driftY });
           if (body.position.y > window.innerHeight + 100) {
             World.remove(engine.world, body);
           }
         }
-      });
+      }
     });
 
     // ==========================================
     const wallThickness = 50;
+    const wallHeight = 10000;
     const height = window.innerHeight;
     const width = window.innerWidth;
 
@@ -66,7 +101,7 @@ export function BilliardsBackground({ className }: { className?: string }) {
       -wallThickness / 2,
       height / 2,
       wallThickness,
-      height,
+      wallHeight,
       {
         isStatic: true,
       }
@@ -75,7 +110,7 @@ export function BilliardsBackground({ className }: { className?: string }) {
       width + wallThickness / 2,
       height / 2,
       wallThickness,
-      height,
+      wallHeight,
       {
         isStatic: true,
       }
@@ -88,7 +123,7 @@ export function BilliardsBackground({ className }: { className?: string }) {
     let piramidEventTimeoutId: ReturnType<typeof setTimeout>;
 
     const spawnBall = () => {
-      if (!document.hidden) {
+      if (!document.hidden && !isPausedRef.current) {
         // 3% шанс на появление целой пирамиды
         if (Math.random() < 0.03) {
           const r = 20;
@@ -125,7 +160,7 @@ export function BilliardsBackground({ className }: { className?: string }) {
           // Биток спавним ровно по центру начального X и бьем вниз.
           piramidEventTimeoutId = setTimeout(
             () => {
-              if (document.hidden) return;
+              if (document.hidden || isPausedRef.current) return;
 
               const cueBall = Bodies.circle(startX, -50, r, BALL_OPTIONS);
               World.add(engine.world, cueBall);
@@ -166,23 +201,17 @@ export function BilliardsBackground({ className }: { className?: string }) {
     // Запускаем рекурсивный цикл
     spawnBall();
 
-    Events.on(render, 'beforeRender', () => {
-      const context = render.context;
-      context.shadowColor = 'rgba(0, 0, 0, 0.4)';
-      context.shadowBlur = 10;
-      context.shadowOffsetX = 5;
-      context.shadowOffsetY = 5;
-    });
     // ==========================================
 
     const handleResize = () => {
       const newWidth = window.innerWidth;
       const newHeight = window.innerHeight;
 
-      render.canvas.width = newWidth;
-      render.canvas.height = newHeight;
-      render.options.width = newWidth;
-      render.options.height = newHeight;
+      // render.canvas.width = newWidth;
+      // render.canvas.height = newHeight;
+      // render.options.width = newWidth;
+      // render.options.height = newHeight;
+      Render.setSize(render, newWidth, newHeight);
 
       Body.setPosition(rightWall, {
         x: newWidth + wallThickness / 2,
@@ -191,7 +220,7 @@ export function BilliardsBackground({ className }: { className?: string }) {
 
       Body.setPosition(leftWall, {
         x: -wallThickness / 2,
-        y: height / 2,
+        y: newHeight / 2,
       });
     };
 
@@ -207,8 +236,23 @@ export function BilliardsBackground({ className }: { className?: string }) {
       clearTimeout(spawnBallTimeoutId);
       clearTimeout(piramidEventTimeoutId);
       window.removeEventListener('resize', handleResize);
+      engineRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!runnerRef.current || !renderRef.current || !engineRef.current) return;
+
+    if (isPaused) {
+      // Пользователь зашел на лекцию: глушим движок и рендер!
+      Matter.Runner.stop(runnerRef.current);
+      Matter.Render.stop(renderRef.current);
+    } else {
+      // Пользователь вышел с лекции: снимаем с паузы!
+      Matter.Runner.run(runnerRef.current, engineRef.current);
+      Matter.Render.run(renderRef.current);
+    }
+  }, [isPaused]);
 
   return (
     <>
@@ -234,12 +278,18 @@ export function BilliardsBackground({ className }: { className?: string }) {
 
       <div
         className={cn(
-          'fixed inset-0 -z-10 overflow-hidden bg-[#0d1c12]',
+          'fixed inset-0 -z-10 overflow-hidden bg-[#11311c]',
+          isPaused && 'invisible opacity-0',
           className
         )}
       >
         {/* Анимированная фактура сукна */}
-        <div className="cloth-texture pointer-events-none absolute inset-x-0 -top-[200px] bottom-0 h-[calc(100%+200px)] w-full opacity-80" />
+        <div
+          className={cn(
+            'cloth-texture pointer-events-none absolute inset-x-0 -top-[200px] bottom-0 h-[calc(100%+200px)] w-full opacity-80',
+            isPaused && '[animation-play-state:paused]'
+          )}
+        />
 
         {/* Бильярдная лампа */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,230,0.08)_0%,transparent_60%)]" />
@@ -251,7 +301,7 @@ export function BilliardsBackground({ className }: { className?: string }) {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(164,255,188,0.03)_0%,transparent_50%)]" />
 
         {/* Градиент глубины */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/20 via-black/35 to-[#0a120c]" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-black/45 to-[#0a120c]" />
       </div>
     </>
   );
