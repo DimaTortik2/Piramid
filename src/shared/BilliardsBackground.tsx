@@ -55,31 +55,28 @@ export function BilliardsBackground({ className }: { className?: string }) {
     renderRef.current = render;
     runnerRef.current = runner;
 
-    // Нельзя это расскоментировать, т.к. тогда запускаются 2 процесса (от этого и другого useeffect)
-    // if (!isPausedRef.current) {
-    //   Render.run(render);
-    //   Runner.run(runner, engine);
-    // }
+    const activeTimeouts = new Set<ReturnType<typeof setTimeout>>();
+    // Запускает setTimeout, добавляет его в Set, а после выполнения - удаляет.
+    const runWithTimeout = (callback: () => void, delay: number) => {
+      const id = setTimeout(() => {
+        activeTimeouts.delete(id);
+        callback();
+      }, delay);
+      activeTimeouts.add(id);
+    };
+
+    if (!isPausedRef.current) {
+      Render.run(render);
+      Runner.run(runner, engine);
+    }
 
     // Очищаем вылетевшее вниз
     // И двигаем все вниз для эффекта полета камеры
-    Events.on(engine, 'beforeUpdate', () => {
+    const handleBeforeUpdate = () => {
       const bodies = engine.world.bodies;
-
       // Смещение 200px за 4 сек при 60 fps
       const driftY = (200 / 4000) * (1000 / 60);
 
-      // bodies.forEach((body) => {
-      //   if (!body.isStatic) {
-      //     //  Сдвигаем шар вместе с сукном (это не меняет его физический импульс)
-      //     Body.translate(body, { x: 0, y: driftY });
-
-      //     // Очищаем то, что улетело за пределы экрана
-      //     if (body.position.y > window.innerHeight + 100) {
-      //       World.remove(engine.world, body);
-      //     }
-      //   }
-      // });
       for (let i = bodies.length - 1; i >= 0; i--) {
         const body = bodies[i];
         if (!body.isStatic) {
@@ -89,7 +86,9 @@ export function BilliardsBackground({ className }: { className?: string }) {
           }
         }
       }
-    });
+    };
+
+    Events.on(engine, 'beforeUpdate', handleBeforeUpdate);
 
     // ==========================================
     const wallThickness = 50;
@@ -119,9 +118,6 @@ export function BilliardsBackground({ className }: { className?: string }) {
     World.add(engine.world, rightWall);
 
     // Стреляем шарами рандомно
-    let spawnBallTimeoutId: ReturnType<typeof setTimeout>;
-    let piramidEventTimeoutId: ReturnType<typeof setTimeout>;
-
     const spawnBall = () => {
       if (!document.hidden && !isPausedRef.current) {
         // 3% шанс на появление целой пирамиды
@@ -158,7 +154,7 @@ export function BilliardsBackground({ className }: { className?: string }) {
 
           // 4. Ждем 5-7 секунды.
           // Биток спавним ровно по центру начального X и бьем вниз.
-          piramidEventTimeoutId = setTimeout(
+          runWithTimeout(
             () => {
               if (document.hidden || isPausedRef.current) return;
 
@@ -173,7 +169,7 @@ export function BilliardsBackground({ className }: { className?: string }) {
           );
 
           // Ставим долгую паузу перед следующим обычным шаром
-          spawnBallTimeoutId = setTimeout(spawnBall, 6000);
+          runWithTimeout(spawnBall, 6000);
           return;
         }
 
@@ -196,7 +192,7 @@ export function BilliardsBackground({ className }: { className?: string }) {
       }
 
       const nextSpawnTime = Math.random() * 1000 + 200;
-      spawnBallTimeoutId = setTimeout(spawnBall, nextSpawnTime);
+      runWithTimeout(spawnBall, nextSpawnTime);
     };
     // Запускаем рекурсивный цикл
     spawnBall();
@@ -227,16 +223,19 @@ export function BilliardsBackground({ className }: { className?: string }) {
     window.addEventListener('resize', handleResize);
 
     return () => {
+      Events.off(engine, 'beforeUpdate', handleBeforeUpdate);
+
       Render.stop(render);
       Runner.stop(runner);
       if (render.canvas) {
         render.canvas.remove();
       }
       Engine.clear(engine);
-      clearTimeout(spawnBallTimeoutId);
-      clearTimeout(piramidEventTimeoutId);
+      activeTimeouts.forEach(clearTimeout);
       window.removeEventListener('resize', handleResize);
       engineRef.current = null;
+      renderRef.current = null;
+      runnerRef.current = null;
     };
   }, []);
 
@@ -248,6 +247,9 @@ export function BilliardsBackground({ className }: { className?: string }) {
       Matter.Runner.stop(runnerRef.current);
       Matter.Render.stop(renderRef.current);
     } else {
+      // Превентивный stop защищает от двойного запуска requestAnimationFrame
+      Matter.Runner.stop(runnerRef.current);
+      Matter.Render.stop(renderRef.current);
       // Пользователь вышел с лекции: снимаем с паузы!
       Matter.Runner.run(runnerRef.current, engineRef.current);
       Matter.Render.run(renderRef.current);
