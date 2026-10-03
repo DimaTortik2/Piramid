@@ -2,7 +2,7 @@ import type { ReactNode, ComponentProps } from 'react';
 import { cn } from '@/shared/lib/utils/cn';
 
 interface ActionCardProps extends Omit<ComponentProps<'div'>, 'title'> {
-  title?: ReactNode;
+  title?: string;
   desc?: ReactNode;
   actions?: ReactNode;
   headerAddon?: ReactNode;
@@ -19,7 +19,7 @@ export function ActionCard({
   return (
     <div
       className={cn(
-        'bg-background/80 text-foreground rounded-lg p-5 backdrop-blur-lg shadow-2xl',
+        'bg-background/80 text-foreground rounded-lg p-5 shadow-2xl backdrop-blur-lg',
         className
       )}
       {...props}

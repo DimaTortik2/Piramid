@@ -1,8 +1,6 @@
 import { cn } from '@/shared/lib/utils/cn';
-import type { ReactNode } from 'react';
 
 interface CircleProps extends React.HTMLAttributes<HTMLDivElement> {
-  children: ReactNode;
 }
 
 export function Circle({ children, className, ...props }: CircleProps) {
