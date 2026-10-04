@@ -5,10 +5,38 @@ import NoSleep from 'nosleep.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+function useSwipeUp(onSwipeUp: () => void, threshold = 50) {
+  const touchStartY = useRef(0);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const touchEndY = e.changedTouches[0].clientY;
+    const distance = touchStartY.current - touchEndY; // разница по оси Y
+
+    if (distance > threshold) {
+      onSwipeUp();
+    }
+  };
+
+  return { onTouchStart, onTouchEnd };
+}
+
 export function SpectatorPage() {
   const [isActive, setIsActive] = useState(false);
 
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
   const noSleepRef = useRef<NoSleep | null>(null);
+
+  const swipeHandlers = useSwipeUp(() => {
+    if (isActive) {
+      setIsDrawerOpen(true);
+    }
+  });
+
   useEffect(() => {
     noSleepRef.current = new NoSleep();
 
@@ -18,7 +46,6 @@ export function SpectatorPage() {
           noSleepRef.current.disable();
         }
         setIsActive(false);
-        console.log('Полноэкранный режим и NoSleep отключены');
       }
     };
 
@@ -26,55 +53,47 @@ export function SpectatorPage() {
 
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      
       if (noSleepRef.current) {
         noSleepRef.current.disable();
       }
-
       if (document.fullscreenElement) {
-        document.exitFullscreen().catch((err) => {
-          console.warn('Не удалось выйти из полноэкранного режима:', err);
-        });
+        document.exitFullscreen().catch(() => {});
       }
     };
   }, []);
 
-  const enableBoth = async () => {
+  const handleEnableBoth = async () => {
+    setIsDrawerOpen(false);
+
     try {
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen();
       }
-
       if (noSleepRef.current) {
         await noSleepRef.current.enable();
       }
-
       setIsActive(true);
-      console.log('Режим "Всегда включен" активирован');
     } catch (err) {
       console.error('Ошибка при включении:', err);
     }
   };
 
-  const disableBoth = async () => {
+  const handleDisableBoth = async () => {
     try {
       if (document.fullscreenElement) {
         await document.exitFullscreen();
       }
-
       if (noSleepRef.current) {
         noSleepRef.current.disable();
       }
-
       setIsActive(false);
-      console.log('Все вернулось в обычный режим');
     } catch (err) {
       console.error('Ошибка при отключении:', err);
     }
   };
 
   return (
-    <div className="flex h-full min-h-screen w-full flex-col p-3">
+    <div {...swipeHandlers} className="flex h-[100dvh] w-full flex-col p-3">
       <div>
         {!isActive && (
           <Link className="flex items-center gap-1 opacity-30" to={'/'}>
@@ -86,9 +105,29 @@ export function SpectatorPage() {
 
       <div className="mt-auto flex justify-center">
         {isActive ? (
-          <button className="opacity-2" onClick={disableBoth}>
-            Выкл
-          </button>
+          <>
+            <button className="opacity-2" onClick={handleDisableBoth}>
+              Выкл
+            </button>
+            <InfoDrawer
+              isOpen={isDrawerOpen}
+              onOpenChange={setIsDrawerOpen}
+              content={
+                <>
+                  Вы хотите{' '}
+                  <strong>
+                    <span className="text-reader-accent-foreground">
+                      выйти из режима
+                    </span>
+                  </strong>{' '}
+                  полного наблюдения?
+                </>
+              }
+              closeBtn={
+                <Button onClick={handleDisableBoth}>Да, выходим</Button>
+              }
+            />
+          </>
         ) : (
           <InfoDrawer
             trigger={
@@ -107,9 +146,15 @@ export function SpectatorPage() {
                     в нижней части экрана
                   </span>
                 </strong>
+                {' или сделав '}
+                <strong>
+                  <span className="text-reader-accent-foreground">
+                    свайп снизу вверх
+                  </span>
+                </strong>
               </>
             }
-            closeBtn={<Button onClick={enableBoth}>Ок, включаем</Button>}
+            closeBtn={<Button onClick={handleEnableBoth}>Ок, включаем</Button>}
           />
         )}
       </div>
