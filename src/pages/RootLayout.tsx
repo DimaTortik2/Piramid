@@ -33,6 +33,7 @@ const NAV_ITEMS = [
 ] as const;
 
 export const NavBar = ({ className }: { className?: string }) => {
+  
   return (
     <div className={cn('bg-background pb-safe w-full', className)}>
       <nav className="mx-auto grid max-w-md grid-cols-3 items-center px-4 py-2">
@@ -67,12 +68,16 @@ export function RootLayout() {
   const hideNavBar = matches.some(
     (match) => (match.handle as { hideNavBar?: boolean })?.hideNavBar
   );
+  const isPaused = matches.some(
+    (match) => (match.handle as { pauseBackground?: boolean })?.pauseBackground
+  );
+
    const location = useLocation();
   return (
     <div
       className="animate-app-fade-in relative text-foreground flex min-h-dvh w-full flex-col bg-cover bg-center bg-no-repeat"
     >
-      <BilliardsBackground className="h-full w-full"/>
+      <BilliardsBackground isPaused={isPaused} className="h-full w-full"/>
       <main className="relative z-10 flex-1">
         <NavigationLoader />
         <Outlet />

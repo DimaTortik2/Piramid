@@ -4,8 +4,8 @@ import { cn } from '@/shared/lib/utils/cn';
 
 const variants = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
-  destructive:
-    'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+  background:
+    'bg-background text-foreground hover:bg-background/90',
   white: 'bg-white text-black hover:bg-white/90',
   outline: 'border-2 border-primary/20 bg-transparent hover:bg-primary/10',
   ghost: 'bg-transparent hover:bg-white/10',

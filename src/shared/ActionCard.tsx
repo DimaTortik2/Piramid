@@ -2,7 +2,7 @@ import type { ReactNode, ComponentProps } from 'react';
 import { cn } from '@/shared/lib/utils/cn';
 
 interface ActionCardProps extends Omit<ComponentProps<'div'>, 'title'> {
-  title?: string;
+  title?: string | ReactNode;
   desc?: ReactNode;
   actions?: ReactNode;
   headerAddon?: ReactNode;

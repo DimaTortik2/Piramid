@@ -1,30 +1,44 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import Matter from 'matter-js';
 import { cn } from '@/shared/lib/utils/cn';
-import { useMatches } from 'react-router-dom';
 const NOISE_SVG = `data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E`;
 
-const BALL_OPTIONS = {
-  restitution: 0.95,
-  frictionAir: 0.007,
-  render: { fillStyle: '#f5f5f5' },
+const CONFIG = {
+  FPS: 60,
+  DRIFT_PX: 300,
+  DRIFT_MS: 4000,
+  BALL_RADIUS: 20,
+  PYRAMID_CHANCE: 0.03,
+  WALL_THICKNESS: 50,
+  WALL_HEIGHT: 10000,
+  PYRAMID_START_Y: -160,
+  CUE_BALL_START_Y: -50,
+  CUE_BALL_SPEED: 36,
+  IMPACT_Y_RATIO: 0.2,
+
+  BALL_OPTIONS: {
+    restitution: 0.95,
+    frictionAir: 0.007,
+    render: { fillStyle: '#f5f5f5' },
+  },
 };
 
-export function BilliardsBackground({ className }: { className?: string }) {
-  const sceneRef = useRef<HTMLDivElement>(null);
+function useInit<T extends HTMLElement = HTMLElement>(
+  sceneRef: RefObject<T | null>,
+  isPaused: boolean
+): {
+  isPausedRef: RefObject<boolean | null>;
+  engineRef: RefObject<Matter.Engine | null>;
+} {
+  const isPausedRef = useRef(isPaused);
+  isPausedRef.current = isPaused;
   const engineRef = useRef<Matter.Engine | null>(null);
-  const matches = useMatches();
   const runnerRef = useRef<Matter.Runner | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
 
-  const isPaused = matches.some(
-    (match) => (match.handle as { pauseBackground?: boolean })?.pauseBackground
-  );
-  const isPausedRef = useRef(isPaused);
-  isPausedRef.current = isPaused;
-
   useEffect(() => {
-    if (!sceneRef.current || engineRef.current) return;
+    if (!sceneRef.current) return;
+
     const { Engine, Render, Runner, Bodies, World, Body, Events } = Matter;
 
     const engine = Engine.create();
@@ -48,35 +62,56 @@ export function BilliardsBackground({ className }: { className?: string }) {
       render.canvas.style.height = '100%';
     }
 
+    const leftWall = Bodies.rectangle(
+      -CONFIG.WALL_THICKNESS / 2,
+      window.innerHeight / 2,
+      CONFIG.WALL_THICKNESS,
+      CONFIG.WALL_HEIGHT,
+      {
+        isStatic: true,
+      }
+    );
+    const rightWall = Bodies.rectangle(
+      window.innerWidth + CONFIG.WALL_THICKNESS / 2,
+      window.innerHeight / 2,
+      CONFIG.WALL_THICKNESS,
+      CONFIG.WALL_HEIGHT,
+      {
+        isStatic: true,
+      }
+    );
+
+    World.add(engine.world, leftWall);
+    World.add(engine.world, rightWall);
+
     const runner = Runner.create({
-      delta: 1000 / 60, // Строго 60 FPS
+      delta: 1000 / CONFIG.FPS, // Строго 60 FPS
     });
-
-    renderRef.current = render;
-    runnerRef.current = runner;
-
-    const activeTimeouts = new Set<ReturnType<typeof setTimeout>>();
-    // Запускает setTimeout, добавляет его в Set, а после выполнения - удаляет.
-    const runWithTimeout = (callback: () => void, delay: number) => {
-      const id = setTimeout(() => {
-        activeTimeouts.delete(id);
-        callback();
-      }, delay);
-      activeTimeouts.add(id);
-    };
 
     if (!isPausedRef.current) {
       Render.run(render);
       Runner.run(runner, engine);
     }
 
+    renderRef.current = render;
+    runnerRef.current = runner;
+
     // Очищаем вылетевшее вниз
     // И двигаем все вниз для эффекта полета камеры
+    let lastTime = performance.now();
     const handleBeforeUpdate = () => {
-      const bodies = engine.world.bodies;
-      // Смещение 200px за 4 сек при 60 fps
-      const driftY = (200 / 4000) * (1000 / 60);
+      const now = performance.now();
+      // Сколько реальных миллисекунд прошло с прошлого кадра (на 60Hz это ~16ms, на 120Hz это ~8ms)
+      const delta = now - lastTime;
+      lastTime = now;
 
+      // Защита от скачка, если вкладку свернули и развернули
+      const safeDelta = Math.min(delta, 100);
+
+      // Сдвиг строго за миллисекунду: (200px / 4000ms) * delta
+      const driftY = (CONFIG.DRIFT_PX / CONFIG.DRIFT_MS) * safeDelta;
+
+      const bodies = engine.world.bodies;
       for (let i = bodies.length - 1; i >= 0; i--) {
         const body = bodies[i];
         if (!body.isStatic) {
@@ -90,45 +125,92 @@ export function BilliardsBackground({ className }: { className?: string }) {
 
     Events.on(engine, 'beforeUpdate', handleBeforeUpdate);
 
-    // ==========================================
-    const wallThickness = 50;
-    const wallHeight = 10000;
-    const height = window.innerHeight;
-    const width = window.innerWidth;
+    const handleResize = () => {
+      const newWidth = window.innerWidth;
+      const newHeight = window.innerHeight;
 
-    const leftWall = Bodies.rectangle(
-      -wallThickness / 2,
-      height / 2,
-      wallThickness,
-      wallHeight,
-      {
-        isStatic: true,
+      Render.setSize(render, newWidth, newHeight);
+
+      Body.setPosition(rightWall, {
+        x: newWidth + CONFIG.WALL_THICKNESS / 2,
+        y: newHeight / 2,
+      });
+
+      Body.setPosition(leftWall, {
+        x: -CONFIG.WALL_THICKNESS / 2,
+        y: newHeight / 2,
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      Events.off(engine, 'beforeUpdate', handleBeforeUpdate);
+      Render.stop(render);
+      Runner.stop(runner);
+      if (render.canvas) {
+        render.canvas.remove();
       }
-    );
-    const rightWall = Bodies.rectangle(
-      width + wallThickness / 2,
-      height / 2,
-      wallThickness,
-      wallHeight,
-      {
-        isStatic: true,
-      }
-    );
-    World.add(engine.world, leftWall);
-    World.add(engine.world, rightWall);
+      Engine.clear(engine);
+      window.removeEventListener('resize', handleResize);
+      engineRef.current = null;
+      renderRef.current = null;
+      runnerRef.current = null;
+    };
+  }, []);
+
+  //Отвечает за то, на паузе ли bg
+  useEffect(() => {
+    if (!runnerRef.current || !renderRef.current || !engineRef.current) return;
+
+    if (isPaused) {
+      // Пользователь зашел на лекцию: глушим движок и рендер!
+      Matter.Runner.stop(runnerRef.current);
+      Matter.Render.stop(renderRef.current);
+    } else {
+      // Превентивный stop защищает от двойного запуска requestAnimationFrame
+      Matter.Runner.stop(runnerRef.current);
+      Matter.Render.stop(renderRef.current);
+      // Пользователь вышел с лекции: снимаем с паузы!
+      Matter.Runner.run(runnerRef.current, engineRef.current);
+      Matter.Render.run(renderRef.current);
+    }
+  }, [isPaused]);
+
+  return { isPausedRef, engineRef };
+}
+
+function useBallsSpawner(
+  engineRef: RefObject<Matter.Engine | null>,
+  isPausedRef: RefObject<boolean | null>
+) {
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    const activeTimeouts = new Set<ReturnType<typeof setTimeout>>();
+    // Запускает setTimeout, добавляет его в Set, а после выполнения - удаляет.
+    const runWithTimeout = (callback: () => void, delay: number) => {
+      const id = setTimeout(() => {
+        activeTimeouts.delete(id);
+        callback();
+      }, delay);
+      activeTimeouts.add(id);
+    };
+
+    const { Bodies, World, Body } = Matter;
 
     // Стреляем шарами рандомно
     const spawnBall = () => {
-      if (!document.hidden && !isPausedRef.current) {
+      if (!document.hidden && !isPausedRef.current && engineRef.current) {
         // 3% шанс на появление целой пирамиды
-        if (Math.random() < 0.03) {
-          const r = 20;
+        if (Math.random() < CONFIG.PYRAMID_CHANCE) {
+          const r = CONFIG.BALL_RADIUS;
           const d = r * 2.05;
 
           const margin = 150;
           const startX =
             Math.random() * (window.innerWidth - margin * 2) + margin;
-          const startY = -250;
+          const startY = CONFIG.PYRAMID_START_Y;
 
           const angle = (Math.random() - 0.5) * (Math.PI / 6);
           const cosA = Math.cos(angle);
@@ -145,38 +227,65 @@ export function BilliardsBackground({ className }: { className?: string }) {
               const rotatedX = startX + dx * cosA - dy * sinA;
               const rotatedY = startY + dx * sinA + dy * cosA;
 
-              const ball = Bodies.circle(rotatedX, rotatedY, r, BALL_OPTIONS);
+              const ball = Bodies.circle(
+                rotatedX,
+                rotatedY,
+                r,
+                CONFIG.BALL_OPTIONS
+              );
 
               Body.setVelocity(ball, { x: 0, y: 0 });
-              World.add(engine.world, ball);
+              World.add(engineRef.current.world, ball);
             }
           }
 
-          // 4. Ждем 5-7 секунды.
-          // Биток спавним ровно по центру начального X и бьем вниз.
-          runWithTimeout(
-            () => {
-              if (document.hidden || isPausedRef.current) return;
+          const targetY = window.innerHeight * CONFIG.IMPACT_Y_RATIO;
 
-              const cueBall = Bodies.circle(startX, -50, r, BALL_OPTIONS);
-              World.add(engine.world, cueBall);
+          // Сколько миллисекунд пирамида будет ползти до центра
+          const pyramidDistance = targetY - CONFIG.PYRAMID_START_Y;
+          const driftSpeedPerMs = CONFIG.DRIFT_PX / CONFIG.DRIFT_MS;
+          const pyramidTimeToTarget = pyramidDistance / driftSpeedPerMs;
 
-              const aimX = (Math.random() - 0.5) * 6;
+          // За сколько миллисекунд биток долетит от своего спавна (-50) до центра
+          const cueDistance = targetY - CONFIG.CUE_BALL_START_Y;
+          const cueSpeedPerMs = (CONFIG.CUE_BALL_SPEED * CONFIG.FPS) / 1000;
+          const cueFlightTime = cueDistance / cueSpeedPerMs;
 
-              Body.setVelocity(cueBall, { x: aimX, y: 24 });
-            },
-            Math.random() * 2000 + 9000
+          // Задержка перед выстрелом битка:
+          const calculatedDelay = pyramidTimeToTarget - cueFlightTime;
+          const cueDelay = Math.max(
+            0,
+            calculatedDelay + (Math.random() - 0.5) * 400
           );
 
-          // Ставим долгую паузу перед следующим обычным шаром
-          runWithTimeout(spawnBall, 6000);
+          runWithTimeout(() => {
+            if (document.hidden || isPausedRef.current || !engineRef.current)
+              return;
+
+            const cueBall = Bodies.circle(
+              startX,
+              CONFIG.CUE_BALL_START_Y,
+              r,
+              CONFIG.BALL_OPTIONS
+            );
+            World.add(engineRef.current.world, cueBall);
+
+            // Небольшой разброс по горизонтали (aimX), чтобы удар был не идеально в лоб, а сочный
+            const aimX = (Math.random() - 0.5) * 6;
+
+            // Сила удара берется из CONFIG.CUE_BALL_SPEED
+            Body.setVelocity(cueBall, { x: aimX, y: CONFIG.CUE_BALL_SPEED });
+          }, cueDelay);
+
+          // Пауза перед следующим шаром: ждем пока пирамида доедет, получит удар + 3 секунды полюбоваться разлетом
+          runWithTimeout(spawnBall, pyramidTimeToTarget + 3000);
           return;
         }
 
         const randomX = Math.random() * (window.innerWidth - 100) + 50;
-        const newBall = Bodies.circle(randomX, -50, 20, BALL_OPTIONS);
+        const newBall = Bodies.circle(randomX, -50, 20, CONFIG.BALL_OPTIONS);
 
-        World.add(engine.world, newBall);
+        World.add(engineRef.current.world, newBall);
 
         const isStationary = Math.random() < 0.2;
         if (isStationary) {
@@ -197,64 +306,24 @@ export function BilliardsBackground({ className }: { className?: string }) {
     // Запускаем рекурсивный цикл
     spawnBall();
 
-    // ==========================================
-
-    const handleResize = () => {
-      const newWidth = window.innerWidth;
-      const newHeight = window.innerHeight;
-
-      // render.canvas.width = newWidth;
-      // render.canvas.height = newHeight;
-      // render.options.width = newWidth;
-      // render.options.height = newHeight;
-      Render.setSize(render, newWidth, newHeight);
-
-      Body.setPosition(rightWall, {
-        x: newWidth + wallThickness / 2,
-        y: newHeight / 2,
-      });
-
-      Body.setPosition(leftWall, {
-        x: -wallThickness / 2,
-        y: newHeight / 2,
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-
     return () => {
-      Events.off(engine, 'beforeUpdate', handleBeforeUpdate);
-
-      Render.stop(render);
-      Runner.stop(runner);
-      if (render.canvas) {
-        render.canvas.remove();
-      }
-      Engine.clear(engine);
       activeTimeouts.forEach(clearTimeout);
-      window.removeEventListener('resize', handleResize);
-      engineRef.current = null;
-      renderRef.current = null;
-      runnerRef.current = null;
     };
   }, []);
+}
 
-  useEffect(() => {
-    if (!runnerRef.current || !renderRef.current || !engineRef.current) return;
+export function BilliardsBackground({
+  className,
+  isPaused = false,
+}: {
+  className?: string;
+  isPaused: boolean;
+}) {
+  const sceneRef = useRef<HTMLDivElement>(null);
 
-    if (isPaused) {
-      // Пользователь зашел на лекцию: глушим движок и рендер!
-      Matter.Runner.stop(runnerRef.current);
-      Matter.Render.stop(renderRef.current);
-    } else {
-      // Превентивный stop защищает от двойного запуска requestAnimationFrame
-      Matter.Runner.stop(runnerRef.current);
-      Matter.Render.stop(renderRef.current);
-      // Пользователь вышел с лекции: снимаем с паузы!
-      Matter.Runner.run(runnerRef.current, engineRef.current);
-      Matter.Render.run(renderRef.current);
-    }
-  }, [isPaused]);
+  const { isPausedRef, engineRef } = useInit(sceneRef, isPaused);
+
+  useBallsSpawner(engineRef, isPausedRef);
 
   return (
     <>
@@ -262,7 +331,7 @@ export function BilliardsBackground({ className }: { className?: string }) {
         {`
           @keyframes slideFelt {
             0% { transform: translate3d(0, 0, 0); }
-            100% { transform: translate3d(0, 200px, 0); }
+            100% { transform: translate3d(0, ${CONFIG.DRIFT_PX}px, 0); }
           }
           
           .cloth-texture {
@@ -273,7 +342,7 @@ export function BilliardsBackground({ className }: { className?: string }) {
             background-size: 4px 4px, 4px 4px, 200px 200px;
             opacity: 0.18;
             will-change: transform;
-            animation: slideFelt 4s linear infinite;
+            animation: slideFelt ${CONFIG.DRIFT_MS}ms linear infinite;
           }
         `}
       </style>
@@ -287,8 +356,12 @@ export function BilliardsBackground({ className }: { className?: string }) {
       >
         {/* Анимированная фактура сукна */}
         <div
+          style={{
+            top: -CONFIG.DRIFT_PX,
+            height: `calc(100% + ${CONFIG.DRIFT_PX}px)`,
+          }}
           className={cn(
-            'cloth-texture pointer-events-none absolute inset-x-0 -top-[200px] bottom-0 h-[calc(100%+200px)] w-full opacity-80',
+            'cloth-texture pointer-events-none absolute inset-x-0 bottom-0 w-full opacity-80',
             isPaused && '[animation-play-state:paused]'
           )}
         />

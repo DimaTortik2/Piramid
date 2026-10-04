@@ -20,8 +20,6 @@ export const router = createBrowserRouter([
       },
       {
         path: 'lectures',
-            handle: { pauseBackground: true },
-
         children: [
           {
             index: true,
@@ -53,6 +51,15 @@ export const router = createBrowserRouter([
           const { TrainingPage } = await import('@/pages/TrainingPage');
           return { Component: TrainingPage };
         },
+      },
+
+      {
+        path: 'spectator',
+        lazy: async () => {
+          const { SpectatorPage } = await import('@/pages/SpectatorPage');
+          return { Component: SpectatorPage };
+        },
+        handle: { hideNavBar: true },
       },
     ],
   },

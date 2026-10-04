@@ -12,6 +12,7 @@ export interface InfoDrawerProps {
   activeSnapPoint?: number | string | null;
   setActiveSnapPoint?: (snapPoint: number | string | null) => void;
   fadeFromIndex?: number;
+  closeBtn?: ReactNode;
 }
 
 export function InfoDrawer({
@@ -24,6 +25,7 @@ export function InfoDrawer({
   activeSnapPoint,
   setActiveSnapPoint,
   fadeFromIndex,
+  closeBtn,
 }: InfoDrawerProps) {
   const snapProps =
     snapPoints && snapPoints.length > 0
@@ -59,7 +61,7 @@ export function InfoDrawer({
           {/* Кнопка закрытия */}
           <div className="pb-safe-or-4 shrink-0 px-6 pt-4">
             <Drawer.Close asChild>
-              <Button>Закрыть</Button>
+              {closeBtn ? closeBtn : <Button>Закрыть</Button>}
             </Drawer.Close>
           </div>
         </Drawer.Content>
