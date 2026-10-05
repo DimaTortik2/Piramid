@@ -61,6 +61,13 @@ export const router = createBrowserRouter([
         },
         handle: { hideNavBar: true },
       },
+      {
+        path: 'settings',
+        lazy: async () => {
+          const { SettingsPage } = await import('@/pages/Settings/SettingsPage');
+          return { Component: SettingsPage };
+        },
+      },
     ],
   },
 ]);

@@ -1,101 +1,32 @@
 import { Button } from '@/shared/Button';
+import { useSwipeUp } from '@/shared/hooks/useSwipeUp';
+import { useZenMode } from '@/shared/hooks/useZenMode';
 import { InfoDrawer } from '@/shared/InfoDrawer';
 import { ArrowLeftIcon } from '@phosphor-icons/react';
-import NoSleep from 'nosleep.js';
-import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-
-function useSwipeUp(onSwipeUp: () => void, threshold = 50) {
-  const touchStartY = useRef(0);
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-  };
-
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const touchEndY = e.changedTouches[0].clientY;
-    const distance = touchStartY.current - touchEndY; // разница по оси Y
-
-    if (distance > threshold) {
-      onSwipeUp();
-    }
-  };
-
-  return { onTouchStart, onTouchEnd };
-}
+import { useState } from 'react';
+import { Link, useOutletContext } from 'react-router-dom';
 
 export function SpectatorPage() {
-  const [isActive, setIsActive] = useState(false);
-
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const { enableZenMode, disableZenMode, isZenModeActive } =
+    useOutletContext<ReturnType<typeof useZenMode>>();
 
-  const noSleepRef = useRef<NoSleep | null>(null);
+  const handleEnableZenMode = async () => {
+    setIsDrawerOpen(false);
+    enableZenMode();
+  };
+
 
   const swipeHandlers = useSwipeUp(() => {
-    if (isActive) {
+    if (isZenModeActive) {
       setIsDrawerOpen(true);
     }
   });
 
-  useEffect(() => {
-    noSleepRef.current = new NoSleep();
-
-    const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) {
-        if (noSleepRef.current) {
-          noSleepRef.current.disable();
-        }
-        setIsActive(false);
-      }
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      if (noSleepRef.current) {
-        noSleepRef.current.disable();
-      }
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
-      }
-    };
-  }, []);
-
-  const handleEnableBoth = async () => {
-    setIsDrawerOpen(false);
-
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      }
-      if (noSleepRef.current) {
-        await noSleepRef.current.enable();
-      }
-      setIsActive(true);
-    } catch (err) {
-      console.error('Ошибка при включении:', err);
-    }
-  };
-
-  const handleDisableBoth = async () => {
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      }
-      if (noSleepRef.current) {
-        noSleepRef.current.disable();
-      }
-      setIsActive(false);
-    } catch (err) {
-      console.error('Ошибка при отключении:', err);
-    }
-  };
-
   return (
     <div {...swipeHandlers} className="flex h-[100dvh] w-full flex-col p-3">
       <div>
-        {!isActive && (
+        {!isZenModeActive && (
           <Link className="flex items-center gap-1 opacity-30" to={'/'}>
             <ArrowLeftIcon />
             {'Назад'}
@@ -104,9 +35,9 @@ export function SpectatorPage() {
       </div>
 
       <div className="mt-auto flex justify-center">
-        {isActive ? (
+        {isZenModeActive ? (
           <>
-            <button className="opacity-2" onClick={handleDisableBoth}>
+            <button className="opacity-2" onClick={disableZenMode}>
               Выкл
             </button>
             <InfoDrawer
@@ -123,9 +54,7 @@ export function SpectatorPage() {
                   полного наблюдения?
                 </>
               }
-              closeBtn={
-                <Button onClick={handleDisableBoth}>Да, выходим</Button>
-              }
+              closeBtn={<Button onClick={disableZenMode}>Да, выходим</Button>}
             />
           </>
         ) : (
@@ -154,7 +83,9 @@ export function SpectatorPage() {
                 </strong>
               </>
             }
-            closeBtn={<Button onClick={handleEnableBoth}>Ок, включаем</Button>}
+            closeBtn={
+              <Button onClick={handleEnableZenMode}>Ок, включаем</Button>
+            }
           />
         )}
       </div>

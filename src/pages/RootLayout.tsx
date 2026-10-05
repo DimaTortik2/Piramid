@@ -1,4 +1,10 @@
-import { NavLink, Outlet, useLocation, useMatches } from 'react-router-dom';
+import {
+  NavLink,
+  Outlet,
+  useLocation,
+  useMatches,
+  ScrollRestoration,
+} from 'react-router-dom';
 import {
   HouseIcon,
   TextAlignCenterIcon,
@@ -7,6 +13,8 @@ import {
 import { cn } from '@/shared/lib/utils/cn';
 import { NavigationLoader } from '@/shared/Loaders/NavigationLoader';
 import { BilliardsBackground } from '@/shared/BilliardsBackground';
+import { useZenMode } from '@/shared/hooks/useZenMode';
+import { useEffect } from 'react';
 
 const NAV_ITEMS = [
   {
@@ -33,7 +41,6 @@ const NAV_ITEMS = [
 ] as const;
 
 export const NavBar = ({ className }: { className?: string }) => {
-  
   return (
     <div className={cn('bg-background pb-safe w-full', className)}>
       <nav className="mx-auto grid max-w-md grid-cols-3 items-center px-4 py-2">
@@ -72,22 +79,33 @@ export function RootLayout() {
     (match) => (match.handle as { pauseBackground?: boolean })?.pauseBackground
   );
 
-   const location = useLocation();
+  const location = useLocation();
+  const zenMode = useZenMode();
+
+  //Выключает Zen Mode когда мы не на лекции или спектаторе
+  useEffect(() => {
+    const isLectureSpecificPage = location.pathname.match(/^\/lectures\/.+/);
+    const isSpectatorPage = location.pathname.startsWith('/spectator');
+
+    if (!isLectureSpecificPage && !isSpectatorPage) {
+      zenMode.disableZenMode();
+    }
+  }, [location.pathname, zenMode.disableZenMode]);
+
   return (
-    <div
-      className="animate-app-fade-in relative text-foreground flex min-h-dvh w-full flex-col bg-cover bg-center bg-no-repeat"
-    >
-      <BilliardsBackground isPaused={isPaused} className="h-full w-full"/>
+    <div className="animate-app-fade-in text-foreground relative flex min-h-dvh w-full flex-col bg-cover bg-center bg-no-repeat">
+      <ScrollRestoration />
+      <BilliardsBackground isPaused={isPaused} className="h-full w-full" />
       <main className="relative z-10 flex-1">
         <NavigationLoader />
-        <Outlet />
+        <Outlet context={zenMode} />
       </main>
-       <div
+      <div
         key={location.pathname}
         aria-hidden="true"
         className="animate-page-reveal pointer-events-none fixed inset-0 z-40 bg-[#0d0b09]"
       />
-      {!hideNavBar && <NavBar className='sticky z-50 bottom-0' />}
+      {!hideNavBar && <NavBar className="sticky bottom-0 z-50" />}
     </div>
   );
 }

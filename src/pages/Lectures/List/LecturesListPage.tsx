@@ -1,5 +1,7 @@
+import { useZenMode } from '@/shared/hooks/useZenMode';
 import { cn } from '@/shared/lib/utils/cn';
-import { Link } from 'react-router-dom';
+import { useSettingsStore } from '@/shared/store/useSettingsStore';
+import { Link, useOutletContext } from 'react-router-dom';
 
 interface LecturesListPageProps {}
 
@@ -7,7 +9,7 @@ const ListElement = ({ title, desc }: { title: string; desc: string }) => {
   return (
     <div
       className={cn(
-        'bg-background/80 text-foreground hover:bg-background/90 rounded-lg p-5 text-sm backdrop-blur-lg shadow-2xl',
+        'bg-background/80 text-foreground hover:bg-background/90 rounded-lg p-5 text-sm shadow-2xl backdrop-blur-lg',
         'w-full whitespace-nowrap transition-colors active:scale-[0.98]'
       )}
     >
@@ -35,10 +37,19 @@ const LECTURES_DATA: {
 ];
 
 export function LecturesListPage({}: LecturesListPageProps) {
+  const isZenMode = useSettingsStore((state) => state.isZenMode);
+  const { enableZenMode } = useOutletContext<ReturnType<typeof useZenMode>>()
+
+  const handleLectureClick = () => {
+    if (isZenMode) {
+      enableZenMode();
+    }
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-125 flex-col gap-3 px-1 py-3">
       {LECTURES_DATA.map((d) => (
-        <Link key={d.to} to={'/lectures/' + d.to}>
+        <Link onClick={handleLectureClick} key={d.to} to={'/lectures/' + d.to}>
           <ListElement desc={d.desc} title={d.title} />
         </Link>
       ))}

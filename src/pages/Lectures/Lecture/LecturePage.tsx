@@ -1,13 +1,16 @@
 import { BackButton } from '@/shared/BackButton';
 import { useScroll } from '@/shared/lib/useScroll';
 import { ScrollProgressBar } from '@/shared/ScrollProgressBar';
-import { useMemo } from 'react';
+import {  useMemo } from 'react';
 import { useLoaderData } from 'react-router-dom';
 
 export function LecturePage() {
   const { MdxComponent } = useLoaderData();
   const { isScrollingDown } = useScroll();
   const renderedContent = useMemo(() => <MdxComponent />, [MdxComponent]);
+
+
+
   return (
     <div className="bg-reader-background relative min-h-screen w-full px-3 pt-3 pb-12">
       {/* Прогресс-бар */}

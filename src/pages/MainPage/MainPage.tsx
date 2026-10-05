@@ -60,6 +60,16 @@ const ACTION_CARDS_DATA: IActionCardData[] = [
       />
     ),
   },
+    {
+    title: 'Настройки',
+    actions: (
+      <Link className='w-full' to={'/settings'}>
+        <Button >
+          Открыть настройки
+        </Button>
+      </Link>
+    )
+  },
   {
     title: 'Созерцать',
     desc: <>Просто дайте посмотреть на задний фон</>,
@@ -78,7 +88,7 @@ export function MainPage({}: MainPageProps) {
     <div className="mx-auto flex min-h-full w-full max-w-125 flex-col justify-end gap-4 px-1 py-3">
       <WelcomeBanner pyramidClassName="w-[17.5rem]" />
 
-      {ACTION_CARDS_DATA.slice(0, -1).map((d) => (
+      {ACTION_CARDS_DATA.slice(0, 2).map((d) => (
         <ActionCard key={d.title} {...d} />
       ))}
 
@@ -90,8 +100,10 @@ export function MainPage({}: MainPageProps) {
         </Faq>
       ))}
       <div className="bg-foreground/20 mx-auto h-2 w-[90%] max-w-[5rem] rounded-full" />
-      
-        <ActionCard key={ACTION_CARDS_DATA[ACTION_CARDS_DATA.length - 1].title} {...ACTION_CARDS_DATA[ACTION_CARDS_DATA.length - 1]} />
+      {ACTION_CARDS_DATA.slice(2).map((d) => (
+        <ActionCard key={d.title} {...d} />
+      ))}
+        
     </div>
   );
 }
