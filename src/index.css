@@ -27,7 +27,7 @@
 
 @layer base {
   :root {
-    --background: oklch(97% 0.003 75);
+    --background: oklch(0.9389 0.0257 94.74);
     --foreground: oklch(20% 0.005 75);
     --muted-foreground: oklch(50% 0.005 75);
 
@@ -42,18 +42,20 @@
     --primary-foreground: oklch(15% 0.005 75);
 
     --piramid-border: oklch(15.391% 0.00207 106.777);
-    --piramid-balls: oklch(98.511% 0.00011 271.152);
+    --piramid-ball-main: #f0ebd8;
+    --piramid-ball-mid: #d6cfb7;
+    --piramid-ball-shadow: #bdb397;
 
     --radius: 1.5rem;
   }
 
   .dark {
     --background: oklch(15% 0.005 70);
-    --foreground: oklch(90% 0.003 70);
+    --foreground: oklch(0.9389 0.0257 94.74);
     --muted-foreground: oklch(65% 0.005 70);
 
     --reader-background: oklch(22% 0.006 65);
-    --reader-foreground: oklch(90% 0.01 75);
+    --reader-foreground: oklch(0.9389 0.0257 94.74);
     --reader-muted-foreground: oklch(65% 0.008 70);
     --reader-accent-foreground: oklch(76% 0.125 142);
 
@@ -63,7 +65,13 @@
     --primary-foreground: oklch(15% 0.005 75);
 
     --piramid-border: oklch(15.391% 0.00207 106.777);
-    --piramid-balls: oklch(98.511% 0.00011 271.152);
+    --piramid-ball-main: #f0ebd8;
+    --piramid-ball-mid: #d6cfb7;
+    --piramid-ball-shadow: #bdb397;
+
+    --piramid-ball-main-dark: #111215;  
+    --piramid-ball-mid-dark: #070709;   
+    --piramid-ball-shadow-dark: #000000;
   }
 }
 

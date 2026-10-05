@@ -30,7 +30,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
       className,
-      variant = 'white',
+      variant = 'primary',
       size = 'md',
       isLoading = false,
       leftIcon,

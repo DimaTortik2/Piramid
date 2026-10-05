@@ -1,5 +1,6 @@
 import { ActionCard } from '@/shared/ActionCard';
 import { cn } from '@/shared/lib/utils/cn';
+import { useSettingsStore } from '@/shared/store/useSettingsStore';
 
 interface WelcomeBannerProps {
   className?: string; // Классы всего блока
@@ -10,8 +11,11 @@ export function WelcomeBanner({
   className,
   pyramidClassName,
 }: WelcomeBannerProps) {
+   const isDarkBalls = useSettingsStore(state => state.isDarkBalls)
   return (
-    <section className={cn('relative flex w-full flex-col items-center', className)}>
+    <section
+      className={cn('relative flex w-full flex-col items-center', className)}
+    >
       <div
         className={cn(
           'relative z-0 flex w-[140px] justify-center transition-all duration-300',
@@ -33,22 +37,43 @@ export function WelcomeBanner({
           />
 
           <defs>
+            {/* 1. Светлый градиент (кремовые шары) */}
             <radialGradient
-              id="ball-volume"
+              id="ball-volume-light"
               cx="35%"
               cy="35%"
               r="65%"
               fx="35%"
               fy="35%"
             >
-              <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="40%" stopColor="#f8fafc" />
-              <stop offset="85%" stopColor="#cbd5e1" />
-              <stop offset="100%" stopColor="#94a3b8" />
+              <stop offset="40%" stopColor="var(--piramid-ball-main)" />
+              <stop offset="85%" stopColor="var(--piramid-ball-mid)" />
+              <stop offset="100%" stopColor="var(--piramid-ball-shadow)" />
+            </radialGradient>
+
+            {/* 2. Темный градиент (черные полированные шары) */}
+            <radialGradient
+              id="ball-volume-dark"
+              cx="35%"
+              cy="35%"
+              r="65%"
+              fx="35%"
+              fy="35%"
+            >
+              <stop offset="0%" stopColor="#2c2e33" />
+              <stop offset="40%" stopColor="var(--piramid-ball-main-dark)" />
+              <stop offset="70%" stopColor="var(--piramid-ball-mid-dark)" />
+              <stop offset="100%" stopColor="var(--piramid-ball-shadow-dark)" />
             </radialGradient>
           </defs>
 
-          <g fill="url(#ball-volume)">
+          <g
+            fill={
+              isDarkBalls ? 'url(#ball-volume-dark)' : 'url(#ball-volume-light)'
+            }
+            stroke={isDarkBalls ? 'rgba(255, 255, 255, 0.08)' : undefined}
+            strokeWidth={isDarkBalls ? 0.5 : undefined}
+          >
             {/* Ряд 5 (нижний — 5 шаров) */}
             <circle cx="66.5" cy="188.5" r="19.5" />
             <circle cx="105.5" cy="188.5" r="19.5" />

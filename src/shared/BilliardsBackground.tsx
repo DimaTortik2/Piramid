@@ -1,6 +1,7 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import Matter from 'matter-js';
 import { cn } from '@/shared/lib/utils/cn';
+import { useSettingsStore } from '@/shared/store/useSettingsStore';
 const NOISE_SVG = `data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E`;
 
 const CONFIG = {
@@ -19,8 +20,19 @@ const CONFIG = {
   BALL_OPTIONS: {
     restitution: 0.95,
     frictionAir: 0.007,
-    render: { fillStyle: '#f5f5f5' },
+    render: { fillStyle: '#F0EBD8' },
   },
+};
+
+const fetchColorFromCSS = (isDark: boolean) => {
+  if (typeof window === 'undefined') return isDark ? '#111215' : '#f0ebd8';
+
+  const varName = isDark ? '--piramid-ball-main-dark' : '--piramid-ball-main';
+  const color = getComputedStyle(document.documentElement)
+    .getPropertyValue(varName)
+    .trim();
+
+  return color || (isDark ? '#111215' : '#f0ebd8');
 };
 
 function useInit<T extends HTMLElement = HTMLElement>(
@@ -182,8 +194,25 @@ function useInit<T extends HTMLElement = HTMLElement>(
 
 function useBallsSpawner(
   engineRef: RefObject<Matter.Engine | null>,
-  isPausedRef: RefObject<boolean | null>
+  isPausedRef: RefObject<boolean | null>,
+  isDarkBalls: boolean
 ) {
+  const activeColorRef = useRef(fetchColorFromCSS(isDarkBalls));
+  //Обновляем цвет если темные/светлые стали
+  useEffect(() => {
+    const newColor = fetchColorFromCSS(isDarkBalls);
+    activeColorRef.current = newColor;
+
+    if (engineRef.current) {
+      engineRef.current.world.bodies.forEach((body) => {
+        if (!body.isStatic) {
+          body.render.fillStyle = newColor;
+        }
+      });
+    }
+  }, [isDarkBalls, engineRef]);
+
+  // Спавнер шаров
   useEffect(() => {
     if (!engineRef.current) return;
 
@@ -202,6 +231,10 @@ function useBallsSpawner(
     // Стреляем шарами рандомно
     const spawnBall = () => {
       if (!document.hidden && !isPausedRef.current && engineRef.current) {
+        const currentBallOptions = {
+          ...CONFIG.BALL_OPTIONS,
+          render: { fillStyle: activeColorRef.current },
+        };
         // 3% шанс на появление целой пирамиды
         if (Math.random() < CONFIG.PYRAMID_CHANCE) {
           const r = CONFIG.BALL_RADIUS;
@@ -231,7 +264,7 @@ function useBallsSpawner(
                 rotatedX,
                 rotatedY,
                 r,
-                CONFIG.BALL_OPTIONS
+                currentBallOptions
               );
 
               Body.setVelocity(ball, { x: 0, y: 0 });
@@ -266,7 +299,7 @@ function useBallsSpawner(
               startX,
               CONFIG.CUE_BALL_START_Y,
               r,
-              CONFIG.BALL_OPTIONS
+              currentBallOptions
             );
             World.add(engineRef.current.world, cueBall);
 
@@ -283,7 +316,7 @@ function useBallsSpawner(
         }
 
         const randomX = Math.random() * (window.innerWidth - 100) + 50;
-        const newBall = Bodies.circle(randomX, -50, 20, CONFIG.BALL_OPTIONS);
+        const newBall = Bodies.circle(randomX, -50, 20, currentBallOptions);
 
         World.add(engineRef.current.world, newBall);
 
@@ -322,8 +355,8 @@ export function BilliardsBackground({
   const sceneRef = useRef<HTMLDivElement>(null);
 
   const { isPausedRef, engineRef } = useInit(sceneRef, isPaused);
-
-  useBallsSpawner(engineRef, isPausedRef);
+  const isDarkBalls = useSettingsStore((state) => state.isDarkBalls); 
+  useBallsSpawner(engineRef, isPausedRef,isDarkBalls);
 
   return (
     <>

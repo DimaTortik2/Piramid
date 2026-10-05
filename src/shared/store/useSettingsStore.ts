@@ -4,14 +4,20 @@ import { persist } from 'zustand/middleware';
 interface SettingsState {
   isZenMode: boolean;
   toggleZenMode: () => void;
+
+  isDarkBalls: boolean;
+  toggleisDarkBalls: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       isZenMode: false,
+      isDarkBalls: false,
 
       toggleZenMode: () => set((state) => ({ isZenMode: !state.isZenMode })),
+      toggleisDarkBalls: () =>
+        set((state) => ({ isDarkBalls: !state.isDarkBalls })),
     }),
     {
       name: 'app-settings',
