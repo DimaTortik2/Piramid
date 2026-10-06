@@ -85,20 +85,21 @@ export function RootLayout() {
 
   //Выключает Zen Mode когда мы не на лекции или спектаторе
   useEffect(() => {
+    const isGamePage = location.pathname.match(/^\/game\/.+/);
     const isLectureSpecificPage = location.pathname.match(/^\/lectures\/.+/);
     const isSpectatorPage = location.pathname.startsWith('/spectator');
 
-    if (!isLectureSpecificPage && !isSpectatorPage) {
+    if (!isLectureSpecificPage && !isSpectatorPage && !isGamePage) {
       zenMode.disableZenMode();
     }
   }, [location.pathname, zenMode.disableZenMode]);
 
   //blur Setting
-   const disableBlur = useSettingsStore((state) => state.disableBlur);
+  const disableBlur = useSettingsStore((state) => state.disableBlur);
 
   useEffect(() => {
     document.documentElement.classList.toggle('no-blur', disableBlur);
-  }, [disableBlur])
+  }, [disableBlur]);
   //
 
   return (

@@ -5,11 +5,13 @@ import { Button } from '@/shared/Button';
 import { ChooseGameDrawer } from '@/shared/ChooseGameDrawer';
 import { Circle } from '@/shared/Circle';
 import { Faq } from '@/shared/Faq';
+import type { useZenMode } from '@/shared/hooks/useZenMode';
 import { InfoDrawer } from '@/shared/InfoDrawer';
 import { useGameStore } from '@/shared/store/gameStore';
+import { useSettingsStore } from '@/shared/store/useSettingsStore';
 import { QuestionMarkIcon, TrashIcon } from '@phosphor-icons/react';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface MainPageProps {}
@@ -22,16 +24,27 @@ interface IActionCardData {
 }
 
 const ACTION_CARDS_DATA: IActionCardData[] = [
- 
   {
     title: 'Дисплей для матча',
     desc: <>Вы можете сыграть с другом, а мы будем вам помогать</>,
-    actions: <ChooseGameDrawer trigger={<Button>Играть</Button>} />,
+    actions: <ChooseGameDrawer trigger={<Button>Новая игра</Button>} />,
     headerAddon: (
       <InfoDrawer
         content={
           <>
-            Это как бы режим игры. Вы можете <strong className='text-reader-accent-foreground' >отслеживать в нем статистику</strong> ваших текущих партий. <br/><strong className='text-reader-accent-foreground' >Просто помечайте забитые шары и штрафы.</strong> <br/>В конце игры вы сможете рассмотреть статистику по партиям и <strong className='text-reader-accent-foreground'>поделиться резуьтатом</strong> в соц сетях
+            Это как бы режим игры. Вы можете{' '}
+            <strong className="text-reader-accent-foreground">
+              отслеживать в нем статистику
+            </strong>{' '}
+            ваших текущих партий. <br />
+            <strong className="text-reader-accent-foreground">
+              Просто помечайте забитые шары и штрафы.
+            </strong>{' '}
+            <br />В конце игры вы сможете рассмотреть статистику по партиям и{' '}
+            <strong className="text-reader-accent-foreground">
+              поделиться резуьтатом
+            </strong>{' '}
+            в соц сетях
           </>
         }
         trigger={
@@ -44,7 +57,7 @@ const ACTION_CARDS_DATA: IActionCardData[] = [
       />
     ),
   },
-   {
+  {
     title: 'История матчей',
     desc: <>Статистика по матчам, когда вы использовали дисплей для матча</>,
     actions: (
@@ -79,41 +92,45 @@ const ACTION_CARDS_DATA: IActionCardData[] = [
 ];
 
 export function MainPage({}: MainPageProps) {
-  const { isActiveGame, mode, p1, p2, endGame } = useGameStore();
+  const { isActiveGame, mode, endGame } = useGameStore();
+  const isGameZenMode = useSettingsStore((state) => state.isGameZenMode);
+  const { enableZenMode } = useOutletContext<ReturnType<typeof useZenMode>>();
+
+  const handleGameStart = () => {
+    if (isGameZenMode) {
+      enableZenMode();
+    }
+  };
+
   return (
     <div className="mx-auto flex min-h-full w-full max-w-125 flex-col justify-end gap-4 px-1 py-3">
       <WelcomeBanner pyramidClassName="w-[17.5rem]" />
       {isActiveGame && (
-          <ActionCard
-            title="Текущая партия"
-            desc={
-              <>
-                <p>Вы не закончили матч.</p>
-                <p className="text-foreground mt-1">
-                  Счет по партиям: {p1.name} {p1.roundsWon} : {p2.roundsWon}{' '}
-                  {p2.name}
-                </p>
-              </>
-            }
-            actions={
-              <Link className="w-full" to={`/game/${mode}`}>
-                <Button className="flex w-full items-center justify-center gap-2">
-                  Вернуться в игру
-                </Button>
-              </Link>
-            }
-            headerAddon={
-              <button
-                onClick={() => {
-                  endGame();
-                  toast.success('Партия удалена');
-                }}
-                className="transition-opacity hover:opacity-70 text-destructive"
+        <ActionCard
+          title="Текущая партия"
+          desc={<p>Вы не закончили матч.</p>}
+          actions={
+            <Link className="w-full" to={`/game/${mode}`}>
+              <Button
+                onClick={handleGameStart}
+                className="flex w-full items-center justify-center gap-2"
               >
-                  <TrashIcon className='size-6' />
-              </button>
-            }
-          />
+                Вернуться в игру
+              </Button>
+            </Link>
+          }
+          headerAddon={
+            <button
+              onClick={() => {
+                endGame();
+                toast.success('Партия удалена');
+              }}
+              className="text-destructive transition-opacity hover:opacity-70"
+            >
+              <TrashIcon className="size-6" />
+            </button>
+          }
+        />
       )}
       {ACTION_CARDS_DATA.slice(0, 2).map((d) => (
         <ActionCard key={d.title} {...d} />

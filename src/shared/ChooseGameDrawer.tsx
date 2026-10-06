@@ -1,10 +1,12 @@
 import { Button } from '@/shared/Button';
+import type { useZenMode } from '@/shared/hooks/useZenMode';
 import { InfoDrawer, type InfoDrawerProps } from '@/shared/InfoDrawer';
 import { cn } from '@/shared/lib/utils/cn';
 import { useGameStore } from '@/shared/store/gameStore';
+import { useSettingsStore } from '@/shared/store/useSettingsStore';
 import { QuestionIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 
 interface ChooseGameDrawerProps extends Omit<InfoDrawerProps, 'content'> {}
 
@@ -62,17 +64,23 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
   const [selectedPiramidId, setSelectedPiramidId] = useState<number>(
     SELECTED_PIRAMID_DEFAULT_ID
   );
-  
+
   const [p1Name, setP1Name] = useState('Вы');
   const [p2Name, setP2Name] = useState('Оппонент');
 
-  const startGame = useGameStore(state => state.startGame);
+  const startGame = useGameStore((state) => state.startGame);
+
+  const isGameZenMode = useSettingsStore((state) => state.isGameZenMode);
+  const { enableZenMode } = useOutletContext<ReturnType<typeof useZenMode>>();
 
   const selectedPiramid =
     GAME_DATA.find((el) => el.id === selectedPiramidId) || GAME_DATA[0];
 
   const handleStartGame = () => {
     startGame(selectedPiramid.piramidName, p1Name, p2Name);
+    if (isGameZenMode) {
+      enableZenMode();
+    }
   };
 
   return (

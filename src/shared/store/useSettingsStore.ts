@@ -2,8 +2,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 interface SettingsState {
-  isZenMode: boolean;
-  toggleZenMode: () => void;
+  isLecturesZenMode: boolean;
+  toggleLecturesZenMode: () => void;
+
+  isGameZenMode: boolean;
+  toggleGameZenMode: () => void;
 
   isDarkBalls: boolean;
   toggleisDarkBalls: () => void;
@@ -15,11 +18,15 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      isZenMode: false,
+      isLecturesZenMode: false,
+      isGameZenMode: true,
       isDarkBalls: false,
       disableBlur: false,
 
-      toggleZenMode: () => set((state) => ({ isZenMode: !state.isZenMode })),
+      toggleLecturesZenMode: () =>
+        set((state) => ({ isLecturesZenMode: !state.isLecturesZenMode })),
+      toggleGameZenMode: () =>
+        set((state) => ({ isLecturesZenMode: !state.isLecturesZenMode })),
       toggleisDarkBalls: () =>
         set((state) => ({ isDarkBalls: !state.isDarkBalls })),
       toggleDisableBlur: () =>
