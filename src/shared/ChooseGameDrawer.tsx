@@ -1,6 +1,7 @@
 import { Button } from '@/shared/Button';
 import { InfoDrawer, type InfoDrawerProps } from '@/shared/InfoDrawer';
 import { cn } from '@/shared/lib/utils/cn';
+import { useGameStore } from '@/shared/store/gameStore';
 import { QuestionIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -55,20 +56,23 @@ const GAME_DATA: {
     lectureHref: '/lectures/first',
   },
 ];
-
 const SELECTED_PIRAMID_DEFAULT_ID = 1;
 
 export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
   const [selectedPiramidId, setSelectedPiramidId] = useState<number>(
     SELECTED_PIRAMID_DEFAULT_ID
   );
+  
+  const [p1Name, setP1Name] = useState('Вы');
+  const [p2Name, setP2Name] = useState('Оппонент');
+
+  const startGame = useGameStore(state => state.startGame);
+
   const selectedPiramid =
     GAME_DATA.find((el) => el.id === selectedPiramidId) || GAME_DATA[0];
 
-  console.log(selectedPiramid);
-
   const handleStartGame = () => {
-    console.log('Начали');
+    startGame(selectedPiramid.piramidName, p1Name, p2Name);
   };
 
   return (
@@ -103,6 +107,22 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
               </Link>
             </button>
           ))}
+
+          <div className="mt-2 flex flex-col gap-2">
+            <p className="mt-2 text-xl">Игроки</p>
+            <input
+              className="bg-neutral text-neutral-foreground w-full rounded-2xl px-3 py-3 outline-none"
+              value={p1Name}
+              onChange={(e) => setP1Name(e.target.value)}
+              placeholder="Ваше имя"
+            />
+            <input
+              className="bg-neutral text-neutral-foreground w-full rounded-2xl px-3 py-3 outline-none"
+              value={p2Name}
+              onChange={(e) => setP2Name(e.target.value)}
+              placeholder="Имя оппонента"
+            />
+          </div>
         </div>
       }
       {...props}
