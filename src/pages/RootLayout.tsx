@@ -15,6 +15,7 @@ import { NavigationLoader } from '@/shared/Loaders/NavigationLoader';
 import { BilliardsBackground } from '@/shared/BilliardsBackground';
 import { useZenMode } from '@/shared/hooks/useZenMode';
 import { useEffect } from 'react';
+import { useSettingsStore } from '@/shared/store/useSettingsStore';
 
 const NAV_ITEMS = [
   {
@@ -91,6 +92,14 @@ export function RootLayout() {
       zenMode.disableZenMode();
     }
   }, [location.pathname, zenMode.disableZenMode]);
+
+  //blur Setting
+   const disableBlur = useSettingsStore((state) => state.disableBlur);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('no-blur', disableBlur);
+  }, [disableBlur])
+  //
 
   return (
     <div className="animate-app-fade-in text-foreground relative flex min-h-dvh w-full flex-col bg-cover bg-center bg-no-repeat">

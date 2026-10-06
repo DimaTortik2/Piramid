@@ -169,3 +169,11 @@ button:hover {
 .animate-page-reveal {
   animation: fade-out-overlay 0.5s ease-out forwards;
 }
+html.no-blur * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.no-blur [class*="backdrop-blur"] {
+  background-color: var(--background) !important;
+}

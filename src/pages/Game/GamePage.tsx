@@ -207,7 +207,7 @@ const UserGameBoard = ({
       className="bg-background/80 text-foreground relative flex flex-1 touch-none flex-col overflow-hidden rounded-xl p-4 backdrop-blur-lg select-none"
     >
       <div
-        className="from-approve/10 pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b to-transparent transition-opacity duration-75"
+        className="from-approve/17 pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b to-transparent transition-opacity duration-75"
         style={{ opacity: pullUpProgress }}
       />
       <div

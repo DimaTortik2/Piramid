@@ -7,6 +7,9 @@ interface SettingsState {
 
   isDarkBalls: boolean;
   toggleisDarkBalls: () => void;
+
+  disableBlur: boolean;
+  toggleDisableBlur: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -14,10 +17,13 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       isZenMode: false,
       isDarkBalls: false,
+      disableBlur: false,
 
       toggleZenMode: () => set((state) => ({ isZenMode: !state.isZenMode })),
       toggleisDarkBalls: () =>
         set((state) => ({ isDarkBalls: !state.isDarkBalls })),
+      toggleDisableBlur: () =>
+        set((state) => ({ disableBlur: !state.disableBlur })),
     }),
     {
       name: 'app-settings',

@@ -1,4 +1,8 @@
-import { MonitorPlayIcon, DiscoBallIcon } from '@phosphor-icons/react';
+import {
+  MonitorPlayIcon,
+  DiscoBallIcon,
+  DropSlashIcon,
+} from '@phosphor-icons/react';
 import { Toggle } from '@/shared/Toggle';
 import { cn } from '@/shared/lib/utils/cn';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
@@ -10,7 +14,14 @@ export function SettingsPage({}: SettingsPageProps) {
   const toggleZenMode = useSettingsStore((state) => state.toggleZenMode);
 
   const isDarkBalls = useSettingsStore((state) => state.isDarkBalls);
-  const toggleisDarkBalls = useSettingsStore((state) => state.toggleisDarkBalls);
+  const toggleisDarkBalls = useSettingsStore(
+    (state) => state.toggleisDarkBalls
+  );
+
+  const disableBlur = useSettingsStore((state) => state.disableBlur);
+  const toggleDisableBlur = useSettingsStore(
+    (state) => state.toggleDisableBlur
+  );
 
   return (
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-125 flex-col gap-1 px-4 py-6">
@@ -44,7 +55,7 @@ export function SettingsPage({}: SettingsPageProps) {
         </label>
 
         {/* Настройка: Черных шаров */}
-         <label className="group flex cursor-pointer items-center justify-between rounded-xl p-3 transition-colors">
+        <label className="group flex cursor-pointer items-center justify-between rounded-xl p-3 transition-colors">
           <div className="flex items-center gap-3">
             <div
               className={cn(
@@ -66,7 +77,35 @@ export function SettingsPage({}: SettingsPageProps) {
           <Toggle
             checked={isDarkBalls}
             onCheckedChange={toggleisDarkBalls}
-            aria-label="Включить дзен-режим"
+            aria-label="Включить черные шары"
+          />
+        </label>
+
+        {/* Настройка: отключения блюра */}
+        <label className="group flex cursor-pointer items-center justify-between rounded-xl p-3 transition-colors">
+          <div className="flex items-center gap-3">
+            <div
+              className={cn(
+                'text-foreground flex size-8 shrink-0 items-center justify-center rounded-full transition-opacity',
+                disableBlur ? 'opacity-100' : 'opacity-20'
+              )}
+            >
+              <DropSlashIcon size={18} weight="fill" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-foreground text-sm font-medium">
+                Отключить размытия
+              </span>
+              <span className="text-muted-backbg-background text-xs">
+                Отключает размытия некоторых блоков, делая их непрозрачными. Это
+                может повысить производительность
+              </span>
+            </div>
+          </div>
+          <Toggle
+            checked={disableBlur}
+            onCheckedChange={toggleDisableBlur}
+            aria-label="Отключить размытия на сайте"
           />
         </label>
       </div>

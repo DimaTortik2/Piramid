@@ -60,6 +60,7 @@ const ACTION_CARDS_DATA: IActionCardData[] = [
   },
   {
     title: 'Настройки',
+    desc: <>Вы можете настроить что-то под себя</>,
     actions: (
       <Link className="w-full" to={'/settings'}>
         <Button>Открыть настройки</Button>
