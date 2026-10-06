@@ -3,6 +3,8 @@ import { CircleNotch } from '@phosphor-icons/react';
 import { cn } from '@/shared/lib/utils/cn';
 
 const variants = {
+  approve: 'bg-approve text-approve-foreground hover:bg-approve/90',
+  neutral: 'bg-foreground/10 hover:bg-white/20',
   destructive:
     'bg-destructive text-destructive-foreground hover:bg-destructive/90',
   primary: 'bg-primary text-primary-foreground hover:bg-primary/90',

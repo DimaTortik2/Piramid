@@ -24,6 +24,7 @@
   --color-billiard-border: var(--billiard-border);
 
   --color-approve: var(--approve);
+  --color-approve-foreground: var(--approve-foreground);
 
   --color-piramid-border: var(--piramid-border);
   --color-piramid-balls: var(--piramid-balls);
@@ -52,6 +53,7 @@
     --reader-accent-foreground: oklch(76% 0.125 142);
 
     --approve: oklch(76% 0.125 142);
+    --approve-foreground: oklch(90% 0.01 75);
 
     --destructive: oklch(44.488% 0.10929 23.976);
     --destructive-foreground:oklch(0.9389 0.0257 94.74) ;
@@ -83,7 +85,9 @@
     --reader-muted-foreground: oklch(65% 0.008 70);
     --reader-accent-foreground: oklch(76% 0.125 142);
 
-    --approve: oklch(76% 0.125 142);
+    --approve: oklch(52.657% 0.09087 141.959);
+    --approve-foreground: oklch(90% 0.01 75);
+
 
     --destructive: oklch(44.488% 0.10929 23.976);
     --destructive-foreground:oklch(0.9389 0.0257 94.74) ;

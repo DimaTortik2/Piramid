@@ -5,7 +5,6 @@ import {
   SignOutIcon,
   ArrowArcLeftIcon,
   QuestionMarkIcon,
-  ClockCountdownIcon,
 } from '@phosphor-icons/react';
 import { Circle } from '@/shared/Circle';
 import { Button } from '@/shared/Button';
@@ -13,6 +12,7 @@ import { useSwipe } from '@/shared/hooks/useSwipe';
 import { InfoDrawer } from '@/shared/InfoDrawer';
 import SwipeTutorialCard from '@/shared/SwipeTutorialCard';
 import { useGameStore, type GameMode } from '@/shared/store/gameStore';
+import { Drawer } from 'vaul';
 
 interface GamePageProps {}
 
@@ -61,66 +61,99 @@ const Shelf = ({
 };
 
 const HeaderDisplay = ({
+  isTimerDrawerOpen = false,
+  setIsTimerDrawerOpen,
   opponentWinnedRounds = 0,
   opponentName = 'Оппонент',
   yourWinnedRounds = 0,
   yourName = 'Вы',
-  hours = 0,
-  minutes = 0,
-  seconds = 0,
+  roundHours = 0,
+  roundMinutes = 0,
+  roundSeconds = 0,
+  totalHours = 0,
+  totalMinutes = 0,
+  totalSeconds = 0,
   isPaused = false,
   onTogglePause,
 }: {
+  isTimerDrawerOpen: boolean;
+  setIsTimerDrawerOpen: (isOpen: boolean) => void;
+
   opponentWinnedRounds?: number;
   opponentName?: string;
   yourWinnedRounds?: number;
   yourName?: string;
-  hours?: number;
-  minutes?: number;
-  seconds?: number;
+  roundHours?: number;
+  roundMinutes?: number;
+  roundSeconds?: number;
+  totalHours?: number;
+  totalMinutes?: number;
+  totalSeconds?: number;
   isPaused?: boolean;
   onTogglePause?: () => void;
 } & HTMLAttributes<HTMLDivElement>) => {
   return (
-    <div className="bg-background/80 text-foreground flex justify-between rounded-xl px-5 py-2 backdrop-blur-lg">
+    <div className="bg-background/80 text-foreground flex items-center justify-between rounded-xl px-5 py-2 backdrop-blur-lg">
       <div className="flex flex-col items-center text-[1rem]">
         <span className="text-[1.2em]">{yourWinnedRounds}</span>
         <span className="text-[0.7em]">{yourName}</span>
       </div>
 
       <InfoDrawer
+        isOpen={isTimerDrawerOpen}
+        onOpenChange={setIsTimerDrawerOpen}
         trigger={
-          <button className="flex h-full flex-col items-center justify-center gap-1 text-[0.9rem] opacity-80 hover:opacity-100">
-            <ClockCountdownIcon className={cn("text-[0.9em]", isPaused && "text-destructive")} />
-            <p className={cn(isPaused && "text-destructive")}>
-              {hours > 0 ? (
-                <>
-                  <span>{hours}</span>
-                  <span className="text-[0.7em]"> ч. </span>
-                  <span>{minutes}</span>
-                  <span className="text-[0.7em]"> мин. </span>
-                </>
-              ) : (
-                <>
-                  <span>{minutes}</span>
-                  <span className="text-[0.7em]"> мин. </span>
-                  <span>{seconds}</span>
-                  <span className="text-[0.7em]"> сек. </span>
-                </>
-              )}
-            </p>
-          </button>
+          isPaused ? (
+            <Button
+              variant="ghost"
+              className="text-destructive text-[0.9rem] hover:bg-transparent"
+            >
+              Игра приостановлена
+            </Button>
+          ) : (
+            <button className="flex h-full flex-col items-center justify-center gap-1 text-[0.9rem] opacity-80 hover:opacity-100">
+              <p className={cn(isPaused && 'text-destructive')}>
+                {roundHours > 0 ? (
+                  <>
+                    <span>{roundHours}</span>
+                    <span className="text-[0.7em]"> ч. </span>
+                    <span>{roundMinutes}</span>
+                    <span className="text-[0.7em]"> мин. </span>
+                  </>
+                ) : (
+                  <>
+                    <span>{roundMinutes}</span>
+                    <span className="text-[0.7em]"> мин. </span>
+                    <span>{roundSeconds}</span>
+                    <span className="text-[0.7em]"> сек. </span>
+                  </>
+                )}
+              </p>
+            </button>
+          )
         }
         content={
           <div className="flex flex-col items-center gap-2 py-4">
-            <p>
-              Общее время:{' '}
-              {hours > 0 && `${hours} ч. `}
-              {minutes} мин. {hours === 0 && `${seconds} сек.`}
-            </p>
-            <Button onClick={onTogglePause} className="mt-4">
-              {isPaused ? "Возобновить игру" : "Поставить на паузу"}
-            </Button>
+            {isPaused ? (
+              <p>
+                Игра была приостановлена, вы можете ее продолжить нажав на
+                кнопку ниже
+              </p>
+            ) : (
+              <p>
+                Общее время: {totalHours > 0 && `${totalHours} ч. `}
+                {totalMinutes} мин. {totalHours === 0 && `${totalSeconds} сек.`}
+              </p>
+            )}
+            <Drawer.Close asChild>
+              <Button
+                variant={isPaused ? 'approve' : 'primary'}
+                onClick={onTogglePause}
+                className="mt-4"
+              >
+                {isPaused ? 'Возобновить игру' : 'Поставить на паузу'}
+              </Button>
+            </Drawer.Close>
           </div>
         }
       />
@@ -229,20 +262,57 @@ const UserGameBoard = ({
 
 const BottomActions = ({
   onUndo,
+  onExitConfirm,
   className,
   ...props
-}: HTMLAttributes<HTMLDivElement> & { onUndo: () => void }) => {
+}: HTMLAttributes<HTMLDivElement> & {
+  onUndo: () => void;
+  onExitConfirm: () => void;
+}) => {
+  const [isExitDrawerOpen, setIsExitDrawerOpen] = useState(false);
+
   return (
     <div className={cn('flex w-full gap-2 p-2', className)} {...props}>
-      <Link to={'/'}>
+      <button onClick={() => setIsExitDrawerOpen(true)}>
         <Circle className="text-foreground hover:bg-foreground/20 size-9 bg-transparent">
           <SignOutIcon />
         </Circle>
-      </Link>
+      </button>
+
+      <InfoDrawer
+        isOpen={isExitDrawerOpen}
+        onOpenChange={setIsExitDrawerOpen}
+        closeBtn={
+          <Button
+            variant="primary"
+            className="w-full"
+            onClick={() => setIsExitDrawerOpen(false)}
+          >
+            Отмена
+          </Button>
+        }
+        content={
+          <div className="flex flex-col items-center gap-4 py-4 text-center">
+            <p className="text-xl font-medium">Покинуть игру?</p>
+            <p className="text-neutral-foreground/70 text-sm">
+              Ваш прогресс сохранен. Вы сможете вернуться в эту партию с главной
+              страницы.
+            </p>
+            <div className="mt-4 flex w-full flex-col gap-2">
+              <Link to="/" onClick={onExitConfirm} className="w-full">
+                <Button variant="destructive" className="w-full">
+                  Да, выйти на главную
+                </Button>
+              </Link>
+            </div>
+          </div>
+        }
+      />
 
       <Button variant="ghost" size="sm" onClick={onUndo}>
         <ArrowArcLeftIcon /> {'Отмена действия'}
       </Button>
+
       <InfoDrawer
         content={
           <div>
@@ -251,7 +321,7 @@ const BottomActions = ({
               <strong className="text-reader-accent-foreground">
                 общий счет
               </strong>{' '}
-              сыгранных партий. Там же видно сколько времени идет эта
+              сыгранных партий между вами. Там же видно сколько времени идет эта
               партия.
               <br />
               <br />
@@ -274,7 +344,7 @@ const BottomActions = ({
             <br />
             <SwipeTutorialCard />
             Кнопка <strong className="text-destructive">"штраф"</strong>{' '}
-            накладывает штраф (оппонент получает +1). Отменить его можно
+            накладывает штраф, ну тут все понятно. Отменить его также можно
             кнопкой{' '}
             <strong className="text-reader-accent-foreground">
               отмены действия
@@ -296,33 +366,81 @@ const BottomActions = ({
 
 export function GamePage({}: GamePageProps) {
   const { mode } = useParams<{ mode: string }>();
-  const { 
-    p1, p2, mode: storeMode, startGame, addScore, removeScore, 
-    applyPenalty, undo, isPaused, togglePause, startTime, 
-    totalPausedTime, pottedBalls 
+  const {
+    p1,
+    p2,
+    mode: storeMode,
+    startGame,
+    addScore,
+    removeScore,
+    applyPenalty,
+    undo,
+    isPaused,
+    togglePause,
+    setPause,
+    startTime,
+    totalPausedTime,
+    pottedBalls,
+    isActiveGame,
+    previousRoundsTime,
   } = useGameStore();
 
-  const [elapsed, setElapsed] = useState(0);
+  const [totalElapsed, setTotalElapsed] = useState(0);
+  const [roundElapsed, setRoundElapsed] = useState(0);
   const [classicDrawerOpen, setClassicDrawerOpen] = useState(false);
-  const [activePlayerForClassic, setActivePlayerForClassic] = useState<'p1'|'p2'>('p1');
+  const [activePlayerForClassic, setActivePlayerForClassic] = useState<
+    'p1' | 'p2'
+  >('p1');
+  const [isTimerDrawerOpen, setIsTimerDrawerOpen] = useState(false);
+
+  const withPauseCheck = (action: () => void) => {
+    if (isPaused) {
+      setIsTimerDrawerOpen(true);
+      return;
+    }
+    action();
+  };
 
   useEffect(() => {
-    if (storeMode !== mode) {
+    if (storeMode !== mode || !isActiveGame) {
       startGame((mode as GameMode) || 'free-pyramid', p1.name, p2.name);
     }
-  }, [mode]);
+  }, [mode, storeMode, isActiveGame]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => setPause(true);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [setPause]);
 
   useEffect(() => {
     if (!startTime) return;
     const interval = setInterval(() => {
-      if (!isPaused) setElapsed(Date.now() - startTime - totalPausedTime);
-    }, 200); 
-    return () => clearInterval(interval);
-  }, [startTime, totalPausedTime, isPaused]);
+      if (!isPaused) {
+        // Считаем общее время матча
+        const currentTotal = Date.now() - startTime - totalPausedTime;
+        setTotalElapsed(currentTotal);
 
-  const hours = Math.floor(elapsed / (1000 * 60 * 60));
-  const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
+        // Считаем время текущей партии (общее минус время старых партий)
+        setRoundElapsed(Math.max(0, currentTotal - previousRoundsTime));
+      }
+    }, 200);
+    return () => clearInterval(interval);
+  }, [startTime, totalPausedTime, previousRoundsTime, isPaused]);
+
+  // Вычисляем время для партии
+  const roundHours = Math.floor(roundElapsed / (1000 * 60 * 60));
+  const roundMinutes = Math.floor(
+    (roundElapsed % (1000 * 60 * 60)) / (1000 * 60)
+  );
+  const roundSeconds = Math.floor((roundElapsed % (1000 * 60)) / 1000);
+
+  // Вычисляем время для всего матча
+  const totalHours = Math.floor(totalElapsed / (1000 * 60 * 60));
+  const totalMinutes = Math.floor(
+    (totalElapsed % (1000 * 60 * 60)) / (1000 * 60)
+  );
+  const totalSeconds = Math.floor((totalElapsed % (1000 * 60)) / 1000);
 
   const isClassic = storeMode === 'classic-pyramid';
   const showNumberOnly = isClassic || storeMode === 'continuous-free-pyramid';
@@ -348,11 +466,10 @@ export function GamePage({}: GamePageProps) {
 
   const handleSelectClassicBall = (num: number) => {
     let points = num === 1 ? 11 : num;
-    
     if (pottedBalls.length === 14) {
       points += 10;
     }
-    
+
     addScore(activePlayerForClassic, points, num);
     setClassicDrawerOpen(false);
   };
@@ -361,34 +478,42 @@ export function GamePage({}: GamePageProps) {
 
   return (
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-125 flex-col gap-4 p-3">
-      <HeaderDisplay 
+      <HeaderDisplay
+        isTimerDrawerOpen={isTimerDrawerOpen}
+        setIsTimerDrawerOpen={setIsTimerDrawerOpen}
         yourWinnedRounds={p1.roundsWon}
         yourName={p1.name}
         opponentWinnedRounds={p2.roundsWon}
         opponentName={p2.name}
-        hours={hours}
-        minutes={minutes}
-        seconds={seconds}
+        roundHours={roundHours}
+        roundMinutes={roundMinutes}
+        roundSeconds={roundSeconds}
+        totalHours={totalHours}
+        totalMinutes={totalMinutes}
+        totalSeconds={totalSeconds}
         isPaused={isPaused}
         onTogglePause={togglePause}
       />
       <UserGameBoard
         name={p1.name}
         score={p1.score}
-        onAdd={() => handleAddScore('p1')}
-        onRemove={() => !isClassic && removeScore('p1')}
-        onPenalty={() => handlePenalty('p1')}
+        onAdd={() => withPauseCheck(() => handleAddScore('p1'))}
+        onRemove={() => withPauseCheck(() => !isClassic && removeScore('p1'))}
+        onPenalty={() => withPauseCheck(() => handlePenalty('p1'))}
         showNumberOnly={showNumberOnly}
       />
       <UserGameBoard
         name={p2.name}
         score={p2.score}
-        onAdd={() => handleAddScore('p2')}
-        onRemove={() => !isClassic && removeScore('p2')}
-        onPenalty={() => handlePenalty('p2')}
+        onAdd={() => withPauseCheck(() => handleAddScore('p2'))}
+        onRemove={() => withPauseCheck(() => !isClassic && removeScore('p2'))}
+        onPenalty={() => withPauseCheck(() => handlePenalty('p2'))}
         showNumberOnly={showNumberOnly}
       />
-      <BottomActions onUndo={undo} />
+      <BottomActions
+        onUndo={() => withPauseCheck(undo)}
+        onExitConfirm={() => setPause(true)}
+      />
 
       <InfoDrawer
         isOpen={classicDrawerOpen}
@@ -397,7 +522,7 @@ export function GamePage({}: GamePageProps) {
           <div className="flex flex-col items-center py-2">
             <p className="mb-4 text-xl">Какой шар забит?</p>
             <div className="flex max-w-[280px] flex-wrap justify-center gap-4">
-              {balls1to15.map(num => {
+              {balls1to15.map((num) => {
                 const isPotted = pottedBalls.includes(num);
                 return (
                   <button
@@ -405,10 +530,10 @@ export function GamePage({}: GamePageProps) {
                     disabled={isPotted}
                     onClick={() => handleSelectClassicBall(num)}
                     className={cn(
-                      "flex h-14 w-14 items-center justify-center rounded-full text-lg transition-all",
-                      isPotted 
-                        ? "bg-neutral text-neutral-foreground/30" 
-                        : "bg-primary text-primary-foreground hover:scale-105"
+                      'flex h-14 w-14 items-center justify-center rounded-full text-lg transition-all',
+                      isPotted
+                        ? 'bg-neutral text-neutral-foreground/30'
+                        : 'bg-primary text-primary-foreground hover:scale-105'
                     )}
                   >
                     {num}
@@ -417,7 +542,9 @@ export function GamePage({}: GamePageProps) {
               })}
             </div>
             <p className="mt-4 text-center text-sm opacity-60">
-              Шар №1 дает 11 очков.<br/>Остальные шары по номиналу.
+              Шар №1 дает 11 очков.
+              <br />
+              Остальные шары по номиналу.
             </p>
           </div>
         }
