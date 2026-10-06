@@ -42,7 +42,6 @@ const ACTION_CARDS_DATA: IActionCardData[] = [
       <ChooseGameDrawer
         trigger={
           <Button
-            onClick={() => toast.warning('Добавим "дисплей для игры" позже')}
           >
             Играть
           </Button>

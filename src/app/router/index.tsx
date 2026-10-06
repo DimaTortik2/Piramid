@@ -31,14 +31,16 @@ export const router = createBrowserRouter([
           },
           {
             path: ':slug',
+            loader: async (args) => {
+              const { lectureLoader } =
+                await import('@/pages/Lectures/Lecture/loader/lectureLoader');
+              return lectureLoader(args);
+            },
             lazy: async () => {
               const { LecturePage } =
                 await import('@/pages/Lectures/Lecture/LecturePage');
-              const { lectureLoader } =
-                await import('@/pages/Lectures/Lecture/loader/lectureLoader');
               return {
                 Component: LecturePage,
-                loader: lectureLoader,
               };
             },
             handle: { hideNavBar: true, pauseBackground: true },
@@ -64,12 +66,13 @@ export const router = createBrowserRouter([
       {
         path: 'settings',
         lazy: async () => {
-          const { SettingsPage } = await import('@/pages/Settings/SettingsPage');
+          const { SettingsPage } =
+            await import('@/pages/Settings/SettingsPage');
           return { Component: SettingsPage };
         },
       },
-       {
-        path: 'game',
+      {
+        path: 'game/:mode',
         lazy: async () => {
           const { GamePage } = await import('@/pages/Game/GamePage');
           return { Component: GamePage };

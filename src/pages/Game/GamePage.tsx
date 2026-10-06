@@ -1,11 +1,11 @@
-interface GamePageProps {
-  
-}
+import { useParams } from 'react-router-dom';
 
-export function GamePage({  }: GamePageProps) {
-  return (
-    <div>
-      game
-    </div>
-  );
+interface GamePageProps {}
+
+export function GamePage({}: GamePageProps) {
+  const { mode } = useParams<{ mode: string }>();
+
+  
+
+  return <div>{mode}</div>;
 }
