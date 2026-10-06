@@ -1,5 +1,4 @@
 import { Button } from '@/shared/Button';
-import { Circle } from '@/shared/Circle';
 import { InfoDrawer, type InfoDrawerProps } from '@/shared/InfoDrawer';
 import { cn } from '@/shared/lib/utils/cn';
 import { QuestionIcon } from '@phosphor-icons/react';
