@@ -2,6 +2,7 @@ import { FAQS } from '@/app/data/faqs';
 import { WelcomeBanner } from '@/pages/MainPage/ui/WelcomeBanner';
 import { ActionCard } from '@/shared/ActionCard';
 import { Button } from '@/shared/Button';
+import { ChooseGameDrawer } from '@/shared/ChooseGameDrawer';
 import { Circle } from '@/shared/Circle';
 import { Faq } from '@/shared/Faq';
 import { InfoDrawer } from '@/shared/InfoDrawer';
@@ -38,9 +39,15 @@ const ACTION_CARDS_DATA: IActionCardData[] = [
     title: 'Дисплей для матча',
     desc: <>Вы можете сыграть с другом, а мы будем вам помогать</>,
     actions: (
-      <Button onClick={() => toast.warning('Добавим "дисплей для игры" позже')}>
-        Играть
-      </Button>
+      <ChooseGameDrawer
+        trigger={
+          <Button
+            onClick={() => toast.warning('Добавим "дисплей для игры" позже')}
+          >
+            Играть
+          </Button>
+        }
+      />
     ),
     headerAddon: (
       <InfoDrawer
@@ -60,26 +67,22 @@ const ACTION_CARDS_DATA: IActionCardData[] = [
       />
     ),
   },
-    {
+  {
     title: 'Настройки',
     actions: (
-      <Link className='w-full' to={'/settings'}>
-        <Button >
-          Открыть настройки
-        </Button>
+      <Link className="w-full" to={'/settings'}>
+        <Button>Открыть настройки</Button>
       </Link>
-    )
+    ),
   },
   {
     title: 'Созерцать',
     desc: <>Просто дайте посмотреть на задний фон</>,
     actions: (
-      <Link className='w-full' to={'/spectator'}>
-        <Button >
-          Смотреть
-        </Button>
+      <Link className="w-full" to={'/spectator'}>
+        <Button>Смотреть</Button>
       </Link>
-    )
+    ),
   },
 ];
 
@@ -103,7 +106,6 @@ export function MainPage({}: MainPageProps) {
       {ACTION_CARDS_DATA.slice(2).map((d) => (
         <ActionCard key={d.title} {...d} />
       ))}
-        
     </div>
   );
 }

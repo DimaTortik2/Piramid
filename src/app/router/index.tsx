@@ -68,6 +68,13 @@ export const router = createBrowserRouter([
           return { Component: SettingsPage };
         },
       },
+       {
+        path: 'game',
+        lazy: async () => {
+          const { GamePage } = await import('@/pages/Game/GamePage');
+          return { Component: GamePage };
+        },
+      },
     ],
   },
 ]);
