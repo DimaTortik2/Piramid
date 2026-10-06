@@ -19,7 +19,7 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       isLecturesZenMode: false,
-      isGameZenMode: true,
+      isGameZenMode: false,
       isDarkBalls: false,
       disableBlur: false,
 
