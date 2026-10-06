@@ -77,6 +77,7 @@ export const router = createBrowserRouter([
           const { GamePage } = await import('@/pages/Game/GamePage');
           return { Component: GamePage };
         },
+        handle: { hideNavBar: true },
       },
     ],
   },

@@ -1,6 +1,8 @@
 import { Button } from '@/shared/Button';
+import { Circle } from '@/shared/Circle';
 import { InfoDrawer, type InfoDrawerProps } from '@/shared/InfoDrawer';
 import { cn } from '@/shared/lib/utils/cn';
+import { QuestionIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -79,11 +81,11 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
       }}
       content={
         <div className="flex flex-col gap-2">
-          <p className="text-xl">Выберите пирамиду</p>
+          <p className="mb-2 text-xl">Выберите пирамиду</p>
           {GAME_DATA.map((d) => (
             <button
               className={cn(
-                'w-full rounded-2xl px-3 py-2 transition-all',
+                'flex w-full justify-between rounded-2xl px-3 py-2 transition-all',
                 selectedPiramidId === d.id
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-neutral text-neutral-foreground hover:bg-primary/60 hover:text-primary-foreground hover:translate-y-[-2px]'
@@ -93,8 +95,13 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
               }
               key={d.id}
             >
-              <p className="text-left text-lg">{d.title}</p>
-              <p className="text-left text-sm opacity-60">{d.desc}</p>
+              <div>
+                <p className="text-left text-lg">{d.title}</p>
+                <p className="text-left text-sm opacity-60">{d.desc}</p>
+              </div>
+              <Link to={d.lectureHref}>
+                <QuestionIcon className="size-8" />
+              </Link>
             </button>
           ))}
         </div>

@@ -11,6 +11,8 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+    --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
 
   --color-reader-background: var(--reader-background);
   --color-reader-foreground: var(--reader-foreground);
@@ -19,10 +21,18 @@
 
   --color-spinner-accent: var(--spinner-accent);
 
+  --color-billiard-border: var(--billiard-border);
+
+  --color-approve: var(--approve);
+
   --color-piramid-border: var(--piramid-border);
   --color-piramid-balls: var(--piramid-balls);
 
-  --radius-lg: var(--radius);
+   --color-piramid-ball-main: var(--piramid-ball-main);
+   --color-piramid-ball-mid: var(--piramid-ball-mid );
+   --color-piramid-ball-shadow: var(--piramid-ball-shadow);
+
+   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 }
@@ -41,7 +51,14 @@
     --reader-muted-foreground: oklch(65% 0.008 70);
     --reader-accent-foreground: oklch(76% 0.125 142);
 
+    --approve: oklch(76% 0.125 142);
+
+    --destructive: oklch(44.488% 0.10929 23.976);
+    --destructive-foreground:oklch(0.9389 0.0257 94.74) ;
+
     --spinner-accent: oklch(1 0 0);
+
+    --billiard-border: oklch(0.2457 0.0436 73.41);
 
     --primary: oklch(92% 0.003 75);
     --primary-foreground: oklch(15% 0.005 75);
@@ -66,9 +83,17 @@
     --reader-muted-foreground: oklch(65% 0.008 70);
     --reader-accent-foreground: oklch(76% 0.125 142);
 
+    --approve: oklch(76% 0.125 142);
+
+    --destructive: oklch(44.488% 0.10929 23.976);
+    --destructive-foreground:oklch(0.9389 0.0257 94.74) ;
+
+
     --spinner-accent: oklch(1 0 0);
 
-    --primary: oklch(92% 0.003 75);
+    --billiard-border: oklch(0.2457 0.0436 73.41);
+
+    --primary: oklch(0.9389 0.0257 94.74);
     --primary-foreground: oklch(15% 0.005 75);
 
     --piramid-border: oklch(15.391% 0.00207 106.777);
@@ -100,6 +125,7 @@ button:hover {
 
 * {
   scrollbar-width: none;
+  box-sizing: border-box;
 }
 
 *::-webkit-scrollbar {

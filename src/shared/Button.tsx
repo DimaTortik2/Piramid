@@ -3,12 +3,15 @@ import { CircleNotch } from '@phosphor-icons/react';
 import { cn } from '@/shared/lib/utils/cn';
 
 const variants = {
+  destructive:
+    'bg-destructive text-destructive-foreground hover:bg-destructive/90',
   primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
-  background:
-    'bg-background text-foreground hover:bg-background/90',
+  background: 'bg-background text-foreground hover:bg-background/90',
   white: 'bg-white text-black hover:bg-white/90',
   outline: 'border-2 border-primary/20 bg-transparent hover:bg-primary/10',
   ghost: 'bg-transparent hover:bg-white/10',
+  ghostApprove: 'bg-transparent hover:bg-approve/10',
+  ghostDestructive: 'bg-transparent hover:bg-destructive/20',
 } as const;
 
 const sizes = {
@@ -49,6 +52,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           'inline-flex w-full items-center justify-center gap-2 whitespace-nowrap transition-colors active:scale-[0.98]',
           'focus-visible:ring-primary/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none',
           'disabled:pointer-events-none disabled:opacity-50',
+          'cursor-pointer transition-transform hover:translate-y-[-2px]',
           variants[variant],
           sizes[size],
           className

@@ -38,16 +38,7 @@ const ACTION_CARDS_DATA: IActionCardData[] = [
   {
     title: 'Дисплей для матча',
     desc: <>Вы можете сыграть с другом, а мы будем вам помогать</>,
-    actions: (
-      <ChooseGameDrawer
-        trigger={
-          <Button
-          >
-            Играть
-          </Button>
-        }
-      />
-    ),
+    actions: <ChooseGameDrawer trigger={<Button>Играть</Button>} />,
     headerAddon: (
       <InfoDrawer
         content={
