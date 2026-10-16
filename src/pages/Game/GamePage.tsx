@@ -1,6 +1,6 @@
 import { cn } from '@/shared/lib/utils/cn';
 import { type HTMLAttributes, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   SignOutIcon,
   ArrowArcLeftIcon,
@@ -13,6 +13,7 @@ import { InfoDrawer } from '@/shared/InfoDrawer';
 import SwipeTutorialCard from '@/shared/SwipeTutorialCard';
 import { useGameStore, type GameMode } from '@/shared/store/gameStore';
 import { Drawer } from 'vaul';
+import { toast } from 'sonner';
 
 interface GamePageProps {}
 
@@ -173,6 +174,7 @@ const UserGameBoard = ({
   onRemove,
   onPenalty,
   showNumberOnly = false,
+  isBreaker = false,
 }: {
   name?: string;
   score?: number;
@@ -180,6 +182,7 @@ const UserGameBoard = ({
   onRemove: () => void;
   onPenalty?: () => void;
   showNumberOnly?: boolean;
+  isBreaker?: boolean;
 } & HTMLAttributes<HTMLDivElement>) => {
   let firstShelfScore = 0;
   let secondShelfScore = 0;
@@ -216,8 +219,15 @@ const UserGameBoard = ({
       />
 
       <div className="relative z-10 flex flex-1 flex-col justify-center">
-        <div className="flex w-full justify-between">
-          <span>{name}</span>
+        <div className="flex w-full items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span>{name}</span>
+            {isBreaker && (
+              <span className="bg-approve/20 text-approve rounded-full px-2 py-0.5 text-[0.7rem] font-semibold">
+                Разбой
+              </span>
+            )}
+          </div>
           <Button
             onClick={onPenalty}
             variant="destructive"
@@ -322,11 +332,13 @@ const BottomActions = ({
                   Сохранить и выйти на главную
                 </Button>
               </Link>
-              <Link to="/" onClick={onFinishSession} className="w-full">
-                <Button variant="destructive" className="w-full">
-                  Завершить сессию
-                </Button>
-              </Link>
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={onFinishSession}
+              >
+                Завершить сессию
+              </Button>
             </div>
           </div>
         }
@@ -389,10 +401,15 @@ const BottomActions = ({
 
 export function GamePage({}: GamePageProps) {
   const { mode } = useParams<{ mode: string }>();
+  const navigate = useNavigate();
   const {
     p1,
     p2,
     mode: storeMode,
+    initialBreaker,
+    completedMatches,
+    lastCompletedRound,
+    dismissRoundModal,
     startGame,
     addScore,
     removeScore,
@@ -430,7 +447,12 @@ export function GamePage({}: GamePageProps) {
 
   useEffect(() => {
     if (storeMode !== mode || !isActiveGame) {
-      startGame((mode as GameMode) || 'free-pyramid', p1.name, p2.name);
+      startGame(
+        (mode as GameMode) || 'free-pyramid',
+        p1.name,
+        p2.name,
+        initialBreaker ?? 'p1'
+      );
     }
   }, [mode, storeMode, isActiveGame]);
 
@@ -467,11 +489,36 @@ export function GamePage({}: GamePageProps) {
   const isClassic = storeMode === 'classic-pyramid';
   const showNumberOnly = isClassic || storeMode === 'continuous-free-pyramid';
 
+  const currentRoundIndex = completedMatches?.length ?? 0;
+  const currentBreaker: 'p1' | 'p2' =
+    currentRoundIndex % 2 === 0
+      ? (initialBreaker ?? 'p1')
+      : (initialBreaker ?? 'p1') === 'p1'
+        ? 'p2'
+        : 'p1';
+
+  const checkSeventhBallWarning = (
+    playerId: 'p1' | 'p2',
+    nextScore: number
+  ) => {
+    const isStandard = [
+      'free-pyramid',
+      'combined-pyramid',
+      'dynamic-pyramid',
+    ].includes(storeMode);
+    const playerName = playerId === 'p1' ? p1.name : p2.name;
+    if (isStandard && nextScore === 7) {
+      toast.info(`Судья: 7 шаров у игрока ${playerName}`);
+    }
+  };
+
   const handleAddScore = (playerId: 'p1' | 'p2') => {
     if (isClassic) {
       setActivePlayerForClassic(playerId);
       setClassicDrawerOpen(true);
     } else {
+      const currentScore = playerId === 'p1' ? p1.score : p2.score;
+      checkSeventhBallWarning(playerId, currentScore + 1);
       addScore(playerId, 1);
     }
   };
@@ -482,6 +529,9 @@ export function GamePage({}: GamePageProps) {
 
   const handleConfirmPenalty = () => {
     if (!penaltyTarget) return;
+    const beneficiaryId = penaltyTarget === 'p1' ? 'p2' : 'p1';
+    const currentScore = beneficiaryId === 'p1' ? p1.score : p2.score;
+    checkSeventhBallWarning(beneficiaryId, currentScore + 1);
     applyPenalty(penaltyTarget);
     setPenaltyTarget(null);
   };
@@ -494,6 +544,15 @@ export function GamePage({}: GamePageProps) {
 
     addScore(activePlayerForClassic, points, num);
     setClassicDrawerOpen(false);
+  };
+
+  const handleFinishSessionAndGoHistory = () => {
+    const record = finishSession();
+    if (record) {
+      navigate(`/history?session=${record.id}&share=1`);
+    } else {
+      navigate('/');
+    }
   };
 
   const balls1to15 = Array.from({ length: 15 }, (_, i) => i + 1);
@@ -521,6 +580,7 @@ export function GamePage({}: GamePageProps) {
       <UserGameBoard
         name={p1.name}
         score={p1.score}
+        isBreaker={currentBreaker === 'p1'}
         onAdd={() => withPauseCheck(() => handleAddScore('p1'))}
         onRemove={() => withPauseCheck(() => removeScore('p1'))}
         onPenalty={() => withPauseCheck(() => handlePenalty('p1'))}
@@ -529,6 +589,7 @@ export function GamePage({}: GamePageProps) {
       <UserGameBoard
         name={p2.name}
         score={p2.score}
+        isBreaker={currentBreaker === 'p2'}
         onAdd={() => withPauseCheck(() => handleAddScore('p2'))}
         onRemove={() => withPauseCheck(() => removeScore('p2'))}
         onPenalty={() => withPauseCheck(() => handlePenalty('p2'))}
@@ -538,7 +599,7 @@ export function GamePage({}: GamePageProps) {
         onUndo={() => withPauseCheck(undo)}
         onExitConfirm={() => setPause(true)}
         onFinishRound={() => withPauseCheck(finishCurrentRound)}
-        onFinishSession={finishSession}
+        onFinishSession={handleFinishSessionAndGoHistory}
         canFinishRound={
           (currentRoundEvents?.length ?? 0) > 0 && p1.score !== p2.score
         }
@@ -621,6 +682,70 @@ export function GamePage({}: GamePageProps) {
               Остальные шары по номиналу.
             </p>
           </div>
+        }
+      />
+
+      <InfoDrawer
+        isOpen={lastCompletedRound !== null}
+        onOpenChange={(open) => {
+          if (!open) dismissRoundModal();
+        }}
+        closeBtn={
+          <Button
+            variant="approve"
+            className="w-full"
+            onClick={dismissRoundModal}
+          >
+            Начать следующую партию
+          </Button>
+        }
+        content={
+          lastCompletedRound && (
+            <div className="flex flex-col items-center gap-3 py-4 text-center">
+              <p className="text-xl font-medium">
+                Партия №{lastCompletedRound.roundNumber} завершена!
+              </p>
+              <p className="text-4xl font-bold">
+                {lastCompletedRound.p1.finalScore} :{' '}
+                {lastCompletedRound.p2.finalScore}
+              </p>
+              <p className="text-neutral-foreground/70 text-sm">
+                Победитель партии:{' '}
+                <strong>
+                  {lastCompletedRound.winnerId === 'p1'
+                    ? lastCompletedRound.p1.name
+                    : lastCompletedRound.p2.name}
+                </strong>
+                <br />
+                Общий счет по партиям:{' '}
+                <strong>
+                  {p1.roundsWon} : {p2.roundsWon}
+                </strong>
+              </p>
+              <div className="mt-3 flex w-full flex-col gap-2">
+                <Button
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => {
+                    undo();
+                    dismissRoundModal();
+                  }}
+                >
+                  Отменить последний шар
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => {
+                    dismissRoundModal();
+                    handleFinishSessionAndGoHistory();
+                  }}
+                >
+                  Завершить сессию и открыть итоги
+                </Button>
+              </div>
+            </div>
+          )
         }
       />
     </div>

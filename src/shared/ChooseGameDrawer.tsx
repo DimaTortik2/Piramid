@@ -67,6 +67,7 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
 
   const [p1Name, setP1Name] = useState('Вы');
   const [p2Name, setP2Name] = useState('Оппонент');
+  const [initialBreaker, setInitialBreaker] = useState<'p1' | 'p2'>('p1');
 
   const startGame = useGameStore((state) => state.startGame);
 
@@ -77,7 +78,7 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
     GAME_DATA.find((el) => el.id === selectedPiramidId) || GAME_DATA[0];
 
   const handleStartGame = () => {
-    startGame(selectedPiramid.piramidName, p1Name, p2Name);
+    startGame(selectedPiramid.piramidName, p1Name, p2Name, initialBreaker);
     if (isGameZenMode) {
       enableZenMode();
     }
@@ -130,6 +131,36 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
               onChange={(e) => setP2Name(e.target.value)}
               placeholder="Имя оппонента"
             />
+          </div>
+
+          <div className="mt-2 flex flex-col gap-2">
+            <p className="text-sm opacity-70">Кто разбивает первую партию?</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setInitialBreaker('p1')}
+                className={cn(
+                  'flex-1 rounded-2xl py-2.5 text-sm font-medium transition-all',
+                  initialBreaker === 'p1'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-neutral text-neutral-foreground opacity-70'
+                )}
+              >
+                {p1Name || 'Вы'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setInitialBreaker('p2')}
+                className={cn(
+                  'flex-1 rounded-2xl py-2.5 text-sm font-medium transition-all',
+                  initialBreaker === 'p2'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-neutral text-neutral-foreground opacity-70'
+                )}
+              >
+                {p2Name || 'Оппонент'}
+              </button>
+            </div>
           </div>
         </div>
       }

@@ -79,6 +79,13 @@ export const router = createBrowserRouter([
         },
         handle: { hideNavBar: true },
       },
+      {
+        path: 'history',
+        lazy: async () => {
+          const { HistoryPage } = await import('@/pages/History/HistoryPage');
+          return { Component: HistoryPage };
+        },
+      },
     ],
   },
 ]);
