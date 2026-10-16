@@ -14,6 +14,7 @@ import SwipeTutorialCard from '@/shared/SwipeTutorialCard';
 import { useGameStore, type GameMode } from '@/shared/store/gameStore';
 import { Drawer } from 'vaul';
 import { toast } from 'sonner';
+import { triggerHaptic } from '@/shared/lib/telegram';
 
 interface GamePageProps {}
 
@@ -531,6 +532,7 @@ export function GamePage({}: GamePageProps) {
       checkSeventhBallWarning(playerId, currentScore + 1);
       addScore(playerId, 1);
     }
+    triggerHaptic('pot');
   };
 
   const handlePenalty = (playerId: 'p1' | 'p2') => {
@@ -544,6 +546,7 @@ export function GamePage({}: GamePageProps) {
     checkSeventhBallWarning(beneficiaryId, currentScore + 1);
     applyPenalty(penaltyTarget);
     setPenaltyTarget(null);
+    triggerHaptic('penalty');
   };
 
   const handleSelectClassicBall = (num: number) => {
@@ -554,6 +557,7 @@ export function GamePage({}: GamePageProps) {
 
     addScore(activePlayerForClassic, points, num);
     setClassicDrawerOpen(false);
+    triggerHaptic('pot');
   };
 
   const handleFinishSessionAndGoHistory = () => {
@@ -593,7 +597,10 @@ export function GamePage({}: GamePageProps) {
         score={p1.score}
         isBreaker={currentBreaker === 'p1'}
         onAdd={() => withPauseCheck(() => handleAddScore('p1'))}
-        onRemove={() => withPauseCheck(() => removeScore('p1'))}
+        onRemove={() => {
+          withPauseCheck(() => removeScore('p1'));
+          triggerHaptic('undo');
+        }}
         onPenalty={() => withPauseCheck(() => handlePenalty('p1'))}
         showNumberOnly={showNumberOnly}
       />
@@ -602,12 +609,18 @@ export function GamePage({}: GamePageProps) {
         score={p2.score}
         isBreaker={currentBreaker === 'p2'}
         onAdd={() => withPauseCheck(() => handleAddScore('p2'))}
-        onRemove={() => withPauseCheck(() => removeScore('p2'))}
+        onRemove={() => {
+          withPauseCheck(() => removeScore('p2'));
+          triggerHaptic('undo');
+        }}
         onPenalty={() => withPauseCheck(() => handlePenalty('p2'))}
         showNumberOnly={showNumberOnly}
       />
       <BottomActions
-        onUndo={() => withPauseCheck(undo)}
+        onUndo={() => {
+          withPauseCheck(undo);
+          triggerHaptic('undo');
+        }}
         onExitConfirm={() => setPause(true)}
         onFinishRound={() => withPauseCheck(finishCurrentRound)}
         onFinishSession={handleFinishSessionAndGoHistory}
