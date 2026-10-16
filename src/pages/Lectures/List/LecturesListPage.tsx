@@ -37,8 +37,8 @@ const LECTURES_DATA: {
 ];
 
 export function LecturesListPage({}: LecturesListPageProps) {
-  const isZenMode = useSettingsStore((state) => state.isZenMode);
-  const { enableZenMode } = useOutletContext<ReturnType<typeof useZenMode>>()
+  const isZenMode = useSettingsStore((state) => state.isLecturesZenMode);
+  const { enableZenMode } = useOutletContext<ReturnType<typeof useZenMode>>();
 
   const handleLectureClick = () => {
     if (isZenMode) {

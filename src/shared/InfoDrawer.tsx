@@ -52,7 +52,7 @@ export function InfoDrawer({
           <Drawer.Title className="sr-only">{a11yTitle}</Drawer.Title>
 
           {/* Контент со скроллом */}
-          <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="flex-1 overflow-y-auto px-6 py-2">
             <div className="text-foreground text-[15px] leading-relaxed whitespace-pre-wrap">
               {content}
             </div>
@@ -61,7 +61,7 @@ export function InfoDrawer({
           {/* Кнопка закрытия */}
           <div className="pb-safe-or-4 shrink-0 px-6 pt-4">
             <Drawer.Close asChild>
-              {closeBtn ? closeBtn : <Button>Закрыть</Button>}
+              {closeBtn ? closeBtn : <Button variant="neutral">Закрыть</Button>}
             </Drawer.Close>
           </div>
         </Drawer.Content>
