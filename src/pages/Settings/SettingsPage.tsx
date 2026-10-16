@@ -2,10 +2,13 @@ import {
   MonitorPlayIcon,
   DiscoBallIcon,
   DropSlashIcon,
+  ArrowLeftIcon,
 } from '@phosphor-icons/react';
 import { Toggle } from '@/shared/Toggle';
 import { cn } from '@/shared/lib/utils/cn';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
+import { Link } from 'react-router-dom';
+import { Circle } from '@/shared/Circle';
 
 interface SettingsPageProps {}
 
@@ -34,6 +37,15 @@ export function SettingsPage({}: SettingsPageProps) {
 
   return (
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-125 flex-col gap-1 px-4 py-6">
+      <div className="flex items-center justify-between mb-4">
+              <Link to="/">
+                <Circle className="size-10">
+                  <ArrowLeftIcon />
+                </Circle>
+              </Link>
+              <h1 className="text-xl font-bold">Настройки</h1>
+              <div className="w-10" />
+            </div>
       {/* Основной контент */}
       <div className="bg-background/80 flex flex-col gap-1 rounded-2xl p-2 backdrop-blur-lg">
         {/* Настройка: Zen Mode в игре */}

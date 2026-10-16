@@ -22,7 +22,7 @@
   --color-spinner-accent: var(--spinner-accent);
 
   --color-billiard-border: var(--billiard-border);
-
+--color-gold: var(--gold);
   --color-approve: var(--approve);
   --color-approve-foreground: var(--approve-foreground);
 
@@ -59,7 +59,7 @@
     --destructive-foreground:oklch(0.9389 0.0257 94.74) ;
 
     --spinner-accent: oklch(1 0 0);
-
+--gold: oklch(83% 0.155 85);
     --billiard-border: oklch(0.2457 0.0436 73.41);
 
     --primary: oklch(92% 0.003 75);
@@ -88,7 +88,7 @@
     --approve: oklch(52.657% 0.09087 141.959);
     --approve-foreground: oklch(90% 0.01 75);
 
-
+--gold: oklch(83% 0.155 85);
     --destructive: oklch(44.488% 0.10929 23.976);
     --destructive-foreground:oklch(0.9389 0.0257 94.74) ;
 

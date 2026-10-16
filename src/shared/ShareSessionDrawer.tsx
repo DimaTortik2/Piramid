@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { InfoDrawer } from '@/shared/InfoDrawer';
 import { Button } from '@/shared/Button';
 import { Circle } from '@/shared/Circle';
@@ -8,7 +8,7 @@ import {
   DownloadSimpleIcon,
   CopyIcon,
   CheckIcon,
-  TrophyIcon,
+  CrownIcon,
   FireIcon,
   ClockIcon,
 } from '@phosphor-icons/react';
@@ -22,6 +22,37 @@ const MODE_NAMES: Record<GameMode, string> = {
   'classic-pyramid': 'Русская пирамида (71)',
   'continuous-free-pyramid': 'Свободная с продолжением',
 };
+
+export function normalizeSessionWinnerLeft(
+  session: GameSessionRecord
+): GameSessionRecord {
+  if (session.winnerId !== 'p2') return session;
+
+  return {
+    ...session,
+    winnerId: 'p1',
+    p1: session.p2,
+    p2: session.p1,
+    matches: session.matches.map((m) => ({
+      ...m,
+      winnerId:
+        m.winnerId === 'p1' ? 'p2' : m.winnerId === 'p2' ? 'p1' : m.winnerId,
+      p1: { ...m.p2, playerId: 'p1' },
+      p2: { ...m.p1, playerId: 'p2' },
+      maxLeadP1: m.maxLeadP2,
+      maxLeadP2: m.maxLeadP1,
+      events: m.events.map((ev) => ({
+        ...ev,
+        playerId: ev.playerId === 'p1' ? 'p2' : 'p1',
+        beneficiaryId: ev.beneficiaryId === 'p1' ? 'p2' : 'p1',
+        pointsDeltaP1: ev.pointsDeltaP2,
+        pointsDeltaP2: ev.pointsDeltaP1,
+        scoreAfterP1: ev.scoreAfterP2,
+        scoreAfterP2: ev.scoreAfterP1,
+      })),
+    })),
+  };
+}
 
 function formatDuration(ms: number) {
   const totalSec = Math.floor(ms / 1000);
@@ -50,213 +81,176 @@ function roundRect(
   ctx.closePath();
 }
 
-function drawBilliardBall(
+function drawCrownIcon(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
-  r: number,
-  active: boolean
+  size: number,
+  color: string
 ) {
   ctx.save();
-  if (!active) {
-    ctx.globalAlpha = 0.22;
-  }
-  const grad = ctx.createRadialGradient(
-    cx - r * 0.3,
-    cy - r * 0.3,
-    r * 0.1,
-    cx,
-    cy,
-    r
-  );
-  grad.addColorStop(0, '#f0ebd8');
-  grad.addColorStop(0.65, '#d6cfb7');
-  grad.addColorStop(1, '#bdb397');
+  ctx.fillStyle = color;
+  const w = size;
+  const h = size * 0.78;
+  const left = cx - w / 2;
+  const top = cy - h / 2;
 
-  ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.moveTo(left + w * 0.08, top + h);
+  ctx.lineTo(left, top + h * 0.22);
+  ctx.lineTo(left + w * 0.28, top + h * 0.52);
+  ctx.lineTo(cx, top);
+  ctx.lineTo(left + w * 0.72, top + h * 0.52);
+  ctx.lineTo(left + w, top + h * 0.22);
+  ctx.lineTo(left + w * 0.92, top + h);
+  ctx.closePath();
   ctx.fill();
   ctx.restore();
 }
 
 async function generateSessionCardBlob(
-  session: GameSessionRecord
+  rawSession: GameSessionRecord
 ): Promise<Blob | null> {
+  const session = normalizeSessionWinnerLeft(rawSession);
   const canvas = document.createElement('canvas');
   const W = 1080;
-  const H = 1280;
+  const H = 1180;
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const bgMain = '#161618';
-  const bgCard = '#202024';
+  const bgMain = '#1c1c1f';
+  const bgCard = '#27272b';
   const textLight = '#f4efe1';
-  const textMuted = 'rgba(244, 239, 225, 0.5)';
+  const textMuted = 'rgba(244, 239, 225, 0.52)';
   const accentGreen = '#52b765';
-  const woodShelf = '#3d2817';
+  const goldColor = '#f5c451';
+  const ballShadowColor = '#bdb397';
 
-  // Основной фон карточки
   roundRect(ctx, 0, 0, W, H, 64);
   ctx.fillStyle = bgMain;
   ctx.fill();
 
-  // Мягкое зеленое свечение сверху
-  const topGlow = ctx.createRadialGradient(W / 2, 120, 40, W / 2, 200, 560);
-  topGlow.addColorStop(0, 'rgba(82, 183, 101, 0.18)');
-  topGlow.addColorStop(1, 'rgba(82, 183, 101, 0)');
+  const topGlow = ctx.createRadialGradient(W / 2, 100, 30, W / 2, 180, 520);
+  topGlow.addColorStop(0, 'rgba(245, 196, 81, 0.14)');
+  topGlow.addColorStop(1, 'rgba(245, 196, 81, 0)');
   ctx.fillStyle = topGlow;
-  ctx.fillRect(0, 0, W, 650);
+  ctx.fillRect(0, 0, W, 560);
 
-  // Верхняя плашка: режим и дата
   const dateStr = new Date(session.endedAt).toLocaleDateString('ru-RU', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   });
 
-  ctx.font = '600 28px system-ui, -apple-system, sans-serif';
+  ctx.font = '700 28px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = accentGreen;
   ctx.textAlign = 'left';
-  ctx.fillText(MODE_NAMES[session.mode].toUpperCase(), 72, 96);
+  ctx.fillText(MODE_NAMES[session.mode].toUpperCase(), 68, 92);
 
   ctx.font = '500 26px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textMuted;
   ctx.textAlign = 'right';
-  ctx.fillText(dateStr, W - 72, 96);
+  ctx.fillText(dateStr, W - 68, 92);
 
   // Главное табло со счетом
-  roundRect(ctx, 64, 145, W - 128, 430, 48);
+  roundRect(ctx, 64, 136, W - 128, 350, 48);
   ctx.fillStyle = bgCard;
   ctx.fill();
 
-  const p1Won = session.winnerId === 'p1';
-  const p2Won = session.winnerId === 'p2';
+  const hasWinner = session.winnerId === 'p1';
 
-  // Бейдж победителя
-  ctx.font = '700 24px system-ui, -apple-system, sans-serif';
-  if (p1Won || p2Won) {
-    const badgeX = p1Won ? 245 : W - 245;
-    roundRect(ctx, badgeX - 110, 182, 220, 44, 22);
-    ctx.fillStyle = 'rgba(82, 183, 101, 0.2)';
+  if (hasWinner) {
+    const badgeX = 260;
+    roundRect(ctx, badgeX - 115, 172, 230, 46, 23);
+    ctx.fillStyle = 'rgba(245, 196, 81, 0.18)';
     ctx.fill();
-    ctx.fillStyle = accentGreen;
+
+    drawCrownIcon(ctx, badgeX - 68, 194, 26, goldColor);
+
+    ctx.font = '700 23px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = goldColor;
     ctx.textAlign = 'center';
-    ctx.fillText('★ ПОБЕДА', badgeX, 212);
+    ctx.fillText('ПОБЕДА', badgeX + 14, 203);
   } else {
+    ctx.font = '700 24px system-ui, -apple-system, sans-serif';
     ctx.fillStyle = textMuted;
     ctx.textAlign = 'center';
-    ctx.fillText('НИЧЬЯ', W / 2, 212);
+    ctx.fillText('НИЧЬЯ', W / 2, 204);
   }
 
-  // Гигантский счет по партиям
-  ctx.font = '800 164px system-ui, -apple-system, sans-serif';
+  ctx.font = '800 156px system-ui, -apple-system, sans-serif';
   ctx.textAlign = 'center';
 
-  ctx.fillStyle = p1Won ? accentGreen : textLight;
-  ctx.fillText(String(session.p1.roundsWon), 245, 380);
+  ctx.fillStyle = hasWinner ? accentGreen : textLight;
+  ctx.fillText(String(session.p1.roundsWon), 260, 364);
 
   ctx.fillStyle = 'rgba(244, 239, 225, 0.22)';
-  ctx.fillText(':', W / 2, 368);
+  ctx.fillText(':', W / 2, 352);
 
-  ctx.fillStyle = p2Won ? accentGreen : textLight;
-  ctx.fillText(String(session.p2.roundsWon), W - 245, 380);
+  ctx.fillStyle = textLight;
+  ctx.fillText(String(session.p2.roundsWon), W - 260, 364);
 
-  // Имена игроков
   ctx.font = '700 38px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textLight;
-  ctx.fillText(session.p1.name.slice(0, 14), 245, 455);
-  ctx.fillText(session.p2.name.slice(0, 14), W - 245, 455);
+  ctx.fillText(session.p1.name.slice(0, 15), 260, 438, 360);
+  ctx.fillText(session.p2.name.slice(0, 15), W - 260, 438, 360);
 
-  // Полки с бильярдными шарами (визуализация доминации)
-  const totalBalls =
-    session.p1.totalBallsPotted + session.p2.totalBallsPotted || 1;
-  const p1ShelfBalls = Math.max(
-    1,
-    Math.round((session.p1.totalBallsPotted / totalBalls) * 5)
-  );
-  const p2ShelfBalls = Math.max(
-    1,
-    Math.round((session.p2.totalBallsPotted / totalBalls) * 5)
-  );
-
-  for (let i = 0; i < 5; i++) {
-    drawBilliardBall(
-      ctx,
-      145 + i * 50,
-      508,
-      18,
-      session.p1.totalBallsPotted > 0 && i < p1ShelfBalls
-    );
-    drawBilliardBall(
-      ctx,
-      W - 345 + i * 50,
-      508,
-      18,
-      session.p2.totalBallsPotted > 0 && i < p2ShelfBalls
-    );
-  }
-
-  roundRect(ctx, 115, 532, 260, 14, 7);
-  ctx.fillStyle = woodShelf;
-  ctx.fill();
-
-  roundRect(ctx, W - 375, 532, 260, 14, 7);
-  ctx.fillStyle = woodShelf;
-  ctx.fill();
-
-  // Секция: Забитые шары (Полоса сравнения)
-  roundRect(ctx, 64, 610, W - 128, 220, 44);
-  ctx.fillStyle = bgCard;
-  ctx.fill();
-
-  ctx.font = '600 28px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = textMuted;
-  ctx.textAlign = 'center';
-  ctx.fillText('ЗАБИТО ШАРОВ ЗА СЕССИЮ', W / 2, 668);
-
-  ctx.font = '800 64px system-ui, -apple-system, sans-serif';
-  ctx.fillStyle = textLight;
-  ctx.textAlign = 'left';
-  ctx.fillText(String(session.p1.totalBallsPotted), 115, 745);
-
-  ctx.textAlign = 'right';
-  ctx.fillText(String(session.p2.totalBallsPotted), W - 115, 745);
-
-  // Полоса баланса шаров
-  const barX = 115;
-  const barY = 775;
-  const barW = W - 230;
-  const barH = 22;
-  const p1Ratio =
-    session.p1.totalBallsPotted + session.p2.totalBallsPotted > 0
-      ? session.p1.totalBallsPotted /
-        (session.p1.totalBallsPotted + session.p2.totalBallsPotted)
-      : 0.5;
-
-  roundRect(ctx, barX, barY, barW, barH, 11);
-  ctx.fillStyle = 'rgba(244, 239, 225, 0.14)';
-  ctx.fill();
-
-  const p1BarW = Math.max(22, Math.min(barW - 22, barW * p1Ratio));
-  roundRect(ctx, barX, barY, p1BarW, barH, 11);
-  ctx.fillStyle = accentGreen;
-  ctx.fill();
-
-  // Две нижние выразительные карточки: Лучшая серия и Время сессии
-  const halfW = (W - 128 - 32) / 2;
-
-  // Левая карточка: Максимальная серия
-  roundRect(ctx, 64, 862, halfW, 270, 44);
+  // Секция: Забитые шары (противостояние двух цветов)
+  roundRect(ctx, 64, 518, W - 128, 215, 44);
   ctx.fillStyle = bgCard;
   ctx.fill();
 
   ctx.font = '600 26px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textMuted;
+  ctx.textAlign = 'center';
+  ctx.fillText('ЗАБИТО ШАРОВ', W / 2, 580);
+
+  ctx.font = '800 62px system-ui, -apple-system, sans-serif';
+  ctx.fillStyle = textLight;
   ctx.textAlign = 'left';
-  ctx.fillText('ЛУЧШАЯ СЕРИЯ', 108, 924);
+  ctx.fillText(String(session.p1.totalBallsPotted), 112, 648);
+
+  ctx.textAlign = 'right';
+  ctx.fillText(String(session.p2.totalBallsPotted), W - 112, 648);
+
+  const barX = 112;
+  const barY = 676;
+  const barW = W - 224;
+  const barH = 22;
+  const totalBalls =
+    session.p1.totalBallsPotted + session.p2.totalBallsPotted;
+  const p1Ratio =
+    totalBalls > 0 ? session.p1.totalBallsPotted / totalBalls : 0.5;
+
+  // Правая сторона (цвет бильярдного шара)
+  roundRect(ctx, barX, barY, barW, barH, 11);
+  ctx.fillStyle = ballShadowColor;
+  ctx.fill();
+
+  // Левая сторона (цвет победителя/акцента)
+  if (p1Ratio > 0) {
+    const p1BarW =
+      p1Ratio >= 1
+        ? barW
+        : Math.max(22, Math.min(barW - 22, barW * p1Ratio));
+    roundRect(ctx, barX, barY, p1BarW, barH, 11);
+    ctx.fillStyle = accentGreen;
+    ctx.fill();
+  }
+
+  // Две нижние карточки: Лучшая серия и Время в игре
+  const halfW = (W - 128 - 32) / 2;
+
+  roundRect(ctx, 64, 765, halfW, 275, 44);
+  ctx.fillStyle = bgCard;
+  ctx.fill();
+
+  ctx.font = '600 25px system-ui, -apple-system, sans-serif';
+  ctx.fillStyle = textMuted;
+  ctx.textAlign = 'left';
+  ctx.fillText('ЛУЧШАЯ СЕРИЯ', 106, 828);
 
   const bestStreak = Math.max(
     session.p1.maxStreakBalls,
@@ -267,74 +261,62 @@ async function generateSessionCardBlob(
       ? session.p1.name
       : session.p2.name;
 
-  ctx.font = '800 84px system-ui, -apple-system, sans-serif';
+  ctx.font = '800 76px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = accentGreen;
-  ctx.fillText(`${bestStreak}`, 108, 1028);
+  ctx.fillText(`${bestStreak}`, 106, 924);
 
-  ctx.font = '500 28px system-ui, -apple-system, sans-serif';
+  ctx.font = '500 26px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textLight;
   ctx.fillText(
     bestStreak > 0
-      ? `${streakHolder.slice(0, 14)} (${session.p1.maxStreakBalls} vs ${session.p2.maxStreakBalls})`
+      ? `${streakHolder.slice(0, 12)} (${session.p1.maxStreakBalls} vs ${session.p2.maxStreakBalls})`
       : 'Без серий',
-    108,
-    1088
+    106,
+    990,
+    halfW - 84
   );
 
-  // Правая карточка: Время и темп
+  // Правая карточка: Время и под ним количество партий
   const rightX = 64 + halfW + 32;
-  roundRect(ctx, rightX, 862, halfW, 270, 44);
+  roundRect(ctx, rightX, 765, halfW, 275, 44);
   ctx.fillStyle = bgCard;
   ctx.fill();
 
-  ctx.font = '600 26px system-ui, -apple-system, sans-serif';
+  ctx.font = '600 25px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textMuted;
-  ctx.fillText('ВРЕМЯ В ИГРЕ', rightX + 44, 924);
+  ctx.textAlign = 'left';
+  ctx.fillText('ВРЕМЯ В ИГРЕ', rightX + 42, 828);
 
-  ctx.font = '800 68px system-ui, -apple-system, sans-serif';
+  ctx.font = '800 50px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textLight;
-  ctx.fillText(formatDuration(session.totalDurationMs), rightX + 44, 1020);
+  ctx.fillText(
+    formatDuration(session.totalDurationMs),
+    rightX + 42,
+    915,
+    halfW - 84
+  );
 
-  ctx.font = '500 28px system-ui, -apple-system, sans-serif';
+  ctx.font = '500 26px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textMuted;
   ctx.fillText(
     `Сыграно партий: ${session.matchesCount}`,
-    rightX + 44,
-    1088
+    rightX + 42,
+    990,
+    halfW - 84
   );
 
-  // Нижний колонтитул
-  ctx.font = '600 26px system-ui, -apple-system, sans-serif';
+  ctx.font = '600 24px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = 'rgba(244, 239, 225, 0.35)';
   ctx.textAlign = 'center';
-  ctx.fillText('РУССКИЙ БИЛЬЯРД • ИТОГИ МАТЧА', W / 2, 1210);
+  ctx.fillText('РУССКИЙ БИЛЬЯРД • ИТОГИ МАТЧА', W / 2, 1116);
 
   return new Promise((resolve) => {
     canvas.toBlob((blob) => resolve(blob), 'image/png', 1);
   });
 }
 
-const MiniShelf = ({ activeBalls }: { activeBalls: number }) => (
-  <div className="flex flex-col items-center gap-1">
-    <div className="flex gap-1.5">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div
-          key={i}
-          className={cn(
-            'size-3.5 rounded-full transition-all',
-            i < activeBalls
-              ? 'bg-piramid-ball-main shadow-inner'
-              : 'bg-piramid-ball-mid/25'
-          )}
-        />
-      ))}
-    </div>
-    <div className="bg-billiard-border h-1.5 w-24 rounded-full" />
-  </div>
-);
-
 export function ShareSessionDrawer({
-  session,
+  session: rawSession,
   isOpen,
   onOpenChange,
 }: {
@@ -342,6 +324,11 @@ export function ShareSessionDrawer({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const session = useMemo(
+    () => (rawSession ? normalizeSessionWinnerLeft(rawSession) : null),
+    [rawSession]
+  );
+
   const [pngBlob, setPngBlob] = useState<Blob | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -364,20 +351,16 @@ export function ShareSessionDrawer({
 
   const dateStr = new Date(session.endedAt).toLocaleDateString('ru-RU', {
     day: 'numeric',
-    month: 'short',
+    month: 'long',
+    year: 'numeric',
   });
 
   const totalBalls =
-    session.p1.totalBallsPotted + session.p2.totalBallsPotted || 1;
-  const p1Ratio = Math.round((session.p1.totalBallsPotted / totalBalls) * 100);
-  const p1Shelf =
-    session.p1.totalBallsPotted > 0
-      ? Math.max(1, Math.round((session.p1.totalBallsPotted / totalBalls) * 5))
-      : 0;
-  const p2Shelf =
-    session.p2.totalBallsPotted > 0
-      ? Math.max(1, Math.round((session.p2.totalBallsPotted / totalBalls) * 5))
-      : 0;
+    session.p1.totalBallsPotted + session.p2.totalBallsPotted;
+  const p1Ratio =
+    totalBalls > 0
+      ? Math.round((session.p1.totalBallsPotted / totalBalls) * 100)
+      : 50;
 
   const bestStreak = Math.max(
     session.p1.maxStreakBalls,
@@ -462,24 +445,23 @@ export function ShareSessionDrawer({
       }
       content={
         <div className="flex flex-col items-center gap-4 py-1">
-          {/* Выразительная карточка в цветах дизайн-системы */}
-          <div className="bg-neutral text-neutral-foreground relative w-full overflow-hidden rounded-3xl p-5 shadow-xl">
-            <div className="mb-3 flex items-center justify-between text-xs">
-              <span className="text-approve font-semibold tracking-wider uppercase">
+          <div className="bg-neutral text-neutral-foreground relative w-full overflow-hidden rounded-3xl p-4 sm:p-5 shadow-xl">
+            <div className="mb-3 flex items-center justify-between gap-2 text-[11px] sm:text-xs">
+              <span className="text-approve truncate font-semibold tracking-wider uppercase">
                 {MODE_NAMES[session.mode]}
               </span>
-              <span className="opacity-50">{dateStr}</span>
+              <span className="shrink-0 opacity-50">{dateStr}</span>
             </div>
 
             <div className="bg-background/10 rounded-2xl p-4">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-1 flex-col items-center gap-1.5">
+                <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
                   {session.winnerId === 'p1' ? (
-                    <span className="bg-approve/20 text-approve flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase">
-                      <TrophyIcon weight="fill" className="size-3" /> Победа
+                    <span className="bg-gold/15 text-gold flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase">
+                      <CrownIcon weight="fill" className="size-3.5" /> Победа
                     </span>
                   ) : (
-                    <span className="h-4" />
+                    <span className="h-5" />
                   )}
                   <span
                     className={cn(
@@ -489,34 +471,21 @@ export function ShareSessionDrawer({
                   >
                     {session.p1.roundsWon}
                   </span>
-                  <span className="max-w-[110px] truncate text-sm font-semibold">
+                  <span className="w-full truncate text-center text-sm font-bold">
                     {session.p1.name}
                   </span>
-                  <MiniShelf activeBalls={p1Shelf} />
                 </div>
 
                 <div className="text-3xl font-bold opacity-25">:</div>
 
-                <div className="flex flex-1 flex-col items-center gap-1.5">
-                  {session.winnerId === 'p2' ? (
-                    <span className="bg-approve/20 text-approve flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase">
-                      <TrophyIcon weight="fill" className="size-3" /> Победа
-                    </span>
-                  ) : (
-                    <span className="h-4" />
-                  )}
-                  <span
-                    className={cn(
-                      'text-5xl font-extrabold tracking-tight',
-                      session.winnerId === 'p2' && 'text-approve'
-                    )}
-                  >
+                <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
+                  <span className="h-5" />
+                  <span className="text-5xl font-extrabold tracking-tight">
                     {session.p2.roundsWon}
                   </span>
-                  <span className="max-w-[110px] truncate text-sm font-semibold">
+                  <span className="w-full truncate text-center text-sm font-bold">
                     {session.p2.name}
                   </span>
-                  <MiniShelf activeBalls={p2Shelf} />
                 </div>
               </div>
             </div>
@@ -533,48 +502,56 @@ export function ShareSessionDrawer({
                   {session.p2.totalBallsPotted}
                 </span>
               </div>
-              <div className="bg-neutral-foreground/15 flex h-2.5 w-full overflow-hidden rounded-full">
+              <div className="flex h-2.5 w-full overflow-hidden rounded-full">
                 <div
                   className="bg-approve transition-all"
                   style={{ width: `${p1Ratio}%` }}
+                />
+                <div
+                  className="bg-piramid-ball-shadow transition-all"
+                  style={{ width: `${100 - p1Ratio}%` }}
                 />
               </div>
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div className="bg-background/10 flex flex-col justify-between rounded-2xl p-3.5">
-                <div className="flex items-center gap-1.5 text-[11px] uppercase opacity-60">
-                  <FireIcon weight="fill" className="text-approve size-4" />
-                  Лучшая серия
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] uppercase opacity-60">
+                  <FireIcon
+                    weight="fill"
+                    className="text-approve size-3.5 shrink-0"
+                  />
+                  <span className="truncate">Лучшая серия</span>
                 </div>
-                <div className="mt-1 flex items-baseline gap-1.5">
-                  <span className="text-approve text-2xl font-extrabold">
+                <div className="mt-1.5 flex flex-col">
+                  <span className="text-approve text-2xl font-extrabold leading-none">
                     {bestStreak}
                   </span>
-                  <span className="truncate text-xs opacity-75">
-                    {bestStreak > 0 ? bestStreakHolder : '—'}
+                  <span className="mt-1 truncate text-[11px] opacity-75">
+                    {bestStreak > 0
+                      ? `${bestStreakHolder} (${session.p1.maxStreakBalls} vs ${session.p2.maxStreakBalls})`
+                      : 'Без серий'}
                   </span>
                 </div>
               </div>
 
               <div className="bg-background/10 flex flex-col justify-between rounded-2xl p-3.5">
-                <div className="flex items-center gap-1.5 text-[11px] uppercase opacity-60">
-                  <ClockIcon weight="fill" className="size-4" />
-                  Время в игре
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] uppercase opacity-60">
+                  <ClockIcon weight="fill" className="size-3.5 shrink-0" />
+                  <span className="truncate">Время в игре</span>
                 </div>
-                <div className="mt-1 flex items-baseline justify-between">
-                  <span className="text-lg font-extrabold">
+                <div className="mt-1.5 flex flex-col">
+                  <span className="truncate text-base sm:text-lg font-extrabold leading-tight">
                     {formatDuration(session.totalDurationMs)}
                   </span>
-                  <span className="text-xs opacity-50">
-                    {session.matchesCount} парт.
+                  <span className="mt-1 text-[11px] opacity-60">
+                    Сыграно партий: {session.matchesCount}
                   </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Панель действий: целевая кнопка Поделиться + иконки Копировать и Скачать */}
           <div className="flex w-full items-center gap-2 pt-1">
             <Button
               variant="primary"

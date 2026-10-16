@@ -381,9 +381,7 @@ function buildMatchRecord(params: {
 
     const scoringVisits = streaks.length;
     const avgStreakBalls =
-      scoringVisits > 0
-        ? Number((ballsPotted / scoringVisits).toFixed(2))
-        : 0;
+      scoringVisits > 0 ? Number((ballsPotted / scoringVisits).toFixed(2)) : 0;
 
     const avgTimePerPotMs =
       potTimes.length > 0
@@ -457,7 +455,10 @@ function buildSessionRecord(params: {
   ): PlayerSessionSummary => {
     const pMatches = matches.map((m) => m[playerId]);
     const totalScore = pMatches.reduce((acc, m) => acc + m.finalScore, 0);
-    const totalBallsPotted = pMatches.reduce((acc, m) => acc + m.ballsPotted, 0);
+    const totalBallsPotted = pMatches.reduce(
+      (acc, m) => acc + m.ballsPotted,
+      0
+    );
     const totalPenaltiesCommitted = pMatches.reduce(
       (acc, m) => acc + m.penaltiesCommitted,
       0
@@ -631,13 +632,17 @@ export const useGameStore = create<GameStore>()(
         }),
 
       endGame: () =>
-        set({
+        set((state) => ({
           isActiveGame: false,
           startTime: null,
           lastCompletedRound: null,
           currentRoundEvents: [],
           completedMatches: [],
-        }),
+          pottedBalls: [],
+          history: [],
+          p1: { ...state.p1, score: 0, roundsWon: 0 },
+          p2: { ...state.p2, score: 0, roundsWon: 0 },
+        })),
 
       dismissRoundModal: () => set({ lastCompletedRound: null }),
 
@@ -1042,6 +1047,8 @@ export const useGameStore = create<GameStore>()(
           totalPausedTime: 0,
           pauseStartTime: null,
           isPaused: false,
+          p1: { ...state.p1, score: 0, roundsWon: 0 },
+          p2: { ...state.p2, score: 0, roundsWon: 0 },
         });
 
         return sessionRecord;

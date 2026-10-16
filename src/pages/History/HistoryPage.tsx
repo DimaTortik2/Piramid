@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   useGameStore,
@@ -9,11 +9,15 @@ import {
 import { Button } from '@/shared/Button';
 import { Circle } from '@/shared/Circle';
 import { InfoDrawer } from '@/shared/InfoDrawer';
-import { ShareSessionDrawer } from '@/shared/ShareSessionDrawer';
+import {
+  ShareSessionDrawer,
+  normalizeSessionWinnerLeft,
+} from '@/shared/ShareSessionDrawer';
 import { cn } from '@/shared/lib/utils/cn';
 import {
   ArrowLeftIcon,
   CaretDownIcon,
+  CrownIcon,
   ShareNetworkIcon,
   TrashIcon,
   TrophyIcon,
@@ -140,7 +144,7 @@ function StatComparisonRow({
 }
 
 function SessionAccordionItem({
-  session,
+  session: rawSession,
   defaultExpanded = false,
   onShare,
   onRequestDelete,
@@ -150,6 +154,11 @@ function SessionAccordionItem({
   onShare: (session: GameSessionRecord) => void;
   onRequestDelete: (session: GameSessionRecord) => void;
 }) {
+  const session = useMemo(
+    () => normalizeSessionWinnerLeft(rawSession),
+    [rawSession]
+  );
+
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [selectedMatchIdx, setSelectedMatchIdx] = useState(0);
 
@@ -163,76 +172,92 @@ function SessionAccordionItem({
 
   return (
     <div className="bg-background/80 text-foreground relative rounded-2xl p-3 backdrop-blur-lg">
-      {/* Стики-хедер карточки сессии */}
       <div
         onClick={() => setExpanded((prev) => !prev)}
-        className={cn(
-          'bg-neutral text-neutral-foreground sticky top-2 z-20 flex cursor-pointer items-center justify-between gap-2 rounded-2xl px-4 py-3 shadow-md transition-all'
-        )}
+        className="bg-neutral text-neutral-foreground sticky top-2 z-20 flex cursor-pointer flex-col gap-2 rounded-2xl px-4 py-3 shadow-md transition-all"
       >
-        <div className="flex min-w-0 flex-col">
-          <span className="truncate text-[11px] opacity-60">
-            {MODE_LABELS[session.mode]} • {dateFormatted}
-          </span>
-          <div className="mt-0.5 flex items-center gap-2 text-base font-bold">
-            <span className="truncate">{session.p1.name}</span>
-            <span className="bg-background/15 rounded-lg px-2 py-0.5 text-sm">
-              {session.p1.roundsWon} : {session.p2.roundsWon}
+        <div className="flex items-center justify-between gap-2 text-[11px] opacity-60">
+          <span className="truncate">{MODE_LABELS[session.mode]}</span>
+          <span className="shrink-0">{dateFormatted}</span>
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            {session.winnerId === 'p1' && (
+              <CrownIcon
+                weight="fill"
+                className="text-gold size-4 shrink-0"
+              />
+            )}
+            <span className="truncate text-sm sm:text-base font-bold">
+              {session.p1.name}
             </span>
-            <span className="truncate">{session.p2.name}</span>
+          </div>
+
+          <span className="bg-background/15 shrink-0 whitespace-nowrap rounded-lg px-2.5 py-0.5 text-sm font-extrabold">
+            {session.p1.roundsWon} : {session.p2.roundsWon}
+          </span>
+
+          <div className="flex min-w-0 flex-1 items-center justify-end">
+            <span className="truncate text-right text-sm sm:text-base font-bold opacity-85">
+              {session.p2.name}
+            </span>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
-          <button
-            type="button"
-            title="Поделиться"
-            onClick={(e) => {
-              e.stopPropagation();
-              onShare(session);
-            }}
-            className="hover:bg-background/20 flex size-9 items-center justify-center rounded-full transition-colors"
-          >
-            <ShareNetworkIcon className="size-4" />
-          </button>
+        <div className="border-neutral-foreground/10 flex items-center justify-between border-t pt-2">
+          <span className="text-[11px] opacity-55">
+            Общее время: {formatTime(session.totalDurationMs)}
+          </span>
 
-          <button
-            type="button"
-            title="Удалить сессию"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRequestDelete(session);
-            }}
-            className="text-destructive hover:bg-destructive/20 flex size-9 items-center justify-center rounded-full transition-colors"
-          >
-            <TrashIcon className="size-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              title="Поделиться"
+              onClick={(e) => {
+                e.stopPropagation();
+                onShare(session);
+              }}
+              className="hover:bg-background/20 flex size-8 items-center justify-center rounded-full transition-colors"
+            >
+              <ShareNetworkIcon className="size-4" />
+            </button>
 
-          <button
-            type="button"
-            title={expanded ? 'Свернуть' : 'Развернуть'}
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpanded((prev) => !prev);
-            }}
-            className="hover:bg-background/20 flex size-9 items-center justify-center rounded-full transition-colors"
-          >
-            <CaretDownIcon
-              className={cn(
-                'size-4 transition-transform duration-200',
-                expanded && 'rotate-180'
-              )}
-            />
-          </button>
+            <button
+              type="button"
+              title="Удалить сессию"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRequestDelete(session);
+              }}
+              className="text-destructive hover:bg-destructive/20 flex size-8 items-center justify-center rounded-full transition-colors"
+            >
+              <TrashIcon className="size-4" />
+            </button>
+
+            <button
+              type="button"
+              title={expanded ? 'Свернуть' : 'Развернуть'}
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded((prev) => !prev);
+              }}
+              className="hover:bg-background/20 flex size-8 items-center justify-center rounded-full transition-colors"
+            >
+              <CaretDownIcon
+                className={cn(
+                  'size-4 transition-transform duration-200',
+                  expanded && 'rotate-180'
+                )}
+              />
+            </button>
+          </div>
         </div>
       </div>
 
       {expanded && (
         <div className="mt-3 flex flex-col gap-4 px-1 pt-2">
           <div className="flex flex-col gap-2.5">
-            <p className="text-xs font-semibold tracking-wider uppercase opacity-60">
-              Сводка всей сессии ({formatTime(session.totalDurationMs)})
-            </p>
             <StatComparisonRow
               label="Забито шаров"
               v1={session.p1.totalBallsPotted}

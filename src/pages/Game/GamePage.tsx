@@ -1,5 +1,5 @@
 import { cn } from '@/shared/lib/utils/cn';
-import { type HTMLAttributes, useEffect, useState } from 'react';
+import { type HTMLAttributes, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   SignOutIcon,
@@ -210,11 +210,11 @@ const UserGameBoard = ({
       className="bg-background/80 text-foreground relative flex flex-1 touch-none flex-col overflow-hidden rounded-xl p-4 backdrop-blur-lg select-none"
     >
       <div
-        className="from-approve/23 pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b to-transparent transition-opacity duration-75"
+        className="from-approve/40 pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b to-transparent transition-opacity duration-75"
         style={{ opacity: pullUpProgress }}
       />
       <div
-        className="from-destructive/23 pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t to-transparent transition-opacity duration-75"
+        className="from-destructive/40 pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t to-transparent transition-opacity duration-75"
         style={{ opacity: pullDownProgress }}
       />
 
@@ -335,7 +335,10 @@ const BottomActions = ({
               <Button
                 variant="destructive"
                 className="w-full"
-                onClick={onFinishSession}
+                onClick={() => {
+                  setIsExitDrawerOpen(false);
+                  onFinishSession();
+                }}
               >
                 Завершить сессию
               </Button>
@@ -402,6 +405,8 @@ const BottomActions = ({
 export function GamePage({}: GamePageProps) {
   const { mode } = useParams<{ mode: string }>();
   const navigate = useNavigate();
+  const isFinishingRef = useRef(false);
+
   const {
     p1,
     p2,
@@ -446,6 +451,7 @@ export function GamePage({}: GamePageProps) {
   };
 
   useEffect(() => {
+    if (isFinishingRef.current) return;
     if (storeMode !== mode || !isActiveGame) {
       startGame(
         (mode as GameMode) || 'free-pyramid',
@@ -454,10 +460,14 @@ export function GamePage({}: GamePageProps) {
         initialBreaker ?? 'p1'
       );
     }
-  }, [mode, storeMode, isActiveGame]);
+  }, [mode]);
 
   useEffect(() => {
-    const handleBeforeUnload = () => setPause(true);
+    const handleBeforeUnload = () => {
+      if (!isFinishingRef.current) {
+        setPause(true);
+      }
+    };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [setPause]);
@@ -547,11 +557,12 @@ export function GamePage({}: GamePageProps) {
   };
 
   const handleFinishSessionAndGoHistory = () => {
+    isFinishingRef.current = true;
     const record = finishSession();
     if (record) {
-      navigate(`/history?session=${record.id}&share=1`);
+      navigate(`/history?session=${record.id}&share=1`, { replace: true });
     } else {
-      navigate('/');
+      navigate('/', { replace: true });
     }
   };
 
