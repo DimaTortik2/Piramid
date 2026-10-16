@@ -263,11 +263,17 @@ const UserGameBoard = ({
 const BottomActions = ({
   onUndo,
   onExitConfirm,
+  onFinishRound,
+  onFinishSession,
+  canFinishRound = false,
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement> & {
   onUndo: () => void;
   onExitConfirm: () => void;
+  onFinishRound: () => void;
+  onFinishSession: () => void;
+  canFinishRound?: boolean;
 }) => {
   const [isExitDrawerOpen, setIsExitDrawerOpen] = useState(false);
 
@@ -293,15 +299,32 @@ const BottomActions = ({
         }
         content={
           <div className="flex flex-col items-center gap-4 py-4 text-center">
-            <p className="text-xl font-medium">Покинуть игру?</p>
+            <p className="text-xl font-medium">Управление игрой</p>
             <p className="text-neutral-foreground/70 text-sm">
-              Ваш прогресс сохранен. Вы сможете вернуться в эту партию с главной
-              страницы.
+              Вы можете временно выйти (прогресс сохранится) или полностью
+              завершить сессию с сохранением статистики.
             </p>
             <div className="mt-4 flex w-full flex-col gap-2">
+              {canFinishRound && (
+                <Button
+                  variant="approve"
+                  className="w-full"
+                  onClick={() => {
+                    onFinishRound();
+                    setIsExitDrawerOpen(false);
+                  }}
+                >
+                  Завершить текущую партию
+                </Button>
+              )}
               <Link to="/" onClick={onExitConfirm} className="w-full">
+                <Button variant="primary" className="w-full">
+                  Сохранить и выйти на главную
+                </Button>
+              </Link>
+              <Link to="/" onClick={onFinishSession} className="w-full">
                 <Button variant="destructive" className="w-full">
-                  Да, выйти на главную
+                  Завершить сессию
                 </Button>
               </Link>
             </div>
@@ -374,6 +397,8 @@ export function GamePage({}: GamePageProps) {
     addScore,
     removeScore,
     applyPenalty,
+    finishCurrentRound,
+    finishSession,
     undo,
     isPaused,
     togglePause,
@@ -383,6 +408,7 @@ export function GamePage({}: GamePageProps) {
     pottedBalls,
     isActiveGame,
     previousRoundsTime,
+    currentRoundEvents,
   } = useGameStore();
 
   const [totalElapsed, setTotalElapsed] = useState(0);
@@ -391,6 +417,7 @@ export function GamePage({}: GamePageProps) {
   const [activePlayerForClassic, setActivePlayerForClassic] = useState<
     'p1' | 'p2'
   >('p1');
+  const [penaltyTarget, setPenaltyTarget] = useState<'p1' | 'p2' | null>(null);
   const [isTimerDrawerOpen, setIsTimerDrawerOpen] = useState(false);
 
   const withPauseCheck = (action: () => void) => {
@@ -417,25 +444,20 @@ export function GamePage({}: GamePageProps) {
     if (!startTime) return;
     const interval = setInterval(() => {
       if (!isPaused) {
-        // Считаем общее время матча
         const currentTotal = Date.now() - startTime - totalPausedTime;
         setTotalElapsed(currentTotal);
-
-        // Считаем время текущей партии (общее минус время старых партий)
         setRoundElapsed(Math.max(0, currentTotal - previousRoundsTime));
       }
     }, 200);
     return () => clearInterval(interval);
   }, [startTime, totalPausedTime, previousRoundsTime, isPaused]);
 
-  // Вычисляем время для партии
   const roundHours = Math.floor(roundElapsed / (1000 * 60 * 60));
   const roundMinutes = Math.floor(
     (roundElapsed % (1000 * 60 * 60)) / (1000 * 60)
   );
   const roundSeconds = Math.floor((roundElapsed % (1000 * 60)) / 1000);
 
-  // Вычисляем время для всего матча
   const totalHours = Math.floor(totalElapsed / (1000 * 60 * 60));
   const totalMinutes = Math.floor(
     (totalElapsed % (1000 * 60 * 60)) / (1000 * 60)
@@ -455,13 +477,13 @@ export function GamePage({}: GamePageProps) {
   };
 
   const handlePenalty = (playerId: 'p1' | 'p2') => {
-    if (isClassic) {
-      const opponentId = playerId === 'p1' ? 'p2' : 'p1';
-      setActivePlayerForClassic(opponentId);
-      setClassicDrawerOpen(true);
-    } else {
-      applyPenalty(playerId);
-    }
+    setPenaltyTarget(playerId);
+  };
+
+  const handleConfirmPenalty = () => {
+    if (!penaltyTarget) return;
+    applyPenalty(penaltyTarget);
+    setPenaltyTarget(null);
   };
 
   const handleSelectClassicBall = (num: number) => {
@@ -475,6 +497,8 @@ export function GamePage({}: GamePageProps) {
   };
 
   const balls1to15 = Array.from({ length: 15 }, (_, i) => i + 1);
+  const penalizedName = penaltyTarget === 'p1' ? p1.name : p2.name;
+  const beneficiaryName = penaltyTarget === 'p1' ? p2.name : p1.name;
 
   return (
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-125 flex-col gap-4 p-3">
@@ -498,7 +522,7 @@ export function GamePage({}: GamePageProps) {
         name={p1.name}
         score={p1.score}
         onAdd={() => withPauseCheck(() => handleAddScore('p1'))}
-        onRemove={() => withPauseCheck(() => !isClassic && removeScore('p1'))}
+        onRemove={() => withPauseCheck(() => removeScore('p1'))}
         onPenalty={() => withPauseCheck(() => handlePenalty('p1'))}
         showNumberOnly={showNumberOnly}
       />
@@ -506,13 +530,63 @@ export function GamePage({}: GamePageProps) {
         name={p2.name}
         score={p2.score}
         onAdd={() => withPauseCheck(() => handleAddScore('p2'))}
-        onRemove={() => withPauseCheck(() => !isClassic && removeScore('p2'))}
+        onRemove={() => withPauseCheck(() => removeScore('p2'))}
         onPenalty={() => withPauseCheck(() => handlePenalty('p2'))}
         showNumberOnly={showNumberOnly}
       />
       <BottomActions
         onUndo={() => withPauseCheck(undo)}
         onExitConfirm={() => setPause(true)}
+        onFinishRound={() => withPauseCheck(finishCurrentRound)}
+        onFinishSession={finishSession}
+        canFinishRound={
+          (currentRoundEvents?.length ?? 0) > 0 && p1.score !== p2.score
+        }
+      />
+
+      <InfoDrawer
+        isOpen={penaltyTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setPenaltyTarget(null);
+        }}
+        closeBtn={
+          <Button
+            variant="primary"
+            className="w-full"
+            onClick={() => setPenaltyTarget(null)}
+          >
+            Отмена
+          </Button>
+        }
+        content={
+          <div className="flex flex-col items-center gap-4 py-4 text-center">
+            <p className="text-xl font-medium">Назначить штраф?</p>
+            <p className="text-neutral-foreground/70 text-sm">
+              {isClassic ? (
+                <>
+                  Со счета игрока <strong>{penalizedName}</strong> будет списано
+                  5 очков, а игроку <strong>{beneficiaryName}</strong> будет
+                  начислено 5 очков.
+                </>
+              ) : (
+                <>
+                  Игрок <strong>{penalizedName}</strong> нарушил правила. Игроку{' '}
+                  <strong>{beneficiaryName}</strong> будет начислен 1 штрафной
+                  шар.
+                </>
+              )}
+            </p>
+            <div className="mt-2 flex w-full flex-col gap-2">
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={handleConfirmPenalty}
+              >
+                Подтвердить штраф
+              </Button>
+            </div>
+          </div>
+        }
       />
 
       <InfoDrawer
