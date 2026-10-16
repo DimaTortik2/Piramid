@@ -14,6 +14,10 @@ import {
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils/cn';
+import {
+  isTelegramMiniApp,
+  shareTextToTelegram,
+} from '@/shared/lib/telegram';
 
 const MODE_NAMES: Record<GameMode, string> = {
   'free-pyramid': 'Свободная пирамида',
@@ -52,6 +56,13 @@ export function normalizeSessionWinnerLeft(
       })),
     })),
   };
+}
+
+export function buildShareCaption(session: GameSessionRecord): string {
+  const s = normalizeSessionWinnerLeft(session);
+  const winnerLine =
+    s.winnerId === 'draw' ? 'Ничья!' : `${s.p1.name} победил(а)`;
+  return `Русский бильярд!\n${winnerLine}\n${MODE_NAMES[s.mode]} - ${s.p1.roundsWon}:${s.p2.roundsWon}`;
 }
 
 function formatDuration(ms: number) {
@@ -154,7 +165,6 @@ async function generateSessionCardBlob(
   ctx.textAlign = 'right';
   ctx.fillText(dateStr, W - 68, 92);
 
-  // Главное табло со счетом
   roundRect(ctx, 64, 136, W - 128, 350, 48);
   ctx.fillStyle = bgCard;
   ctx.fill();
@@ -197,7 +207,6 @@ async function generateSessionCardBlob(
   ctx.fillText(session.p1.name.slice(0, 15), 260, 438, 360);
   ctx.fillText(session.p2.name.slice(0, 15), W - 260, 438, 360);
 
-  // Секция: Забитые шары (противостояние двух цветов)
   roundRect(ctx, 64, 518, W - 128, 215, 44);
   ctx.fillStyle = bgCard;
   ctx.fill();
@@ -224,12 +233,10 @@ async function generateSessionCardBlob(
   const p1Ratio =
     totalBalls > 0 ? session.p1.totalBallsPotted / totalBalls : 0.5;
 
-  // Правая сторона (цвет бильярдного шара)
   roundRect(ctx, barX, barY, barW, barH, 11);
   ctx.fillStyle = ballShadowColor;
   ctx.fill();
 
-  // Левая сторона (цвет победителя/акцента)
   if (p1Ratio > 0) {
     const p1BarW =
       p1Ratio >= 1
@@ -240,7 +247,6 @@ async function generateSessionCardBlob(
     ctx.fill();
   }
 
-  // Две нижние карточки: Лучшая серия и Время в игре
   const halfW = (W - 128 - 32) / 2;
 
   roundRect(ctx, 64, 765, halfW, 275, 44);
@@ -276,7 +282,6 @@ async function generateSessionCardBlob(
     halfW - 84
   );
 
-  // Правая карточка: Время и под ним количество партий
   const rightX = 64 + halfW + 32;
   roundRect(ctx, rightX, 765, halfW, 275, 44);
   ctx.fillStyle = bgCard;
@@ -349,6 +354,9 @@ export function ShareSessionDrawer({
 
   if (!session) return null;
 
+  const shareText = buildShareCaption(session);
+  const inTMA = isTelegramMiniApp();
+
   const dateStr = new Date(session.endedAt).toLocaleDateString('ru-RU', {
     day: 'numeric',
     month: 'long',
@@ -391,7 +399,7 @@ export function ShareSessionDrawer({
     toast.success('Изображение скачано');
   };
 
-  const handleCopy = async () => {
+  const handleCopy = async (silent = false) => {
     try {
       const blob = await ensureBlob();
       if (!blob) throw new Error('No blob');
@@ -399,14 +407,20 @@ export function ShareSessionDrawer({
         new ClipboardItem({ 'image/png': blob }),
       ]);
       setCopied(true);
-      toast.success('Картинка скопирована в буфер обмена');
+      if (!silent) {
+        toast.success('Картинка скопирована в буфер обмена');
+      }
       setTimeout(() => setCopied(false), 2500);
+      return true;
     } catch {
-      toast.error('Браузер не поддержал копирование картинки');
+      if (!silent) {
+        toast.error('Браузер не поддержал копирование картинки');
+      }
+      return false;
     }
   };
 
-  const handleShare = async () => {
+  const handleNativeShare = async () => {
     try {
       const blob = await ensureBlob();
       if (!blob) throw new Error('No blob');
@@ -416,16 +430,27 @@ export function ShareSessionDrawer({
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
-          title: `${session.p1.name} vs ${session.p2.name}`,
-          text: `${MODE_NAMES[session.mode]} — ${session.p1.roundsWon}:${session.p2.roundsWon}`,
+          title: 'Русский бильярд!',
+          text: shareText,
           files: [file],
         });
-      } else {
-        await handleCopy();
+        return;
       }
+
+      if (inTMA) {
+        await handleCopy(true);
+        shareTextToTelegram(shareText);
+        return;
+      }
+
+      await handleCopy();
     } catch (err) {
       if ((err as Error)?.name !== 'AbortError') {
-        await handleDownload();
+        if (inTMA) {
+          shareTextToTelegram(shareText);
+        } else {
+          await handleDownload();
+        }
       }
     }
   };
@@ -444,7 +469,7 @@ export function ShareSessionDrawer({
         </Button>
       }
       content={
-        <div className="flex flex-col items-center gap-4 py-1">
+        <div className="flex flex-col items-center gap-3.5 py-1">
           <div className="bg-neutral text-neutral-foreground relative w-full overflow-hidden rounded-3xl p-4 sm:p-5 shadow-xl">
             <div className="mb-3 flex items-center justify-between gap-2 text-[11px] sm:text-xs">
               <span className="text-approve truncate font-semibold tracking-wider uppercase">
@@ -552,11 +577,11 @@ export function ShareSessionDrawer({
             </div>
           </div>
 
-          <div className="flex w-full items-center gap-2 pt-1">
+          <div className="flex w-full items-center gap-2">
             <Button
               variant="primary"
               className="flex flex-1 items-center justify-center gap-2"
-              onClick={handleShare}
+              onClick={handleNativeShare}
             >
               <ShareNetworkIcon className="size-5" />
               Поделиться
@@ -564,7 +589,7 @@ export function ShareSessionDrawer({
 
             <button
               type="button"
-              onClick={handleCopy}
+              onClick={() => handleCopy(false)}
               title="Скопировать PNG в буфер"
             >
               <Circle className="bg-neutral text-neutral-foreground hover:bg-neutral/80 size-12">

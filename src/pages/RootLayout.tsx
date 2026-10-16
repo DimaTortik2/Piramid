@@ -4,6 +4,7 @@ import {
   useLocation,
   useMatches,
   ScrollRestoration,
+  useNavigate,
 } from 'react-router-dom';
 import {
   HouseIcon,
@@ -16,6 +17,7 @@ import { BilliardsBackground } from '@/shared/BilliardsBackground';
 import { useZenMode } from '@/shared/hooks/useZenMode';
 import { useEffect } from 'react';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
+import { getTelegramWebApp, initTelegramMiniApp } from '@/shared/lib/telegram';
 
 const NAV_ITEMS = [
   {
@@ -101,6 +103,30 @@ export function RootLayout() {
     document.documentElement.classList.toggle('no-blur', disableBlur);
   }, [disableBlur]);
   //
+
+  useEffect(() => {
+    initTelegramMiniApp();
+  }, []);
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const tg = getTelegramWebApp();
+    if (!tg?.BackButton) return;
+
+    const handleBack = () => navigate(-1);
+
+    if (location.pathname !== '/') {
+      tg.BackButton.show();
+      tg.BackButton.onClick(handleBack);
+    } else {
+      tg.BackButton.hide();
+    }
+
+    return () => {
+      tg.BackButton?.offClick(handleBack);
+    };
+  }, [location.pathname, navigate]);
 
   return (
     <div className="animate-app-fade-in text-foreground relative flex min-h-dvh w-full flex-col bg-cover bg-center bg-no-repeat">

@@ -1,6 +1,7 @@
 import { Button } from '@/shared/Button';
 import type { useZenMode } from '@/shared/hooks/useZenMode';
 import { InfoDrawer, type InfoDrawerProps } from '@/shared/InfoDrawer';
+import { getTelegramUserName } from '@/shared/lib/telegram';
 import { cn } from '@/shared/lib/utils/cn';
 import { useGameStore } from '@/shared/store/gameStore';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
@@ -65,7 +66,7 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
     SELECTED_PIRAMID_DEFAULT_ID
   );
 
-  const [p1Name, setP1Name] = useState('Вы');
+  const [p1Name, setP1Name] = useState(() => getTelegramUserName() || 'Вы');
   const [p2Name, setP2Name] = useState('Оппонент');
   const [initialBreaker, setInitialBreaker] = useState<'p1' | 'p2'>('p1');
 
