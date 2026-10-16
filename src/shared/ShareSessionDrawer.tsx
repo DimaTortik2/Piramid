@@ -15,8 +15,9 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils/cn';
 import {
+  getTelegramWebApp,
   isTelegramMiniApp,
-  shareTextToTelegram,
+  shareToTelegram,
 } from '@/shared/lib/telegram';
 
 const MODE_NAMES: Record<GameMode, string> = {
@@ -119,9 +120,14 @@ function drawCrownIcon(
   ctx.restore();
 }
 
-async function generateSessionCardBlob(
+interface CardAsset {
+  blob: Blob;
+  file: File;
+}
+
+async function generateSessionCardAsset(
   rawSession: GameSessionRecord
-): Promise<Blob | null> {
+): Promise<CardAsset | null> {
   const session = normalizeSessionWinnerLeft(rawSession);
   const canvas = document.createElement('canvas');
   const W = 1080;
@@ -316,8 +322,38 @@ async function generateSessionCardBlob(
   ctx.fillText('РУССКИЙ БИЛЬЯРД • ИТОГИ МАТЧА', W / 2, 1116);
 
   return new Promise((resolve) => {
-    canvas.toBlob((blob) => resolve(blob), 'image/png', 1);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          resolve(null);
+          return;
+        }
+        const fileName = `billiard-${session.id.slice(0, 6)}.png`;
+        const file = new File([blob], fileName, { type: 'image/png' });
+        resolve({ blob, file });
+      },
+      'image/png',
+      1
+    );
   });
+}
+
+async function uploadTempImageForTMA(file: File): Promise<string | null> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('https://tmpfiles.org/api/v1/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const rawUrl: string | undefined = json?.data?.url;
+    if (!rawUrl) return null;
+    return rawUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+  } catch {
+    return null;
+  }
 }
 
 export function ShareSessionDrawer({
@@ -334,18 +370,21 @@ export function ShareSessionDrawer({
     [rawSession]
   );
 
-  const [pngBlob, setPngBlob] = useState<Blob | null>(null);
+  const [cardAsset, setCardAsset] = useState<CardAsset | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let active = true;
     if (session && isOpen) {
       setCopied(false);
-      generateSessionCardBlob(session).then((blob) => {
-        if (active) setPngBlob(blob);
+      setUploadedUrl(null);
+      generateSessionCardAsset(session).then((asset) => {
+        if (active) setCardAsset(asset);
       });
     } else {
-      setPngBlob(null);
+      setCardAsset(null);
+      setUploadedUrl(null);
     }
     return () => {
       active = false;
@@ -379,33 +418,39 @@ export function ShareSessionDrawer({
       ? session.p1.name
       : session.p2.name;
 
-  const ensureBlob = async () => {
-    if (pngBlob) return pngBlob;
-    return await generateSessionCardBlob(session);
-  };
-
-  const handleDownload = async () => {
-    const blob = await ensureBlob();
-    if (!blob) {
-      toast.error('Не удалось создать изображение');
-      return;
-    }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `billiard-${session.id.slice(0, 6)}.png`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Изображение скачано');
+  const ensureUploadedUrl = async (file: File) => {
+    if (uploadedUrl) return uploadedUrl;
+    const url = await uploadTempImageForTMA(file);
+    if (url) setUploadedUrl(url);
+    return url;
   };
 
   const handleCopy = async (silent = false) => {
+    if (!cardAsset) return false;
+    const tg = getTelegramWebApp();
+
+    if (inTMA && tg?.platform === 'android') {
+      if (
+        !silent &&
+        navigator.canShare &&
+        navigator.canShare({ files: [cardAsset.file] })
+      ) {
+        try {
+          await navigator.share({ files: [cardAsset.file] });
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      return false;
+    }
+
     try {
-      const blob = await ensureBlob();
-      if (!blob) throw new Error('No blob');
-      await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': blob }),
-      ]);
+      window.focus();
+      const item = new ClipboardItem({
+        'image/png': Promise.resolve(cardAsset.blob),
+      });
+      await navigator.clipboard.write([item]);
       setCopied(true);
       if (!silent) {
         toast.success('Картинка скопирована в буфер обмена');
@@ -414,45 +459,93 @@ export function ShareSessionDrawer({
       return true;
     } catch {
       if (!silent) {
-        toast.error('Браузер не поддержал копирование картинки');
+        toast.error('Не удалось скопировать изображение');
       }
       return false;
     }
   };
 
-  const handleNativeShare = async () => {
-    try {
-      const blob = await ensureBlob();
-      if (!blob) throw new Error('No blob');
-      const file = new File([blob], `billiard-${session.id.slice(0, 6)}.png`, {
-        type: 'image/png',
-      });
+  const handleDownload = async () => {
+    if (!cardAsset) {
+      toast.error('Карточка еще формируется');
+      return;
+    }
 
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: 'Русский бильярд!',
-          text: shareText,
-          files: [file],
-        });
+    if (inTMA) {
+      const tg = getTelegramWebApp();
+      const toastId = toast.loading('Подготовка файла...');
+      const directUrl = await ensureUploadedUrl(cardAsset.file);
+      toast.dismiss(toastId);
+
+      if (directUrl && tg?.downloadFile) {
+        tg.downloadFile(
+          { url: directUrl, file_name: cardAsset.file.name },
+          (accepted) => {
+            if (accepted) toast.success('Изображение сохранено');
+          }
+        );
         return;
       }
 
-      if (inTMA) {
-        await handleCopy(true);
-        shareTextToTelegram(shareText);
-        return;
-      }
-
-      await handleCopy();
-    } catch (err) {
-      if ((err as Error)?.name !== 'AbortError') {
-        if (inTMA) {
-          shareTextToTelegram(shareText);
-        } else {
-          await handleDownload();
+      if (
+        navigator.canShare &&
+        navigator.canShare({ files: [cardAsset.file] })
+      ) {
+        try {
+          await navigator.share({ files: [cardAsset.file] });
+          return;
+        } catch {
+          return;
         }
       }
+
+      if (directUrl && tg?.openLink) {
+        tg.openLink(directUrl);
+        return;
+      }
+      return;
     }
+
+    const url = URL.createObjectURL(cardAsset.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = cardAsset.file.name;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Изображение скачано');
+  };
+
+  const handleNativeShare = async () => {
+    if (!cardAsset) return;
+    const { file } = cardAsset;
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          text: shareText,
+        });
+        return;
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return;
+      }
+    }
+
+    if (inTMA) {
+      await handleCopy(true);
+      const toastId = toast.loading('Создаем превью карточки...');
+      const directImageUrl = await ensureUploadedUrl(file);
+      toast.dismiss(toastId);
+
+      if (directImageUrl) {
+        shareToTelegram(shareText, directImageUrl);
+      } else {
+        shareToTelegram(shareText);
+      }
+      return;
+    }
+
+    await handleCopy(false);
   };
 
   return (
@@ -582,6 +675,7 @@ export function ShareSessionDrawer({
               variant="primary"
               className="flex flex-1 items-center justify-center gap-2"
               onClick={handleNativeShare}
+              disabled={!cardAsset}
             >
               <ShareNetworkIcon className="size-5" />
               Поделиться
@@ -590,6 +684,7 @@ export function ShareSessionDrawer({
             <button
               type="button"
               onClick={() => handleCopy(false)}
+              disabled={!cardAsset}
               title="Скопировать PNG в буфер"
             >
               <Circle className="bg-neutral text-neutral-foreground hover:bg-neutral/80 size-12">
@@ -604,6 +699,7 @@ export function ShareSessionDrawer({
             <button
               type="button"
               onClick={handleDownload}
+              disabled={!cardAsset}
               title="Скачать PNG"
             >
               <Circle className="bg-neutral text-neutral-foreground hover:bg-neutral/80 size-12">

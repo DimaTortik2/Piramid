@@ -1,5 +1,6 @@
 interface TelegramWebApp {
   initData: string;
+  platform?: string;
   initDataUnsafe?: {
     user?: {
       id: number;
@@ -17,6 +18,10 @@ interface TelegramWebApp {
   setBackgroundColor?: (color: string) => void;
   openTelegramLink: (url: string) => void;
   openLink: (url: string) => void;
+  downloadFile?: (
+    params: { url: string; file_name: string },
+    callback?: (accepted: boolean) => void
+  ) => void;
   BackButton?: {
     isVisible: boolean;
     show: () => void;
@@ -25,7 +30,9 @@ interface TelegramWebApp {
     offClick: (cb: () => void) => void;
   };
   HapticFeedback?: {
-    impactOccurred: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
+    impactOccurred: (
+      style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft'
+    ) => void;
     notificationOccurred: (type: 'error' | 'success' | 'warning') => void;
     selectionChanged: () => void;
   };
@@ -69,27 +76,32 @@ export function getTelegramUserName(): string | null {
 }
 
 export function triggerHaptic(
-  type: 'pot' | 'undo' | 'penalty' | 'win' = 'pot'
+  type: 'pot' | 'undo' | 'penalty' | 'win' | 'tab' = 'pot'
 ) {
   const tg = getTelegramWebApp();
   if (tg?.HapticFeedback) {
     if (type === 'pot') tg.HapticFeedback.impactOccurred('medium');
     else if (type === 'undo') tg.HapticFeedback.impactOccurred('light');
-    else if (type === 'penalty') tg.HapticFeedback.notificationOccurred('warning');
+    else if (type === 'tab') tg.HapticFeedback.selectionChanged();
+    else if (type === 'penalty')
+      tg.HapticFeedback.notificationOccurred('warning');
     else if (type === 'win') tg.HapticFeedback.notificationOccurred('success');
     return;
   }
 
   if ('vibrate' in navigator) {
     if (type === 'pot') navigator.vibrate(15);
-    else if (type === 'undo') navigator.vibrate(8);
+    else if (type === 'undo' || type === 'tab') navigator.vibrate(8);
     else if (type === 'penalty') navigator.vibrate([25, 40, 25]);
     else if (type === 'win') navigator.vibrate([20, 50, 40]);
   }
 }
 
-export function shareTextToTelegram(text: string, url = window.location.origin) {
-  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+export function shareToTelegram(text: string, mediaUrl?: string) {
+  const shareUrl = mediaUrl
+    ? `https://t.me/share/url?url=${encodeURIComponent(mediaUrl)}&text=${encodeURIComponent(text)}`
+    : `https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`;
+
   const tg = getTelegramWebApp();
   if (tg) {
     tg.openTelegramLink(shareUrl);

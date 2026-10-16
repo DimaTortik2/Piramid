@@ -7,7 +7,6 @@ import {
   type MatchRecord,
 } from '@/shared/store/gameStore';
 import { Button } from '@/shared/Button';
-import { Circle } from '@/shared/Circle';
 import { InfoDrawer } from '@/shared/InfoDrawer';
 import {
   ShareSessionDrawer,
@@ -15,7 +14,6 @@ import {
 } from '@/shared/ShareSessionDrawer';
 import { cn } from '@/shared/lib/utils/cn';
 import {
-  ArrowLeftIcon,
   CaretDownIcon,
   CrownIcon,
   ShareNetworkIcon,
@@ -32,6 +30,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { toast } from 'sonner';
+import { PageHeader } from '@/shared/PageHeader';
 
 const MODE_LABELS: Record<GameMode, string> = {
   'free-pyramid': 'Свободная пирамида',
@@ -184,22 +183,19 @@ function SessionAccordionItem({
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
             {session.winnerId === 'p1' && (
-              <CrownIcon
-                weight="fill"
-                className="text-gold size-4 shrink-0"
-              />
+              <CrownIcon weight="fill" className="text-gold size-4 shrink-0" />
             )}
-            <span className="truncate text-sm sm:text-base font-bold">
+            <span className="truncate text-sm font-bold sm:text-base">
               {session.p1.name}
             </span>
           </div>
 
-          <span className="bg-background/15 shrink-0 whitespace-nowrap rounded-lg px-2.5 py-0.5 text-sm font-extrabold">
+          <span className="bg-background/15 shrink-0 rounded-lg px-2.5 py-0.5 text-sm font-extrabold whitespace-nowrap">
             {session.p1.roundsWon} : {session.p2.roundsWon}
           </span>
 
           <div className="flex min-w-0 flex-1 items-center justify-end">
-            <span className="truncate text-right text-sm sm:text-base font-bold opacity-85">
+            <span className="truncate text-right text-sm font-bold opacity-85 sm:text-base">
               {session.p2.name}
             </span>
           </div>
@@ -404,15 +400,7 @@ export function HistoryPage() {
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-125 flex-col gap-4 px-2 py-3">
-      <div className="flex items-center justify-between">
-        <Link to="/">
-          <Circle className="size-10">
-            <ArrowLeftIcon />
-          </Circle>
-        </Link>
-        <h1 className="text-xl font-bold">История матчей</h1>
-        <div className="w-10" />
-      </div>
+      <PageHeader>История матчей</PageHeader>
 
       {savedSessions.length > 0 && (
         <div className="bg-background/80 grid grid-cols-3 gap-2 rounded-2xl p-3 text-center backdrop-blur-lg">
