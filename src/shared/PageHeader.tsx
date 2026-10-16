@@ -1,16 +1,18 @@
 import { cn } from '@/shared/lib/utils/cn';
 import { ArrowLeftIcon } from '@phosphor-icons/react';
-import type { HTMLAttributes } from 'react';
+import type { HTMLAttributes, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 interface HeaderProps {
   backLink?: string;
+  actionBtn?: ReactNode;
 }
 
 export function PageHeader({
   className,
   backLink = '/',
   children,
+  actionBtn,
   ...props
 }: HeaderProps & HTMLAttributes<HTMLDivElement>) {
   return (
@@ -25,7 +27,7 @@ export function PageHeader({
         <ArrowLeftIcon />
       </Link>
       <h1 className="text-xl font-bold">{children}</h1>
-      <div className="w-10" />
+      {actionBtn ? actionBtn : <div className="w-10" />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   useGameStore,
@@ -14,11 +14,15 @@ import {
 } from '@/shared/ShareSessionDrawer';
 import { cn } from '@/shared/lib/utils/cn';
 import {
+  ArrowsLeftRightIcon,
   CaretDownIcon,
+  CopyIcon,
   CrownIcon,
+  DownloadSimpleIcon,
   ShareNetworkIcon,
   TrashIcon,
   TrophyIcon,
+  UploadSimpleIcon,
 } from '@phosphor-icons/react';
 import {
   ResponsiveContainer,
@@ -39,6 +43,26 @@ const MODE_LABELS: Record<GameMode, string> = {
   'classic-pyramid': 'Русская (71 очко)',
   'continuous-free-pyramid': 'Свободная с продолжением',
 };
+
+function encodeBackup(sessions: GameSessionRecord[]): string {
+  const json = JSON.stringify({ version: 1, sessions });
+  return btoa(encodeURIComponent(json));
+}
+
+function decodeBackup(raw: string): GameSessionRecord[] {
+  const trimmed = raw.trim();
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && Array.isArray(parsed.sessions)) return parsed.sessions;
+  } catch {
+    const decodedJson = decodeURIComponent(atob(trimmed));
+    const parsed = JSON.parse(decodedJson);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && Array.isArray(parsed.sessions)) return parsed.sessions;
+  }
+  throw new Error('Invalid backup format');
+}
 
 function formatTime(ms: number | null) {
   if (ms === null || ms <= 0) return '—';
@@ -361,13 +385,16 @@ function SessionAccordionItem({
 }
 
 export function HistoryPage() {
-  const { savedSessions = [], deleteSession } = useGameStore();
+  const { savedSessions = [], deleteSession, importSessions } = useGameStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const [shareSession, setShareSession] = useState<GameSessionRecord | null>(
     null
   );
   const [sessionToDelete, setSessionToDelete] =
     useState<GameSessionRecord | null>(null);
+  const [isBackupDrawerOpen, setIsBackupDrawerOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const highlightedSessionId = searchParams.get('session');
   const shouldOpenShare = searchParams.get('share') === '1';
@@ -398,9 +425,112 @@ export function HistoryPage() {
     toast.success('Сессия удалена из истории');
   };
 
+  const handleCopyBackupCode = async () => {
+    if (savedSessions.length === 0) {
+      toast.warning('История пока пуста');
+      return;
+    }
+    try {
+      const code = encodeBackup(savedSessions);
+      await navigator.clipboard.writeText(code);
+      toast.success('Код истории скопирован в буфер обмена');
+    } catch {
+      toast.error('Не удалось скопировать в буфер');
+    }
+  };
+
+  const handleExportFile = async () => {
+    if (savedSessions.length === 0) {
+      toast.warning('История пока пуста');
+      return;
+    }
+    const json = JSON.stringify(
+      { version: 1, exportedAt: Date.now(), sessions: savedSessions },
+      null,
+      2
+    );
+    const datePart = new Date().toISOString().slice(0, 10);
+    const fileName = `billiard-history-${datePart}.json`;
+    const blob = new Blob([json], { type: 'application/json' });
+    const file = new File([blob], fileName, { type: 'application/json' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          title: 'История матчей — Русский бильярд',
+          files: [file],
+        });
+        return;
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return;
+      }
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Файл истории сохранен');
+  };
+
+  const processImportString = (raw: string) => {
+    try {
+      const parsedSessions = decodeBackup(raw);
+      const addedCount = importSessions(parsedSessions);
+      if (addedCount > 0) {
+        toast.success(`Добавлено новых сессий: ${addedCount}`);
+      } else {
+        toast.info('Все эти сессии уже есть в вашей истории');
+      }
+      setImportText('');
+      setIsBackupDrawerOpen(false);
+    } catch {
+      toast.error('Некорректный формат данных или файла');
+    }
+  };
+
+  const handleImportFromClipboard = async () => {
+    if (importText.trim()) {
+      processImportString(importText);
+      return;
+    }
+    try {
+      const clip = await navigator.clipboard.readText();
+      if (!clip.trim()) {
+        toast.warning('Буфер обмена пуст — вставьте код в поле ниже');
+        return;
+      }
+      processImportString(clip);
+    } catch {
+      toast.info('Вставьте скопированный код в поле ниже и нажмите Импорт');
+    }
+  };
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    processImportString(text);
+    e.target.value = '';
+  };
+
   return (
     <div className="mx-auto flex min-h-full w-full max-w-125 flex-col gap-4 px-2 py-3">
-      <PageHeader>История матчей</PageHeader>
+      <PageHeader
+        actionBtn={
+          <button
+            type="button"
+            title="Экспорт и импорт истории"
+            onClick={() => setIsBackupDrawerOpen(true)}
+          >
+            <ArrowsLeftRightIcon />
+          </button>
+        }
+      >
+        История матчей
+      </PageHeader>
 
       {savedSessions.length > 0 && (
         <div className="bg-background/80 grid grid-cols-3 gap-2 rounded-2xl p-3 text-center backdrop-blur-lg">
@@ -424,12 +554,23 @@ export function HistoryPage() {
           <TrophyIcon className="size-12 opacity-40" />
           <p className="text-lg font-medium">История пока пуста</p>
           <p className="text-sm opacity-60">
-            Завершите хотя бы одну игровую сессию, чтобы увидеть графики партий
-            и статистику серий.
+            Завершите хотя бы одну игровую сессию или импортируйте сохраненную
+            историю.
           </p>
-          <Link to="/" className="mt-2 w-full">
-            <Button className="w-full">На главную</Button>
-          </Link>
+          <div className="mt-2 flex w-full flex-col gap-2">
+            <Button
+              variant="primary"
+              className="w-full"
+              onClick={() => setIsBackupDrawerOpen(true)}
+            >
+              Импортировать историю
+            </Button>
+            <Link to="/" className="w-full">
+              <Button variant="ghost" className="w-full">
+                На главную
+              </Button>
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -453,6 +594,95 @@ export function HistoryPage() {
         onOpenChange={(open) => {
           if (!open) setShareSession(null);
         }}
+      />
+
+      <InfoDrawer
+        isOpen={isBackupDrawerOpen}
+        onOpenChange={setIsBackupDrawerOpen}
+        closeBtn={
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={() => setIsBackupDrawerOpen(false)}
+          >
+            Закрыть
+          </Button>
+        }
+        content={
+          <div className="flex flex-col gap-4 py-2">
+            <div>
+              <p className="text-lg font-semibold">Экспорт истории</p>
+              <p className="text-xs opacity-60">
+                Перенесите историю матчей устройствами или
+                сохраните резервную копию.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="flex items-center justify-center gap-1.5"
+                  onClick={handleCopyBackupCode}
+                >
+                  <CopyIcon className="size-4" />
+                  В буфер
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="flex items-center justify-center gap-1.5"
+                  onClick={handleExportFile}
+                >
+                  <DownloadSimpleIcon className="size-4" />
+                  json
+                </Button>
+              </div>
+            </div>
+
+            <div className="border-neutral-foreground/10 border-t pt-3">
+              <p className="text-lg font-semibold">Импорт истории</p>
+              <p className="text-xs opacity-60">
+                Новые матчи автоматически объединятся с текущими без дублей.
+              </p>
+
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder="Вставьте сюда скопированный код истории (или оставьте пустым для чтения из буфера)..."
+                rows={3}
+                className="bg-neutral text-neutral-foreground mt-2.5 w-full rounded-2xl p-3 text-xs outline-none"
+              />
+
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <Button
+                  variant="approve"
+                  size="sm"
+                  className="flex items-center justify-center gap-1.5"
+                  onClick={handleImportFromClipboard}
+                >
+                  <CopyIcon className="size-4" />
+                  {importText.trim() ? 'Ок' : 'Из буфера'}
+                </Button>
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="flex items-center justify-center gap-1.5"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <UploadSimpleIcon className="size-4" />
+                  Из json
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </div>
+            </div>
+          </div>
+        }
       />
 
       <InfoDrawer

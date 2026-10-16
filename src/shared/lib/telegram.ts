@@ -18,10 +18,6 @@ interface TelegramWebApp {
   setBackgroundColor?: (color: string) => void;
   openTelegramLink: (url: string) => void;
   openLink: (url: string) => void;
-  downloadFile?: (
-    params: { url: string; file_name: string },
-    callback?: (accepted: boolean) => void
-  ) => void;
   BackButton?: {
     isVisible: boolean;
     show: () => void;
@@ -97,11 +93,8 @@ export function triggerHaptic(
   }
 }
 
-export function shareToTelegram(text: string, mediaUrl?: string) {
-  const shareUrl = mediaUrl
-    ? `https://t.me/share/url?url=${encodeURIComponent(mediaUrl)}&text=${encodeURIComponent(text)}`
-    : `https://t.me/share/url?url=%20&text=${encodeURIComponent(text)}`;
-
+export function shareToTelegram(text: string) {
+  const shareUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(text)}`;
   const tg = getTelegramWebApp();
   if (tg) {
     tg.openTelegramLink(shareUrl);

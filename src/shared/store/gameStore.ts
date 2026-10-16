@@ -135,6 +135,7 @@ interface GameStore extends GameStateData {
   pauseStartTime: number | null;
   isPaused: boolean;
   isActiveGame: boolean;
+  importSessions: (incoming: GameSessionRecord[]) => number;
 
   startGame: (
     mode: GameMode,
@@ -658,6 +659,37 @@ export const useGameStore = create<GameStore>()(
           }
           return { savedSessions: next };
         }),
+        importSessions: (incoming) => {
+        if (!Array.isArray(incoming)) return 0;
+        const current = get().savedSessions ?? [];
+        const existingIds = new Set(current.map((s) => s.id));
+
+        const validNew = incoming.filter(
+          (s) =>
+            s &&
+            typeof s.id === 'string' &&
+            typeof s.endedAt === 'number' &&
+            s.p1 &&
+            s.p2 &&
+            Array.isArray(s.matches) &&
+            !existingIds.has(s.id)
+        );
+
+        if (validNew.length === 0) return 0;
+
+        const merged = [...validNew, ...current].sort(
+          (a, b) => b.endedAt - a.endedAt
+        );
+
+        try {
+          localStorage.setItem('piramid-match-history', JSON.stringify(merged));
+        } catch {
+          // ignore storage quota errors
+        }
+
+        set({ savedSessions: merged });
+        return validNew.length;
+      },
 
       addScore: (playerId, amount = 1, ballNumber) =>
         set((state) => {

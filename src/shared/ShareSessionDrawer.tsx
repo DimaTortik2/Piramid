@@ -11,14 +11,11 @@ import {
   CrownIcon,
   FireIcon,
   ClockIcon,
+  CameraIcon,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils/cn';
-import {
-  getTelegramWebApp,
-  isTelegramMiniApp,
-  shareToTelegram,
-} from '@/shared/lib/telegram';
+import { isTelegramMiniApp, shareToTelegram } from '@/shared/lib/telegram';
 
 const MODE_NAMES: Record<GameMode, string> = {
   'free-pyramid': 'Свободная пирамида',
@@ -338,24 +335,6 @@ async function generateSessionCardAsset(
   });
 }
 
-async function uploadTempImageForTMA(file: File): Promise<string | null> {
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await fetch('https://tmpfiles.org/api/v1/upload', {
-      method: 'POST',
-      body: formData,
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    const rawUrl: string | undefined = json?.data?.url;
-    if (!rawUrl) return null;
-    return rawUrl.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-  } catch {
-    return null;
-  }
-}
-
 export function ShareSessionDrawer({
   session: rawSession,
   isOpen,
@@ -371,20 +350,20 @@ export function ShareSessionDrawer({
   );
 
   const [cardAsset, setCardAsset] = useState<CardAsset | null>(null);
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [screenshotMode, setScreenshotMode] = useState(false);
 
   useEffect(() => {
     let active = true;
     if (session && isOpen) {
       setCopied(false);
-      setUploadedUrl(null);
+      setScreenshotMode(false);
       generateSessionCardAsset(session).then((asset) => {
         if (active) setCardAsset(asset);
       });
     } else {
       setCardAsset(null);
-      setUploadedUrl(null);
+      setScreenshotMode(false);
     }
     return () => {
       active = false;
@@ -418,94 +397,38 @@ export function ShareSessionDrawer({
       ? session.p1.name
       : session.p2.name;
 
-  const ensureUploadedUrl = async (file: File) => {
-    if (uploadedUrl) return uploadedUrl;
-    const url = await uploadTempImageForTMA(file);
-    if (url) setUploadedUrl(url);
-    return url;
-  };
-
-  const handleCopy = async (silent = false) => {
-    if (!cardAsset) return false;
-    const tg = getTelegramWebApp();
-
-    if (inTMA && tg?.platform === 'android') {
-      if (
-        !silent &&
-        navigator.canShare &&
-        navigator.canShare({ files: [cardAsset.file] })
-      ) {
-        try {
-          await navigator.share({ files: [cardAsset.file] });
-          return true;
-        } catch {
-          return false;
-        }
+  const handleCopy = async () => {
+    if (inTMA) {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        setCopied(true);
+        toast.success('Текст результата скопирован');
+        setTimeout(() => setCopied(false), 2500);
+      } catch {
+        toast.error('Не удалось скопировать');
       }
-      return false;
+      return;
     }
 
+    if (!cardAsset) return;
     try {
-      window.focus();
       const item = new ClipboardItem({
         'image/png': Promise.resolve(cardAsset.blob),
       });
       await navigator.clipboard.write([item]);
       setCopied(true);
-      if (!silent) {
-        toast.success('Картинка скопирована в буфер обмена');
-      }
+      toast.success('Картинка скопирована в буфер обмена');
       setTimeout(() => setCopied(false), 2500);
-      return true;
     } catch {
-      if (!silent) {
-        toast.error('Не удалось скопировать изображение');
-      }
-      return false;
+      await navigator.clipboard.writeText(shareText);
+      setCopied(true);
+      toast.success('Скопирован текст результата');
+      setTimeout(() => setCopied(false), 2500);
     }
   };
 
-  const handleDownload = async () => {
-    if (!cardAsset) {
-      toast.error('Карточка еще формируется');
-      return;
-    }
-
-    if (inTMA) {
-      const tg = getTelegramWebApp();
-      const toastId = toast.loading('Подготовка файла...');
-      const directUrl = await ensureUploadedUrl(cardAsset.file);
-      toast.dismiss(toastId);
-
-      if (directUrl && tg?.downloadFile) {
-        tg.downloadFile(
-          { url: directUrl, file_name: cardAsset.file.name },
-          (accepted) => {
-            if (accepted) toast.success('Изображение сохранено');
-          }
-        );
-        return;
-      }
-
-      if (
-        navigator.canShare &&
-        navigator.canShare({ files: [cardAsset.file] })
-      ) {
-        try {
-          await navigator.share({ files: [cardAsset.file] });
-          return;
-        } catch {
-          return;
-        }
-      }
-
-      if (directUrl && tg?.openLink) {
-        tg.openLink(directUrl);
-        return;
-      }
-      return;
-    }
-
+  const handleDownload = () => {
+    if (!cardAsset) return;
     const url = URL.createObjectURL(cardAsset.blob);
     const a = document.createElement('a');
     a.href = url;
@@ -515,14 +438,15 @@ export function ShareSessionDrawer({
     toast.success('Изображение скачано');
   };
 
-  const handleNativeShare = async () => {
-    if (!cardAsset) return;
-    const { file } = cardAsset;
-
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+  const handleShare = async () => {
+    if (
+      cardAsset &&
+      navigator.canShare &&
+      navigator.canShare({ files: [cardAsset.file] })
+    ) {
       try {
         await navigator.share({
-          files: [file],
+          files: [cardAsset.file],
           text: shareText,
         });
         return;
@@ -532,20 +456,11 @@ export function ShareSessionDrawer({
     }
 
     if (inTMA) {
-      await handleCopy(true);
-      const toastId = toast.loading('Создаем превью карточки...');
-      const directImageUrl = await ensureUploadedUrl(file);
-      toast.dismiss(toastId);
-
-      if (directImageUrl) {
-        shareToTelegram(shareText, directImageUrl);
-      } else {
-        shareToTelegram(shareText);
-      }
+      shareToTelegram(shareText);
       return;
     }
 
-    await handleCopy(false);
+    await handleCopy();
   };
 
   return (
@@ -553,17 +468,22 @@ export function ShareSessionDrawer({
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       closeBtn={
-        <Button
-          variant="ghost"
-          className="w-full"
-          onClick={() => onOpenChange(false)}
-        >
-          Закрыть
-        </Button>
+        !screenshotMode ? (
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={() => onOpenChange(false)}
+          >
+            Закрыть
+          </Button>
+        ) : undefined
       }
       content={
         <div className="flex flex-col items-center gap-3.5 py-1">
-          <div className="bg-neutral text-neutral-foreground relative w-full overflow-hidden rounded-3xl p-4 sm:p-5 shadow-xl">
+          <div
+            onClick={() => inTMA && setScreenshotMode((prev) => !prev)}
+            className="bg-neutral text-neutral-foreground relative w-full overflow-hidden rounded-3xl p-4 sm:p-5 shadow-xl"
+          >
             <div className="mb-3 flex items-center justify-between gap-2 text-[11px] sm:text-xs">
               <span className="text-approve truncate font-semibold tracking-wider uppercase">
                 {MODE_NAMES[session.mode]}
@@ -670,43 +590,66 @@ export function ShareSessionDrawer({
             </div>
           </div>
 
-          <div className="flex w-full items-center gap-2">
-            <Button
-              variant="primary"
-              className="flex flex-1 items-center justify-center gap-2"
-              onClick={handleNativeShare}
-              disabled={!cardAsset}
-            >
-              <ShareNetworkIcon className="size-5" />
-              Поделиться
-            </Button>
+          {!screenshotMode && (
+            <>
+              {inTMA && (
+                <div
+                  onClick={() => setScreenshotMode(true)}
+                  className="bg-neutral/80 text-neutral-foreground flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-center text-xs"
+                >
+                  <CameraIcon className="text-approve size-4 shrink-0" />
+                  <span>
+                    Сделайте скриншот карточки для отправки фото (нажмите, чтобы
+                    скрыть кнопки)
+                  </span>
+                </div>
+              )}
 
-            <button
-              type="button"
-              onClick={() => handleCopy(false)}
-              disabled={!cardAsset}
-              title="Скопировать PNG в буфер"
-            >
-              <Circle className="bg-neutral text-neutral-foreground hover:bg-neutral/80 size-12">
-                {copied ? (
-                  <CheckIcon className="text-approve size-5" />
-                ) : (
-                  <CopyIcon className="size-5" />
+              <div className="flex w-full items-center gap-2">
+                <Button
+                  variant="primary"
+                  className="flex flex-1 items-center justify-center gap-2"
+                  onClick={handleShare}
+                  disabled={!cardAsset}
+                >
+                  <ShareNetworkIcon className="size-5" />
+                  {inTMA ? 'Отправить результат в чат' : 'Поделиться'}
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  disabled={!cardAsset}
+                  title={
+                    inTMA
+                      ? 'Скопировать текст результата'
+                      : 'Скопировать PNG в буфер'
+                  }
+                >
+                  <Circle className="bg-neutral text-neutral-foreground hover:bg-neutral/80 size-12">
+                    {copied ? (
+                      <CheckIcon className="text-approve size-5" />
+                    ) : (
+                      <CopyIcon className="size-5" />
+                    )}
+                  </Circle>
+                </button>
+
+                {!inTMA && (
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    disabled={!cardAsset}
+                    title="Скачать PNG"
+                  >
+                    <Circle className="bg-neutral text-neutral-foreground hover:bg-neutral/80 size-12">
+                      <DownloadSimpleIcon className="size-5" />
+                    </Circle>
+                  </button>
                 )}
-              </Circle>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDownload}
-              disabled={!cardAsset}
-              title="Скачать PNG"
-            >
-              <Circle className="bg-neutral text-neutral-foreground hover:bg-neutral/80 size-12">
-                <DownloadSimpleIcon className="size-5" />
-              </Circle>
-            </button>
-          </div>
+              </div>
+            </>
+          )}
         </div>
       }
     />
