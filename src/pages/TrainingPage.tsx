@@ -159,13 +159,19 @@ export function TrainingPage() {
             label: '1. Штраф: Промах',
             title: 'Штраф за промах мимо всех шаров',
             description:
-              'Биток не коснулся ни одного прицельного шара на столе. Соперник снимает шар со стола на полку.',
+              'Биток проходит мимо прицельных шаров, ударяется в дальний борт и останавливается, не коснувшись ни одного шара.',
             balls: [
-              { id: 'cue', x: 180, y: 240, isCue: true },
-              { id: 1, x: 440, y: 150, number: 1 },
-              { id: 2, x: 520, y: 260, number: 2 },
+              { id: 'cue', x: 180, y: 260, isCue: true },
+              { id: 1, x: 430, y: 120, number: 1 },
+              { id: 2, x: 480, y: 320, number: 2 },
             ],
-            shots: [{ ballId: 'cue', angle: -5, power: 15 }],
+            shots: [
+              {
+                ballId: 'cue',
+                angle: -4,
+                power: 10,
+              },
+            ],
             verdict: {
               type: 'foul',
               title: 'ШТРАФ: Промах по шару',
@@ -176,12 +182,18 @@ export function TrainingPage() {
             label: '2. Штраф: Без борта',
             title: 'Штраф при отыгрыше (нет касания борта)',
             description:
-              'После соударения битка с прицельным шаром ни один шар не упал в лузу и ни один шар не коснулся борта.',
+              'После соударения битка с прицельным шаром ни один шар не упал в лузу и ни один шар не дошел до борта.',
             balls: [
-              { id: 'cue', x: 240, y: 210, isCue: true },
-              { id: 4, x: 430, y: 210, number: 4 },
+              { id: 'cue', x: 220, y: 210, isCue: true },
+              { id: 4, x: 410, y: 210, number: 4 },
             ],
-            shots: [{ ballId: 'cue', angle: 0, power: 5.5 }],
+            shots: [
+              {
+                ballId: 'cue',
+                target: { x: 385, y: 196 },
+                power: 5,
+              },
+            ],
             verdict: {
               type: 'foul',
               title: 'ШТРАФ: Недовод до борта',
@@ -201,7 +213,7 @@ export function TrainingPage() {
               {
                 ballId: 'cue',
                 angle: -34,
-                power: 24,
+                power: 22,
                 jumpOffTable: true,
               },
             ],
@@ -213,18 +225,24 @@ export function TrainingPage() {
           },
           {
             label: '4. Как надо: Отыгрыш',
-            title: 'Правильный отыгрыш',
+            title: 'Правильный отыгрыш к борту',
             description:
-              'После касания прицельного шара №4 он доходит до правого короткого борта — правила отыгрыша соблюдены.',
+              'После касания шара №4 прицельный шар доходит до верхнего борта, а биток уходит к нижнему — правила отыгрыша соблюдены.',
             balls: [
-              { id: 'cue', x: 240, y: 210, isCue: true },
-              { id: 4, x: 430, y: 210, number: 4 },
+              { id: 'cue', x: 220, y: 210, isCue: true },
+              { id: 4, x: 410, y: 210, number: 4 },
             ],
-            shots: [{ ballId: 'cue', angle: 0, power: 13 }],
+            shots: [
+              {
+                ballId: 'cue',
+                target: { x: 385, y: 224 },
+                power: 12,
+              },
+            ],
             verdict: {
               type: 'valid',
               title: 'ПРАВИЛЬНО: Чистый отыгрыш',
-              subtitle: 'Прицельный шар коснулся борта после соударения',
+              subtitle: 'Шары коснулись бортов после соударения',
             },
           },
         ]}
@@ -236,7 +254,7 @@ export function TrainingPage() {
             label: 'Оттяжка',
             title: '1. Чистая оттяжка (Нижний винт)',
             description:
-              'Удар в нижнюю часть битка. Прицельный шар уходит в правую угловую лузу, а биток возвращается назад.',
+              'Удар в нижнюю часть битка. Шар №1 точно падает в правую верхнюю лузу, а биток за счет обратного вращения возвращается назад.',
             balls: [
               { id: 'cue', x: 210, y: 210, isCue: true },
               { id: 1, x: 470, y: 125, number: 1 },
@@ -244,7 +262,7 @@ export function TrainingPage() {
             shots: [
               {
                 ballId: 'cue',
-                target: { x: 444, y: 134 },
+                aimAt: { ballId: 1, pocket: 'top-right' },
                 power: 17,
                 spin: { top: -0.95, side: 0 },
               },
@@ -254,7 +272,7 @@ export function TrainingPage() {
             label: 'Клапштос (90°)',
             title: '2. Клапштос (Остановка и угол 90°)',
             description:
-              'Плотный удар в центр битка без верхнего и нижнего вращения. При резке биток идет строго по касательной 90°.',
+              'Плотный удар в центр битка без верхнего и нижнего вращения. Шар №5 падает в угол, а биток уходит строго под 90° по касательной.',
             balls: [
               { id: 'cue', x: 200, y: 250, isCue: true },
               { id: 5, x: 450, y: 160, number: 5 },
@@ -262,8 +280,8 @@ export function TrainingPage() {
             shots: [
               {
                 ballId: 'cue',
-                target: { x: 423, y: 173 },
-                power: 18,
+                aimAt: { ballId: 5, pocket: 'top-right' },
+                power: 17,
                 spin: { top: 0, side: 0 },
               },
             ],
@@ -272,7 +290,7 @@ export function TrainingPage() {
             label: 'Накат',
             title: '3. Накат по дуге (Верхний винт)',
             description:
-              'После соударения под резкой верхнее вращение захватывает сукно и вытягивает биток вперед.',
+              'Шар №3 уходит в угловую лузу, а верхнее вращение захватывает сукно и вытягивает биток вперед по дуге.',
             balls: [
               { id: 'cue', x: 180, y: 260, isCue: true },
               { id: 3, x: 440, y: 160, number: 3 },
@@ -280,9 +298,9 @@ export function TrainingPage() {
             shots: [
               {
                 ballId: 'cue',
-                target: { x: 416, y: 176 },
+                aimAt: { ballId: 3, pocket: 'top-right' },
                 power: 15,
-                spin: { top: 0.95, side: 0.25 },
+                spin: { top: 0.95, side: 0.2 },
               },
             ],
           },
@@ -316,18 +334,18 @@ export function TrainingPage() {
 
       <BilliardSimulator
         title="Массе / Дуговик (Обвод шара-маски)"
-        description="Биток по гладкой дуге огибает мешающий шар №9 и точно укладывает шар №1 в правую верхнюю лузу."
+        description="Прямую линию перекрывает шар №9. Биток выходит ниже маски, по дуге заворачивает вверх в линию створа и укладывает шар №1 в правую верхнюю лузу."
         balls={[
-          { id: 'cue', x: 180, y: 260, isCue: true },
-          { id: 9, x: 380, y: 192, number: 9 },
-          { id: 1, x: 610, y: 110, number: 1 },
+          { id: 'cue', x: 170, y: 235, isCue: true },
+          { id: 9, x: 355, y: 176, number: 9 },
+          { id: 1, x: 560, y: 125, number: 1 },
         ]}
         shots={[
           {
             ballId: 'cue',
-            angle: -32.5,
+            aimAt: { ballId: 1, pocket: 'top-right' },
             power: 17.5,
-            spin: { curve: 0.8, top: 0.2 },
+            spin: { curve: -0.85, top: 0.2, side: -0.7 },
           },
         ]}
       />
@@ -370,7 +388,7 @@ export function TrainingPage() {
         shots={[
           {
             ballId: 'cue',
-            target: { x: 520, y: 205 },
+            target: { x: 520, y: 204 },
             power: 28,
             spin: { top: -0.35, side: 0.15 },
           },

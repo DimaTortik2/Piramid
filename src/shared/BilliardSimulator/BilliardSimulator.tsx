@@ -4,34 +4,41 @@
  * ============================================================================
  *
  * 1. ОДИНОЧНЫЙ РЕЖИМ ИЛИ СЛАЙДЕР (slides):
- *    Компонент можно использовать как для одного удара, так и в режиме слайдера,
- *    передав массив `slides={[ ... ]}` (например: «Как не надо (Штраф)» -> «Как надо»).
+ *    Передайте массив `slides={[ ... ]}` для переключения между вариантами
+ *    удара или разбора правил («Штраф» / «Как надо») внутри одного блока.
  *
- * 2. КООРДИНАТЫ И БОРТА:
- *    - Виртуальное поле по умолчанию: 800 x 420 (центр: x = 400, y = 210).
+ * 2. КООРДИНАТЫ, БОРТА И ЛУЗЫ:
+ *    - Виртуальный стол по умолчанию: 800 x 420 (центр: x = 400, y = 210).
  *    - walls: 'all' (все борта), 'none' (без бортов, шары улетают за край),
  *      либо { top?: boolean, bottom?: boolean, left?: boolean, right?: boolean }.
  *    - pockets: true (6 луз), false (без луз), либо массив [{ x, y, radius }].
  *
- * 3. ПАРАМЕТРЫ УДАРА (shots):
- *    - ballId: ID шара (обычно 'cue')
- *    - angle: угол в градусах (0 = вправо, 90 = вниз, 180 = влево, -90 = вверх)
- *      ИЛИ target: { x, y } — координаты точки, куда направлен удар.
- *    - power: сила удара (5..32)
- *    - jumpOffTable?: true — шар при ударе в борт перелетает через него за пределы стола
- *      (для демонстрации штрафа за вылет шара).
- *    - spin:
- *        * top: -1 (оттяжка), 0 (клапштос / остановка / 90°), +1 (накат)
- *        * side: -1 (левый винт), +1 (правый винт)
- *        * curve: от -1 до +1 (массе / дуговик — изгиб траектории по дуге)
+ * 3. СПОСОБЫ НАВЕДЕНИЯ УДАРА (shots):
+ *    В каждом объекте удара можно выбрать любой из 3 способов прицеливания:
+ *    А) Автоприцел в лузу через шар (`aimAt`):
+ *       aimAt: {
+ *         ballId: 1,
+ *         pocket: 'top-right', // 'top-left' | 'top-middle' | 'top-right' | 'bottom-left' | 'bottom-middle' | 'bottom-right'
+ *         cutOffset?: 0 // 0 = точно в лузу, >0.6 или <-0.6 = намеренный промах
+ *       }
+ *       Если вместе с `aimAt` задан `spin.curve`, симулятор автоматически
+ *       рассчитает стартовый угол дуги так, чтобы биток по дуге пришел
+ *       ровно в точку резки прицельного шара!
+ *    Б) Прицел в конкретную координату стола (`target`):
+ *       target: { x: 450, y: 160 }
+ *    В) Прицел по углу в градусах (`angle`):
+ *       angle: -15 (0 = вправо, 90 = вниз, 180 = влево, -90 = вверх)
  *
- * 4. ДЕМОНСТРАЦИЯ ШТРАФОВ И ПРАВИЛ (verdict):
- *    Передайте объект `verdict`:
- *    - type: 'foul' (красная плашка штрафа) | 'valid' (зеленая плашка правильного удара)
- *    - title: например, 'ШТРАФ: Промах мимо шара' или 'ПРАВИЛЬНО: Отыгрыш от борта'
- *    - subtitle?: пояснение под заголовком
- *    Плашка автоматически появится по завершении движения шаров, подержится на экране,
- *    плавно погаснет, после чего демонстрация перезапустится.
+ * 4. СИЛА И ВРАЩЕНИЕ БИТКА (power, spin):
+ *    - power: сила удара (4..32)
+ *    - jumpOffTable?: true — шар при ударе в борт вылетает за пределы стола
+ *    - spin:
+ *        * top: -1 (оттяжка назад), 0 (клапштос / остановка / 90°), +1 (накат вперед)
+ *        * side: -1 (левый боковой винт), +1 (правый винт)
+ *        * curve: от -1 до +1 (массе / дуговик — <0 дуга вверх/влево, >0 дуга вниз/вправо)
+ *
+ * 5. ПЛАШКА ВЕРДИКТА (verdict):
+ *    verdict: { type: 'foul' | 'valid', title: '...', subtitle: '...' }
  * ============================================================================
  */
 
@@ -51,6 +58,14 @@ import {
 import { cn } from '@/shared/lib/utils/cn';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
 
+export type PocketPresetName =
+  | 'top-left'
+  | 'top-middle'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-middle'
+  | 'bottom-right';
+
 export interface BallSpinConfig {
   top?: number;
   side?: number;
@@ -66,10 +81,17 @@ export interface SimulatorBallConfig {
   isCue?: boolean;
 }
 
+export interface SimulatorAimAtConfig {
+  ballId: string | number;
+  pocket?: PocketPresetName | { x: number; y: number };
+  cutOffset?: number;
+}
+
 export interface SimulatorShotConfig {
   ballId: string | number;
   angle?: number;
   target?: { x: number; y: number };
+  aimAt?: SimulatorAimAtConfig;
   power: number;
   spin?: BallSpinConfig;
   delayMs?: number;
@@ -80,6 +102,10 @@ export interface SimulatorPocketConfig {
   x: number;
   y: number;
   radius?: number;
+  kind?: 'corner' | 'middle' | 'custom';
+  cornerX?: -1 | 1;
+  cornerY?: -1 | 1;
+  middleY?: -1 | 1;
 }
 
 export interface SimulatorWallsConfig {
@@ -210,6 +236,8 @@ interface InternalBallMeta {
   topSpin: number;
   sideSpin: number;
   curve: number;
+  initialAngle: number;
+  arcLength: number;
   spinAxisAngle: number;
   spinEnergy: number;
   hasHitBall: boolean;
@@ -221,21 +249,108 @@ interface InternalBallMeta {
   potAnimation?: {
     x: number;
     y: number;
+    vx: number;
+    vy: number;
+    pocketX: number;
+    pocketY: number;
     progress: number;
   };
 }
 
-const CUSHION_SIZE = 24;
+const CUSHION_SIZE = 26;
+const CURVE_K = 0.0022;
 
-const resolveShotAngleRad = (
-  shot: SimulatorShotConfig,
-  ballX: number,
-  ballY: number
-): number => {
-  if (shot.target) {
-    return Math.atan2(shot.target.y - ballY, shot.target.x - ballX);
+const resolvePocketAimTarget = (
+  pocket: PocketPresetName | { x: number; y: number } | undefined,
+  width: number,
+  height: number
+): { x: number; y: number } => {
+  if (pocket && typeof pocket === 'object') {
+    return pocket;
   }
-  return ((shot.angle ?? 0) * Math.PI) / 180;
+  const cornerTarget = 22;
+  const middleTargetY = 18;
+  switch (pocket) {
+    case 'top-left':
+      return { x: cornerTarget, y: cornerTarget };
+    case 'top-middle':
+      return { x: width / 2, y: middleTargetY };
+    case 'bottom-left':
+      return { x: cornerTarget, y: height - cornerTarget };
+    case 'bottom-middle':
+      return { x: width / 2, y: height - middleTargetY };
+    case 'bottom-right':
+      return { x: width - cornerTarget, y: height - cornerTarget };
+    case 'top-right':
+    default:
+      return { x: width - cornerTarget, y: cornerTarget };
+  }
+};
+
+const resolveGhostAndLaunch = (
+  shot: SimulatorShotConfig,
+  strikerX: number,
+  strikerY: number,
+  strikerRadius: number,
+  balls: SimulatorBallConfig[],
+  defaultRadius: number,
+  width: number,
+  height: number
+): { launchAngle: number; ghostX?: number; ghostY?: number; chordDist?: number } => {
+  const curve = Math.max(-1, Math.min(1, shot.spin?.curve ?? 0));
+  const kappa = curve * CURVE_K;
+
+  if (shot.aimAt) {
+    const objBall = balls.find((b) => b.id === shot.aimAt?.ballId);
+    if (objBall) {
+      const objR = objBall.radius ?? defaultRadius;
+      const sumR = strikerRadius + objR;
+      const pocketPos = resolvePocketAimTarget(
+        shot.aimAt.pocket,
+        width,
+        height
+      );
+
+      const dx = pocketPos.x - objBall.x;
+      const dy = pocketPos.y - objBall.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const ux = dx / dist;
+      const uy = dy / dist;
+
+      const perpX = -uy;
+      const perpY = ux;
+      const offset = (shot.aimAt.cutOffset ?? 0) * sumR;
+
+      const ghostX = objBall.x - ux * sumR + perpX * offset;
+      const ghostY = objBall.y - uy * sumR + perpY * offset;
+
+      const chordDx = ghostX - strikerX;
+      const chordDy = ghostY - strikerY;
+      const chordDist = Math.hypot(chordDx, chordDy) || 1;
+      const chordAngle = Math.atan2(chordDy, chordDx);
+
+      const halfTurnArg = Math.max(-0.85, Math.min(0.85, (kappa * chordDist) / 2));
+      const launchAngle = chordAngle - Math.asin(halfTurnArg);
+
+      return { launchAngle, ghostX, ghostY, chordDist };
+    }
+  }
+
+  if (shot.target) {
+    const chordDx = shot.target.x - strikerX;
+    const chordDy = shot.target.y - strikerY;
+    const chordDist = Math.hypot(chordDx, chordDy) || 1;
+    const chordAngle = Math.atan2(chordDy, chordDx);
+    const halfTurnArg = Math.max(-0.85, Math.min(0.85, (kappa * chordDist) / 2));
+    return {
+      launchAngle: chordAngle - Math.asin(halfTurnArg),
+      ghostX: shot.target.x,
+      ghostY: shot.target.y,
+      chordDist,
+    };
+  }
+
+  return { launchAngle: ((shot.angle ?? 0) * Math.PI) / 180 };
 };
 
 export function BilliardSimulator({
@@ -362,25 +477,63 @@ export function BilliardSimulator({
 
     const resolvedPockets: SimulatorPocketConfig[] = [];
     if (Array.isArray(activePockets)) {
-      resolvedPockets.push(...activePockets);
+      resolvedPockets.push(
+        ...activePockets.map((p) => ({ ...p, kind: p.kind ?? 'custom' }))
+      );
     } else if (activePockets) {
-      const pr = ballRadius * 1.55;
-      const c = CUSHION_SIZE;
+      const cornerR = 14;
+      const middleR = 13;
       if (resolvedWalls.top && resolvedWalls.left)
-        resolvedPockets.push({ x: c, y: c, radius: pr });
+        resolvedPockets.push({
+          x: 16,
+          y: 16,
+          radius: cornerR,
+          kind: 'corner',
+          cornerX: -1,
+          cornerY: -1,
+        });
       if (resolvedWalls.top && resolvedWalls.right)
-        resolvedPockets.push({ x: width - c, y: c, radius: pr });
+        resolvedPockets.push({
+          x: width - 16,
+          y: 16,
+          radius: cornerR,
+          kind: 'corner',
+          cornerX: 1,
+          cornerY: -1,
+        });
       if (resolvedWalls.bottom && resolvedWalls.left)
-        resolvedPockets.push({ x: c, y: height - c, radius: pr });
+        resolvedPockets.push({
+          x: 16,
+          y: height - 16,
+          radius: cornerR,
+          kind: 'corner',
+          cornerX: -1,
+          cornerY: 1,
+        });
       if (resolvedWalls.bottom && resolvedWalls.right)
-        resolvedPockets.push({ x: width - c, y: height - c, radius: pr });
+        resolvedPockets.push({
+          x: width - 16,
+          y: height - 16,
+          radius: cornerR,
+          kind: 'corner',
+          cornerX: 1,
+          cornerY: 1,
+        });
       if (resolvedWalls.top && width >= 520)
-        resolvedPockets.push({ x: width / 2, y: c - 2, radius: pr * 0.95 });
+        resolvedPockets.push({
+          x: width / 2,
+          y: 14,
+          radius: middleR,
+          kind: 'middle',
+          middleY: -1,
+        });
       if (resolvedWalls.bottom && width >= 520)
         resolvedPockets.push({
           x: width / 2,
-          y: height - c + 2,
-          radius: pr * 0.95,
+          y: height - 14,
+          radius: middleR,
+          kind: 'middle',
+          middleY: 1,
         });
     }
 
@@ -389,40 +542,40 @@ export function BilliardSimulator({
       isStatic: true,
       restitution: 0.88,
       friction: 0.005,
+      frictionStatic: 0,
       slop: 0.01,
       collisionFilter: { category: 0x0002 },
     };
 
     const hasPockets = resolvedPockets.length > 0;
-    const cornerGap = hasPockets ? ballRadius * 2.15 : 0;
-    const middleGap = hasPockets && width >= 520 ? ballRadius * 1.75 : 0;
+    const cornerCut = hasPockets ? 40 : CUSHION_SIZE;
+    const middleCut = hasPockets && width >= 520 ? 22 : 0;
 
     if (resolvedWalls.top) {
-      if (middleGap > 0) {
-        const segW =
-          (width - CUSHION_SIZE * 2 - cornerGap * 2 - middleGap * 2) / 2;
+      if (middleCut > 0) {
+        const segW = width / 2 - cornerCut - middleCut;
         wallBodies.push(
           Bodies.rectangle(
-            CUSHION_SIZE + cornerGap + segW / 2,
+            cornerCut + segW / 2,
             CUSHION_SIZE / 2,
             segW,
             CUSHION_SIZE,
-            { ...wallOptions, chamfer: { radius: 6 }, label: 'wall-top' }
+            { ...wallOptions, chamfer: { radius: 5 }, label: 'wall-top' }
           ),
           Bodies.rectangle(
-            width / 2 + middleGap + segW / 2,
+            width / 2 + middleCut + segW / 2,
             CUSHION_SIZE / 2,
             segW,
             CUSHION_SIZE,
-            { ...wallOptions, chamfer: { radius: 6 }, label: 'wall-top' }
+            { ...wallOptions, chamfer: { radius: 5 }, label: 'wall-top' }
           )
         );
       } else {
-        const segW = width - CUSHION_SIZE * 2 - cornerGap * 2;
+        const segW = width - cornerCut * 2;
         wallBodies.push(
           Bodies.rectangle(width / 2, CUSHION_SIZE / 2, segW, CUSHION_SIZE, {
             ...wallOptions,
-            chamfer: { radius: 6 },
+            chamfer: { radius: 5 },
             label: 'wall-top',
           })
         );
@@ -430,59 +583,58 @@ export function BilliardSimulator({
     }
 
     if (resolvedWalls.bottom) {
-      if (middleGap > 0) {
-        const segW =
-          (width - CUSHION_SIZE * 2 - cornerGap * 2 - middleGap * 2) / 2;
+      if (middleCut > 0) {
+        const segW = width / 2 - cornerCut - middleCut;
         wallBodies.push(
           Bodies.rectangle(
-            CUSHION_SIZE + cornerGap + segW / 2,
+            cornerCut + segW / 2,
             height - CUSHION_SIZE / 2,
             segW,
             CUSHION_SIZE,
-            { ...wallOptions, chamfer: { radius: 6 }, label: 'wall-bottom' }
+            { ...wallOptions, chamfer: { radius: 5 }, label: 'wall-bottom' }
           ),
           Bodies.rectangle(
-            width / 2 + middleGap + segW / 2,
+            width / 2 + middleCut + segW / 2,
             height - CUSHION_SIZE / 2,
             segW,
             CUSHION_SIZE,
-            { ...wallOptions, chamfer: { radius: 6 }, label: 'wall-bottom' }
+            { ...wallOptions, chamfer: { radius: 5 }, label: 'wall-bottom' }
           )
         );
       } else {
-        const segW = width - CUSHION_SIZE * 2 - cornerGap * 2;
+        const segW = width - cornerCut * 2;
         wallBodies.push(
           Bodies.rectangle(
             width / 2,
             height - CUSHION_SIZE / 2,
             segW,
             CUSHION_SIZE,
-            { ...wallOptions, chamfer: { radius: 6 }, label: 'wall-bottom' }
+            { ...wallOptions, chamfer: { radius: 5 }, label: 'wall-bottom' }
           )
         );
       }
     }
 
     if (resolvedWalls.left) {
-      const segH = height - CUSHION_SIZE * 2 - cornerGap * 2;
+      const segH = height - cornerCut * 2;
       wallBodies.push(
         Bodies.rectangle(CUSHION_SIZE / 2, height / 2, CUSHION_SIZE, segH, {
           ...wallOptions,
-          chamfer: { radius: 6 },
+          chamfer: { radius: 5 },
           label: 'wall-left',
         })
       );
     }
 
     if (resolvedWalls.right) {
-      const segH = height - CUSHION_SIZE * 2 - cornerGap * 2;
+      const segH = height - cornerCut * 2;
       wallBodies.push(
         Bodies.rectangle(
           width - CUSHION_SIZE / 2,
           height / 2,
           CUSHION_SIZE,
           segH,
-          { ...wallOptions, chamfer: { radius: 6 }, label: 'wall-right' }
+          { ...wallOptions, chamfer: { radius: 5 }, label: 'wall-right' }
         )
       );
     }
@@ -496,8 +648,8 @@ export function BilliardSimulator({
       const r = b.radius ?? ballRadius;
       const body = Bodies.circle(b.x, b.y, r, {
         restitution: 0.95,
-        friction: 0.001,
-        frictionAir: 0.013,
+        friction: 0.002,
+        frictionAir: 0.0135,
         frictionStatic: 0,
         slop: 0.005,
         density: 0.002,
@@ -512,6 +664,8 @@ export function BilliardSimulator({
         topSpin: 0,
         sideSpin: 0,
         curve: 0,
+        initialAngle: 0,
+        arcLength: 0,
         spinAxisAngle: 0,
         spinEnergy: 0,
         hasHitBall: false,
@@ -538,7 +692,8 @@ export function BilliardSimulator({
           const nx = dx / dist;
           const ny = dy / dist;
 
-          const registerImpact = (
+          const registerBallHit = (
+            strikerBody: Matter.Body,
             strikerMeta: InternalBallMeta,
             targetBody: Matter.Body,
             normalX: number,
@@ -548,31 +703,56 @@ export function BilliardSimulator({
             strikerMeta.hasHitBall = true;
             strikerMeta.ticksAfterHit = 0;
 
-            if (Math.abs(strikerMeta.sideSpin) > 0.05) {
-              const side = strikerMeta.sideSpin;
-              const energy = Math.min(strikerMeta.spinEnergy, 14);
-              postStepImpulses.push(() => {
+            const preSpeed = Math.hypot(
+              strikerBody.velocity.x,
+              strikerBody.velocity.y
+            );
+            if (preSpeed > 0.2) {
+              strikerMeta.spinAxisAngle = Math.atan2(
+                strikerBody.velocity.y,
+                strikerBody.velocity.x
+              );
+            }
+
+            const top = strikerMeta.topSpin;
+            const side = strikerMeta.sideSpin;
+            const energy = Math.min(strikerMeta.spinEnergy, 16);
+
+            postStepImpulses.push(() => {
+              if (Math.abs(top) < 0.08 && energy > 2) {
+                const vx = strikerBody.velocity.x;
+                const vy = strikerBody.velocity.y;
+                const dot = vx * normalX + vy * normalY;
+                Body.setVelocity(strikerBody, {
+                  x: (vx - dot * normalX) * 0.88,
+                  y: (vy - dot * normalY) * 0.88,
+                });
+              }
+
+              if (Math.abs(side) > 0.05) {
                 const tangentX = -normalY;
                 const tangentY = normalX;
-                const throwForce = -side * energy * 0.06;
+                const throwForce = -side * energy * 0.055;
                 Body.setVelocity(targetBody, {
                   x: targetBody.velocity.x + tangentX * throwForce,
                   y: targetBody.velocity.y + tangentY * throwForce,
                 });
-              });
-            }
+              }
+            });
           };
 
           if (metaA.spinEnergy > 0.1 && !metaA.hasHitBall) {
-            registerImpact(metaA, pair.bodyB, nx, ny);
+            registerBallHit(pair.bodyA, metaA, pair.bodyB, nx, ny);
           }
           if (metaB.spinEnergy > 0.1 && !metaB.hasHitBall) {
-            registerImpact(metaB, pair.bodyA, -nx, -ny);
+            registerBallHit(pair.bodyB, metaB, pair.bodyA, -nx, -ny);
           }
         } else if (metaA || metaB) {
           const ballBody = metaA ? pair.bodyA : pair.bodyB;
           const wallBody = metaA ? pair.bodyB : pair.bodyA;
           const ballMeta = (metaA || metaB)!;
+
+          ballMeta.curve = 0;
 
           if (Math.abs(ballMeta.sideSpin) > 0.04) {
             const side = ballMeta.sideSpin;
@@ -620,18 +800,26 @@ export function BilliardSimulator({
       const meta = metaMap.get(body.id);
       if (!meta || meta.potted) return;
 
-      const angleRad = resolveShotAngleRad(
+      const { launchAngle } = resolveGhostAndLaunch(
         shot,
         body.position.x,
-        body.position.y
+        body.position.y,
+        meta.radius,
+        activeBalls,
+        ballRadius,
+        width,
+        height
       );
-      const vx = Math.cos(angleRad) * shot.power;
-      const vy = Math.sin(angleRad) * shot.power;
+
+      const vx = Math.cos(launchAngle) * shot.power;
+      const vy = Math.sin(launchAngle) * shot.power;
 
       meta.topSpin = Math.max(-1, Math.min(1, shot.spin?.top ?? 0));
       meta.sideSpin = Math.max(-1, Math.min(1, shot.spin?.side ?? 0));
       meta.curve = Math.max(-1, Math.min(1, shot.spin?.curve ?? 0));
-      meta.spinAxisAngle = angleRad;
+      meta.initialAngle = launchAngle;
+      meta.arcLength = 0;
+      meta.spinAxisAngle = launchAngle;
       meta.spinEnergy = shot.power;
       meta.hasHitBall = false;
       meta.ticksAfterHit = 0;
@@ -661,16 +849,16 @@ export function BilliardSimulator({
 
         if (!meta.hasHitBall && Math.abs(meta.curve) > 0.01) {
           const speed = Math.hypot(body.velocity.x, body.velocity.y);
-          if (speed > 0.35) {
-            const dTheta = speed * meta.curve * 0.0014;
-            const cosT = Math.cos(dTheta);
-            const sinT = Math.sin(dTheta);
-            const vx = body.velocity.x;
-            const vy = body.velocity.y;
+          if (speed > 0.25) {
+            const ds = speed * (1 - body.frictionAir);
+            const kappa = meta.curve * CURVE_K;
+            const stepAngle =
+              meta.initialAngle + kappa * (meta.arcLength + ds * 0.5);
             Body.setVelocity(body, {
-              x: vx * cosT - vy * sinT,
-              y: vx * sinT + vy * cosT,
+              x: Math.cos(stepAngle) * speed,
+              y: Math.sin(stepAngle) * speed,
             });
+            meta.arcLength += ds;
           }
         }
 
@@ -692,7 +880,11 @@ export function BilliardSimulator({
         meta.spinEnergy *= 0.992;
 
         const speed = Math.hypot(body.velocity.x, body.velocity.y);
-        if (speed > 0 && speed < 0.08 && meta.ticksAfterHit > 15) {
+        if (
+          speed > 0 &&
+          speed < 0.08 &&
+          (!meta.hasHitBall || meta.ticksAfterHit > 18)
+        ) {
           Body.setVelocity(body, { x: 0, y: 0 });
         }
 
@@ -709,28 +901,42 @@ export function BilliardSimulator({
         const lastPt = meta.trail[meta.trail.length - 1];
         if (
           !lastPt ||
-          Math.hypot(body.position.x - lastPt.x, body.position.y - lastPt.y) >
-            3.5
+          Math.hypot(body.position.x - lastPt.x, body.position.y - lastPt.y) > 3
         ) {
           meta.trail.push({ x: body.position.x, y: body.position.y });
         }
 
         if (!meta.isAirborne) {
           for (const pocket of resolvedPockets) {
-            const pr = pocket.radius ?? ballRadius * 1.55;
-            const dist = Math.hypot(
-              body.position.x - pocket.x,
-              body.position.y - pocket.y
-            );
-            if (dist < pr * 0.92) {
+            const pr = pocket.radius ?? 14;
+            const dx = pocket.x - body.position.x;
+            const dy = pocket.y - body.position.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist < pr + 4.5) {
               meta.potted = true;
               meta.potAnimation = {
-                x: pocket.x * 0.7 + body.position.x * 0.3,
-                y: pocket.y * 0.7 + body.position.y * 0.3,
+                x: body.position.x,
+                y: body.position.y,
+                vx: body.velocity.x,
+                vy: body.velocity.y,
+                pocketX: pocket.x,
+                pocketY: pocket.y,
                 progress: 0,
               };
               World.remove(engine.world, body);
               break;
+            } else if (dist < pr + 12) {
+              const ux = dx / (dist || 1);
+              const uy = dy / (dist || 1);
+              const velTowards =
+                body.velocity.x * ux + body.velocity.y * uy;
+              if (velTowards > -0.2) {
+                Body.setVelocity(body, {
+                  x: body.velocity.x + ux * 0.22,
+                  y: body.velocity.y + uy * 0.22,
+                });
+              }
             }
           }
         }
@@ -795,10 +1001,44 @@ export function BilliardSimulator({
       if (resolvedWalls.right) ctx.fillRect(width - c, 0, c, height);
 
       for (const pocket of resolvedPockets) {
-        const pr = pocket.radius ?? ballRadius * 1.55;
+        const pr = pocket.radius ?? 14;
+
+        ctx.fillStyle = '#0e2817';
+        if (pocket.kind === 'middle' && pocket.middleY) {
+          const isTop = pocket.middleY === -1;
+          const railEdgeY = isTop ? c : height - c;
+          ctx.beginPath();
+          ctx.moveTo(pocket.x - 21, railEdgeY);
+          ctx.lineTo(pocket.x - pr, pocket.y);
+          ctx.lineTo(pocket.x + pr, pocket.y);
+          ctx.lineTo(pocket.x + 21, railEdgeY);
+          ctx.closePath();
+          ctx.fill();
+        } else if (
+          pocket.kind === 'corner' &&
+          pocket.cornerX &&
+          pocket.cornerY
+        ) {
+          const isLeft = pocket.cornerX === -1;
+          const isTop = pocket.cornerY === -1;
+          const xEdge = isLeft ? c : width - c;
+          const yEdge = isTop ? c : height - c;
+          const xJaw = isLeft ? 40 : width - 40;
+          const yJaw = isTop ? 40 : height - 40;
+
+          ctx.beginPath();
+          ctx.moveTo(xJaw, yEdge);
+          ctx.lineTo(pocket.x + (isLeft ? 8 : -8), pocket.y - (isTop ? 8 : -8));
+          ctx.lineTo(pocket.x - (isLeft ? 8 : -8), pocket.y + (isTop ? 8 : -8));
+          ctx.lineTo(xEdge, yJaw);
+          ctx.lineTo(xEdge, yEdge);
+          ctx.closePath();
+          ctx.fill();
+        }
+
         ctx.beginPath();
         ctx.arc(pocket.x, pocket.y, pr, 0, Math.PI * 2);
-        ctx.fillStyle = '#070b08';
+        ctx.fillStyle = '#060a08';
         ctx.fill();
       }
 
@@ -866,51 +1106,110 @@ export function BilliardSimulator({
       ) {
         const firstShot = activeShots[0];
         const cueBody = bodyMap.get(firstShot.ballId);
-        if (cueBody) {
+        const cueMeta = cueBody ? metaMap.get(cueBody.id) : undefined;
+        if (cueBody && cueMeta) {
           const sx = cueBody.position.x;
           const sy = cueBody.position.y;
-          const angleRad = resolveShotAngleRad(firstShot, sx, sy);
-          const dirX = Math.cos(angleRad);
-          const dirY = Math.sin(angleRad);
+          const { launchAngle, ghostX, ghostY, chordDist } =
+            resolveGhostAndLaunch(
+              firstShot,
+              sx,
+              sy,
+              cueMeta.radius,
+              activeBalls,
+              ballRadius,
+              width,
+              height
+            );
 
-          let closestDist = 900;
-          metaMap.forEach((m, bId) => {
-            if (m.config.id === firstShot.ballId) return;
-            const other = engine.world.bodies.find((b) => b.id === bId);
-            if (!other) return;
-            const ox = other.position.x - sx;
-            const oy = other.position.y - sy;
-            const proj = ox * dirX + oy * dirY;
-            if (proj <= 0) return;
-            const perpSq = ox * ox + oy * oy - proj * proj;
-            const sumR = (cueBody.circleRadius || ballRadius) + m.radius;
-            if (perpSq < sumR * sumR) {
-              const hitDist = proj - Math.sqrt(sumR * sumR - perpSq);
-              if (hitDist > 0 && hitDist < closestDist) {
-                closestDist = hitDist;
+          const curveVal = Math.max(
+            -1,
+            Math.min(1, firstShot.spin?.curve ?? 0)
+          );
+
+          if (Math.abs(curveVal) > 0.02) {
+            const kappa = curveVal * CURVE_K;
+            const maxArc = chordDist ? chordDist * 1.06 : 380;
+            const stepS = 8;
+            let px = sx;
+            let py = sy;
+            let hitGhost: { x: number; y: number } | null = null;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([4, 5]);
+            ctx.moveTo(px, py);
+
+            for (let s = 0; s < maxArc; s += stepS) {
+              const ang = launchAngle + kappa * (s + stepS * 0.5);
+              px += Math.cos(ang) * stepS;
+              py += Math.sin(ang) * stepS;
+              ctx.lineTo(px, py);
+
+              if (
+                ghostX !== undefined &&
+                ghostY !== undefined &&
+                Math.hypot(px - ghostX, py - ghostY) < stepS * 0.8
+              ) {
+                hitGhost = { x: ghostX, y: ghostY };
+                break;
               }
             }
-          });
 
-          const endX = sx + dirX * closestDist;
-          const endY = sy + dirY * closestDist;
-
-          ctx.save();
-          ctx.beginPath();
-          ctx.setLineDash([4, 5]);
-          ctx.moveTo(sx, sy);
-          ctx.lineTo(endX, endY);
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-          ctx.lineWidth = 1.25;
-          ctx.stroke();
-
-          if (closestDist < 890) {
-            ctx.beginPath();
-            ctx.arc(endX, endY, ballRadius, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+            ctx.lineWidth = 1.25;
             ctx.stroke();
+
+            if (hitGhost) {
+              ctx.beginPath();
+              ctx.arc(hitGhost.x, hitGhost.y, cueMeta.radius, 0, Math.PI * 2);
+              ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+              ctx.stroke();
+            }
+            ctx.restore();
+          } else {
+            const dirX = Math.cos(launchAngle);
+            const dirY = Math.sin(launchAngle);
+
+            let closestDist = 900;
+            metaMap.forEach((m, bId) => {
+              if (m.config.id === firstShot.ballId) return;
+              const other = engine.world.bodies.find((b) => b.id === bId);
+              if (!other) return;
+              const ox = other.position.x - sx;
+              const oy = other.position.y - sy;
+              const proj = ox * dirX + oy * dirY;
+              if (proj <= 0) return;
+              const perpSq = ox * ox + oy * oy - proj * proj;
+              const sumR = cueMeta.radius + m.radius;
+              if (perpSq < sumR * sumR) {
+                const hitDist = proj - Math.sqrt(sumR * sumR - perpSq);
+                if (hitDist > 0 && hitDist < closestDist) {
+                  closestDist = hitDist;
+                }
+              }
+            });
+
+            const endX = sx + dirX * closestDist;
+            const endY = sy + dirY * closestDist;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.setLineDash([4, 5]);
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(endX, endY);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+            ctx.lineWidth = 1.25;
+            ctx.stroke();
+
+            if (closestDist < 890) {
+              ctx.beginPath();
+              ctx.arc(endX, endY, cueMeta.radius, 0, Math.PI * 2);
+              ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+              ctx.stroke();
+            }
+            ctx.restore();
           }
-          ctx.restore();
         }
       }
 
@@ -990,19 +1289,13 @@ export function BilliardSimulator({
       metaMap.forEach((meta, bodyId) => {
         if (meta.potted) {
           if (meta.potAnimation && meta.potAnimation.progress < 1) {
-            meta.potAnimation.progress = Math.min(
-              1,
-              meta.potAnimation.progress + 0.09
-            );
-            const scale = 1 - meta.potAnimation.progress;
+            const anim = meta.potAnimation;
+            anim.progress = Math.min(1, anim.progress + 0.11);
+            anim.x += (anim.pocketX - anim.x) * 0.25;
+            anim.y += (anim.pocketY - anim.y) * 0.25;
+            const scale = 1 - anim.progress;
             if (scale > 0.05) {
-              drawSingleBall(
-                meta.potAnimation.x,
-                meta.potAnimation.y,
-                meta.radius,
-                meta,
-                scale
-              );
+              drawSingleBall(anim.x, anim.y, meta.radius, meta, scale);
             }
           }
           return;
@@ -1023,7 +1316,8 @@ export function BilliardSimulator({
       if (showCue && activeShots.length > 0 && elapsedTicks < cueLeadInTicks) {
         const firstShot = activeShots[0];
         const cueBody = bodyMap.get(firstShot.ballId);
-        if (cueBody) {
+        const cueMeta = cueBody ? metaMap.get(cueBody.id) : undefined;
+        if (cueBody && cueMeta) {
           const progress = elapsedTicks / cueLeadInTicks;
           const maxPull = 14 + firstShot.power * 1.15;
           const pullback =
@@ -1031,17 +1325,22 @@ export function BilliardSimulator({
               ? (progress / 0.74) * maxPull
               : (1 - (progress - 0.74) / 0.26) * maxPull;
 
-          const angleRad = resolveShotAngleRad(
+          const { launchAngle } = resolveGhostAndLaunch(
             firstShot,
             cueBody.position.x,
-            cueBody.position.y
+            cueBody.position.y,
+            cueMeta.radius,
+            activeBalls,
+            ballRadius,
+            width,
+            height
           );
 
           ctx.save();
           ctx.translate(cueBody.position.x, cueBody.position.y);
-          ctx.rotate(angleRad + Math.PI);
+          ctx.rotate(launchAngle + Math.PI);
 
-          const tipX = ballRadius + 6 + pullback;
+          const tipX = cueMeta.radius + 6 + pullback;
           const cueLen = 155;
 
           ctx.beginPath();
@@ -1191,6 +1490,10 @@ export function BilliardSimulator({
   }, [isVisible, isPlaying]);
 
   const primarySpin = activeShots[0]?.spin;
+  const hudSideOffset =
+    primarySpin?.side && Math.abs(primarySpin.side) > 0.05
+      ? primarySpin.side
+      : (primarySpin?.curve ?? 0) * 0.8;
 
   return (
     <div
@@ -1268,7 +1571,7 @@ export function BilliardSimulator({
                 <div className="absolute inset-y-0 left-1/2 w-px bg-black/15" />
                 <div
                   style={{
-                    left: `${50 + (primarySpin.side ?? 0) * 34}%`,
+                    left: `${50 + hudSideOffset * 34}%`,
                     top: `${50 - (primarySpin.top ?? 0) * 34}%`,
                   }}
                   className="absolute size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-600"
@@ -1283,12 +1586,12 @@ export function BilliardSimulator({
                       : 'Клапштос'}
                 </span>
                 <span className="text-neutral-foreground/60">
-                  {(primarySpin.side ?? 0) > 0.1
-                    ? 'Правый винт'
-                    : (primarySpin.side ?? 0) < -0.1
-                      ? 'Левый винт'
-                      : (primarySpin.curve ?? 0) !== 0
-                        ? 'Дуговик'
+                  {(primarySpin.curve ?? 0) !== 0
+                    ? 'Дуговик'
+                    : (primarySpin.side ?? 0) > 0.1
+                      ? 'Правый винт'
+                      : (primarySpin.side ?? 0) < -0.1
+                        ? 'Левый винт'
                         : 'Центр'}
                 </span>
               </div>
