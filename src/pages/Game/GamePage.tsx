@@ -6,6 +6,8 @@ import {
   ArrowArcLeftIcon,
   QuestionMarkIcon,
   PlayIcon,
+  FireIcon,
+  MinusIcon,
 } from '@phosphor-icons/react';
 import { Circle } from '@/shared/Circle';
 import { Button } from '@/shared/Button';
@@ -13,7 +15,11 @@ import { useSwipe } from '@/shared/hooks/useSwipe';
 import { InfoDrawer } from '@/shared/InfoDrawer';
 import { ShareSessionDrawer } from '@/shared/ShareSessionDrawer';
 import SwipeTutorialCard from '@/shared/SwipeTutorialCard';
-import { useGameStore, type GameMode } from '@/shared/store/gameStore';
+import {
+  useGameStore,
+  getActivePlayerStreak,
+  type GameMode,
+} from '@/shared/store/gameStore';
 import { Drawer } from 'vaul';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/shared/lib/telegram';
@@ -164,16 +170,20 @@ const HeaderDisplay = ({
 const UserGameBoard = ({
   name,
   score = 0,
+  activeStreak = 0,
   onAdd,
   onRemove,
   onPenalty,
+  onDecrementStreak,
   showNumberOnly = false,
 }: {
   name?: string;
   score?: number;
+  activeStreak?: number;
   onAdd: () => void;
   onRemove: () => void;
   onPenalty?: () => void;
+  onDecrementStreak?: () => void;
   showNumberOnly?: boolean;
 } & HTMLAttributes<HTMLDivElement>) => {
   let firstShelfScore = 0;
@@ -211,13 +221,32 @@ const UserGameBoard = ({
       />
 
       <div className="relative z-10 flex flex-1 flex-col justify-center">
-        <div className="flex w-full items-center justify-between">
-          <span className="font-medium">{name}</span>
+        <div className="flex w-full items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-medium">{name}</span>
+            {activeStreak >= 2 && (
+              <button
+                type="button"
+                title="Уменьшить текущую серию"
+                onPointerDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDecrementStreak?.();
+                }}
+                className="bg-approve/20 text-approve hover:bg-approve/30 flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold transition-all active:scale-95"
+              >
+                <FireIcon weight="fill" className="size-3.5" />
+                <span>Серия {activeStreak}</span>
+                <MinusIcon weight="bold" className="size-3 opacity-75" />
+              </button>
+            )}
+          </div>
           <Button
             onClick={onPenalty}
             variant="destructive"
             size="sm"
-            className="w-fit"
+            className="w-fit shrink-0"
           >
             Штраф
           </Button>
@@ -340,6 +369,12 @@ const BottomActions = ({
               </strong>{' '}
               по его полке, чтобы начислить шар!
               <br />
+              Если шары забиты в разных подходах, нажмите на плашку{' '}
+              <strong className="text-reader-accent-foreground">
+                «Серия»
+              </strong>
+              , чтобы уменьшить текущую серию.
+              <br />
               <strong className="text-destructive">Ошиблись?</strong>{' '}
               <strong className="text-reader-accent-foreground">
                 Свайпните вниз или нажмите «Отмена действия»
@@ -381,6 +416,7 @@ export function GamePage({}: GamePageProps) {
     addScore,
     removeScore,
     applyPenalty,
+    decrementCurrentStreak,
     finishCurrentRound,
     endGame,
     undo,
@@ -456,6 +492,10 @@ export function GamePage({}: GamePageProps) {
   const isClassic = storeMode === 'classic-pyramid';
   const showNumberOnly = isClassic || storeMode === 'continuous-free-pyramid';
 
+  const eventsList = currentRoundEvents ?? [];
+  const p1ActiveStreak = getActivePlayerStreak(eventsList, 'p1');
+  const p2ActiveStreak = getActivePlayerStreak(eventsList, 'p2');
+
   const checkSeventhBallWarning = (
     playerId: 'p1' | 'p2',
     nextScore: number
@@ -481,6 +521,13 @@ export function GamePage({}: GamePageProps) {
       addScore(playerId, 1);
     }
     triggerHaptic('pot');
+  };
+
+  const handleDecrementStreak = (playerId: 'p1' | 'p2') => {
+    withPauseCheck(() => {
+      decrementCurrentStreak(playerId);
+      triggerHaptic('tab');
+    });
   };
 
   const handlePenalty = (playerId: 'p1' | 'p2') => {
@@ -559,23 +606,27 @@ export function GamePage({}: GamePageProps) {
       <UserGameBoard
         name={p1.name}
         score={p1.score}
+        activeStreak={p1ActiveStreak}
         onAdd={() => withPauseCheck(() => handleAddScore('p1'))}
         onRemove={() => {
           withPauseCheck(() => removeScore('p1'));
           triggerHaptic('undo');
         }}
         onPenalty={() => withPauseCheck(() => handlePenalty('p1'))}
+        onDecrementStreak={() => handleDecrementStreak('p1')}
         showNumberOnly={showNumberOnly}
       />
       <UserGameBoard
         name={p2.name}
         score={p2.score}
+        activeStreak={p2ActiveStreak}
         onAdd={() => withPauseCheck(() => handleAddScore('p2'))}
         onRemove={() => {
           withPauseCheck(() => removeScore('p2'));
           triggerHaptic('undo');
         }}
         onPenalty={() => withPauseCheck(() => handlePenalty('p2'))}
+        onDecrementStreak={() => handleDecrementStreak('p2')}
         showNumberOnly={showNumberOnly}
       />
       <BottomActions
@@ -584,9 +635,9 @@ export function GamePage({}: GamePageProps) {
           triggerHaptic('undo');
         }}
         onPauseAndExit={handlePauseAndExit}
-        onFinishRound={() => withPauseCheck(() => finishCurrentRound())}
+        onFinishRound={() => finishCurrentRound()}
         onEmptyExit={handleEmptyExit}
-        hasEvents={(currentRoundEvents?.length ?? 0) > 0}
+        hasEvents={eventsList.length > 0}
       />
 
       <InfoDrawer
@@ -673,7 +724,11 @@ export function GamePage({}: GamePageProps) {
         match={lastCompletedRound}
         isOpen={lastCompletedRound !== null}
         closeLabel="На главную"
-        onUndo={handleUndoCompletedMatch}
+        onUndo={
+          lastCompletedRound?.finishReason === 'target-reached'
+            ? handleUndoCompletedMatch
+            : undefined
+        }
         onOpenChange={(open) => {
           if (!open) {
             handleCloseCompletedMatchDrawer();

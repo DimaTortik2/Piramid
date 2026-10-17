@@ -13,11 +13,12 @@ import {
   LightningIcon,
   QuestionIcon,
   TargetIcon,
+  TrashIcon,
   UsersIcon,
   XIcon,
   type Icon,
 } from '@phosphor-icons/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 
 interface ChooseGameDrawerProps extends Omit<InfoDrawerProps, 'content'> {}
@@ -74,6 +75,143 @@ const GAME_DATA: {
 
 const SELECTED_PIRAMID_DEFAULT_ID = 1;
 
+function PlayerInputPopover({
+  value,
+  onChange,
+  placeholder,
+  savedNames,
+  onSelectName,
+  onDeleteName,
+  align = 'left',
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+  savedNames: string[];
+  onSelectName: (name: string) => void;
+  onDeleteName: (name: string) => void;
+  align?: 'left' | 'right';
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDown = (e: PointerEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const showTooltip = isOpen && savedNames.length > 0;
+
+  return (
+    <div ref={containerRef} className="relative flex flex-1 items-center">
+      <div
+        className={cn(
+          'bg-neutral text-neutral-foreground relative flex w-full items-center rounded-2xl transition-all',
+          isOpen && 'ring-primary/50 ring-2'
+        )}
+      >
+        <input
+          className="w-full bg-transparent py-2.5 pr-7 pl-3 text-sm outline-none placeholder:opacity-45"
+          value={value}
+          onFocus={() => setIsOpen(true)}
+          onClick={() => setIsOpen(true)}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+        />
+        {value && (
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onChange('');
+              setIsOpen(true);
+            }}
+            className="absolute right-2 p-1 opacity-40 hover:opacity-80"
+          >
+            <XIcon className="size-3.5" />
+          </button>
+        )}
+      </div>
+
+      <div
+        className={cn(
+          'bg-background/95 text-foreground border-foreground/10 absolute bottom-full z-50 mb-3 min-w-48 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-lg transition-all duration-200',
+          align === 'left'
+            ? 'left-0 origin-bottom-left'
+            : 'right-0 origin-bottom-right',
+          showTooltip
+            ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+            : 'pointer-events-none translate-y-2 scale-95 opacity-0'
+        )}
+      >
+        <div className="flex max-h-44 flex-col gap-0.5 overflow-y-auto">
+          {savedNames.map((name) => {
+            const isSelected =
+              value.trim().toLowerCase() === name.toLowerCase();
+            return (
+              <div
+                key={name}
+                className={cn(
+                  'flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 text-xs transition-colors',
+                  isSelected
+                    ? 'bg-primary text-primary-foreground font-semibold'
+                    : 'hover:bg-foreground/10'
+                )}
+              >
+                <button
+                  type="button"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onSelectName(name);
+                    setIsOpen(false);
+                  }}
+                  className="flex-1 truncate text-left"
+                >
+                  {name}
+                </button>
+                <button
+                  type="button"
+                  title="Удалить"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDeleteName(name);
+                  }}
+                  className="text-destructive/80 hover:text-destructive shrink-0 p-0.5 transition-opacity"
+                >
+                  <TrashIcon className="size-3.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
   const [selectedPiramidId, setSelectedPiramidId] = useState<number>(
     SELECTED_PIRAMID_DEFAULT_ID
@@ -82,6 +220,7 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
   const defaultP1Name = useGameStore((state) => state.defaultP1Name);
   const storeP2Name = useGameStore((state) => state.p2.name);
   const recentPlayers = useGameStore((state) => state.recentPlayers);
+  const removedPresetNames = useGameStore((state) => state.removedPresetNames);
   const savedMatches = useGameStore((state) => state.savedMatches);
   const removeRecentPlayer = useGameStore((state) => state.removeRecentPlayer);
   const startGame = useGameStore((state) => state.startGame);
@@ -98,8 +237,10 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
 
   const savedNames = useMemo(() => {
     const set = new Set<string>();
+    const removedSet = new Set(
+      (removedPresetNames ?? []).map((n) => n.toLowerCase())
+    );
     const result: string[] = [];
-    const myLower = (p1Name.trim() || 'вы').toLowerCase();
     const candidates = [
       ...(recentPlayers ?? []),
       ...(savedMatches ?? []).flatMap((m) => [m.p2.name, m.p1.name]),
@@ -112,17 +253,17 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
       if (
         lower === 'вы' ||
         lower === 'оппонент' ||
-        lower === myLower ||
+        removedSet.has(lower) ||
         set.has(lower)
       ) {
         continue;
       }
       set.add(lower);
       result.push(name);
-      if (result.length >= 10) break;
+      if (result.length >= 12) break;
     }
     return result;
-  }, [recentPlayers, savedMatches, p1Name]);
+  }, [recentPlayers, savedMatches, removedPresetNames]);
 
   const selectedPiramid =
     GAME_DATA.find((el) => el.id === selectedPiramidId) || GAME_DATA[0];
@@ -130,6 +271,16 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
   const handleSwapNames = () => {
     setP1Name(p2Name);
     setP2Name(p1Name);
+  };
+
+  const handleDeleteName = (name: string) => {
+    if (p1Name.trim().toLowerCase() === name.toLowerCase()) {
+      setP1Name('');
+    }
+    if (p2Name.trim().toLowerCase() === name.toLowerCase()) {
+      setP2Name('');
+    }
+    removeRecentPlayer(name);
   };
 
   const handleStartGame = () => {
@@ -154,7 +305,14 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
         <div className="flex flex-col gap-4 py-1">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <p className="text-lg font-medium">Пирамида</p>
+              <div className="flex items-center gap-1.5">
+                <CirclesThreePlusIcon
+                  size={18}
+                  weight="fill"
+                  className="opacity-70"
+                />
+                <p className="text-lg font-medium">Пирамида</p>
+              </div>
               <Link
                 to={selectedPiramid.lectureHref}
                 className="flex items-center gap-1 text-xs opacity-60 transition-opacity hover:opacity-100"
@@ -197,30 +355,22 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="relative flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
               <UsersIcon size={18} weight="fill" className="opacity-70" />
               <p className="text-lg font-medium">Игроки</p>
             </div>
 
             <div className="flex items-center gap-1.5">
-              <div className="bg-neutral text-neutral-foreground relative flex flex-1 items-center rounded-2xl">
-                <input
-                  className="w-full bg-transparent py-2.5 pr-7 pl-3 text-sm outline-none placeholder:opacity-45"
-                  value={p1Name}
-                  onChange={(e) => setP1Name(e.target.value)}
-                  placeholder="Вы"
-                />
-                {p1Name && (
-                  <button
-                    type="button"
-                    onClick={() => setP1Name('')}
-                    className="absolute right-2 p-1 opacity-40 hover:opacity-80"
-                  >
-                    <XIcon className="size-3.5" />
-                  </button>
-                )}
-              </div>
+              <PlayerInputPopover
+                value={p1Name}
+                onChange={setP1Name}
+                placeholder="Вы"
+                savedNames={savedNames}
+                onSelectName={setP1Name}
+                onDeleteName={handleDeleteName}
+                align="left"
+              />
 
               <button
                 type="button"
@@ -231,65 +381,16 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
                 <ArrowsLeftRightIcon className="size-4" />
               </button>
 
-              <div className="bg-neutral text-neutral-foreground relative flex flex-1 items-center rounded-2xl">
-                <input
-                  className="w-full bg-transparent py-2.5 pr-7 pl-3 text-sm outline-none placeholder:opacity-45"
-                  value={p2Name}
-                  onChange={(e) => setP2Name(e.target.value)}
-                  placeholder="Оппонент"
-                />
-                {p2Name && (
-                  <button
-                    type="button"
-                    onClick={() => setP2Name('')}
-                    className="absolute right-2 p-1 opacity-40 hover:opacity-80"
-                  >
-                    <XIcon className="size-3.5" />
-                  </button>
-                )}
-              </div>
+              <PlayerInputPopover
+                value={p2Name}
+                onChange={setP2Name}
+                placeholder="Оппонент"
+                savedNames={savedNames}
+                onSelectName={setP2Name}
+                onDeleteName={handleDeleteName}
+                align="right"
+              />
             </div>
-
-            {savedNames.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {savedNames.map((name) => {
-                  const isSelected =
-                    p2Name.trim().toLowerCase() === name.toLowerCase();
-                  return (
-                    <div
-                      key={name}
-                      className={cn(
-                        'flex items-center gap-1 rounded-full py-1 pr-2 pl-3 text-xs transition-all',
-                        isSelected
-                          ? 'bg-primary text-primary-foreground font-semibold'
-                          : 'bg-neutral text-neutral-foreground opacity-80 hover:opacity-100'
-                      )}
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setP2Name(isSelected ? '' : name)
-                        }
-                      >
-                        {name}
-                      </button>
-                      <button
-                        type="button"
-                        title="Удалить имя"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isSelected) setP2Name('');
-                          removeRecentPlayer(name);
-                        }}
-                        className="p-0.5 opacity-40 hover:opacity-100"
-                      >
-                        <XIcon className="size-3" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       }

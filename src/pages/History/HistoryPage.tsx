@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, type ChangeEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
   useGameStore,
@@ -15,6 +15,7 @@ import {
 import { cn } from '@/shared/lib/utils/cn';
 import {
   ArrowsLeftRightIcon,
+  ArrowUpIcon,
   CaretDownIcon,
   CopyIcon,
   CrownIcon,
@@ -212,7 +213,7 @@ function MatchAccordionItem({
     <div className="bg-background/80 text-foreground relative rounded-2xl p-3 backdrop-blur-lg">
       <div
         onClick={() => setExpanded((prev) => !prev)}
-        className="bg-neutral text-neutral-foreground sticky top-2 z-20 flex cursor-pointer flex-col gap-2 rounded-2xl px-4 py-3 shadow-md transition-all"
+        className="bg-foreground/5 text-foreground hover:bg-foreground/10 flex cursor-pointer flex-col gap-2 rounded-2xl px-4 py-3 transition-colors"
       >
         <div className="flex items-center justify-between gap-2 text-[11px] opacity-60">
           <span className="truncate">{MODE_LABELS[match.mode]}</span>
@@ -229,7 +230,7 @@ function MatchAccordionItem({
             </span>
           </div>
 
-          <span className="bg-background/15 shrink-0 rounded-lg px-2.5 py-0.5 text-sm font-extrabold whitespace-nowrap">
+          <span className="bg-foreground/10 shrink-0 rounded-lg px-2.5 py-0.5 text-sm font-extrabold whitespace-nowrap">
             {match.p1.finalScore} : {match.p2.finalScore}
           </span>
 
@@ -240,8 +241,8 @@ function MatchAccordionItem({
           </div>
         </div>
 
-        <div className="border-neutral-foreground/10 flex items-center justify-between border-t pt-2">
-          <span className="text-[11px] opacity-55">
+        <div className="border-foreground/10 flex items-center justify-between border-t pt-2">
+          <span className="text-[11px] opacity-60">
             Время партии: {formatTime(match.durationMs)}
           </span>
 
@@ -253,7 +254,7 @@ function MatchAccordionItem({
                 e.stopPropagation();
                 onShare(match);
               }}
-              className="hover:bg-background/20 flex size-8 items-center justify-center rounded-full transition-colors"
+              className="hover:bg-foreground/10 flex size-8 items-center justify-center rounded-full transition-colors"
             >
               <ShareNetworkIcon className="size-4" />
             </button>
@@ -265,7 +266,7 @@ function MatchAccordionItem({
                 e.stopPropagation();
                 onRequestDelete(match);
               }}
-              className="text-destructive hover:bg-destructive/20 flex size-8 items-center justify-center rounded-full transition-colors"
+              className="text-destructive hover:bg-destructive/15 flex size-8 items-center justify-center rounded-full transition-colors"
             >
               <TrashIcon className="size-4" />
             </button>
@@ -277,7 +278,7 @@ function MatchAccordionItem({
                 e.stopPropagation();
                 setExpanded((prev) => !prev);
               }}
-              className="hover:bg-background/20 flex size-8 items-center justify-center rounded-full transition-colors"
+              className="hover:bg-foreground/10 flex size-8 items-center justify-center rounded-full transition-colors"
             >
               <CaretDownIcon
                 className={cn(
@@ -369,7 +370,16 @@ export function HistoryPage() {
   const [matchToDelete, setMatchToDelete] = useState<MatchRecord | null>(null);
   const [isBackupDrawerOpen, setIsBackupDrawerOpen] = useState(false);
   const [importText, setImportText] = useState('');
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 350);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const totalBallsPotted = savedMatches.reduce(
     (acc, m) => acc + m.p1.ballsPotted + m.p2.ballsPotted,
@@ -538,6 +548,20 @@ export function HistoryPage() {
           ))}
         </div>
       )}
+
+      <button
+        type="button"
+        title="Наверх"
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        className={cn(
+          'bg-neutral text-neutral-foreground fixed right-4 bottom-20 z-40 flex size-11 items-center justify-center rounded-full shadow-lg transition-all duration-200',
+          showScrollTop
+            ? 'translate-y-0 opacity-100'
+            : 'pointer-events-none translate-y-4 opacity-0'
+        )}
+      >
+        <ArrowUpIcon weight="bold" className="size-5" />
+      </button>
 
       <ShareSessionDrawer
         match={shareMatch}

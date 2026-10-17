@@ -24,6 +24,7 @@ export interface RawRoundEvent {
   type: 'pot' | 'penalty';
   amount: number;
   ballNumber?: number;
+  visitEnded?: boolean;
 }
 
 export interface GameEvent extends RawRoundEvent {
@@ -130,6 +131,7 @@ interface GameStore extends GameStateData {
   history: GameStateData[];
   savedMatches: MatchRecord[];
   recentPlayers: string[];
+  removedPresetNames: string[];
   defaultP1Name: string;
   startTime: number | null;
   lastTickTimestamp: number | null;
@@ -150,6 +152,7 @@ interface GameStore extends GameStateData {
   ) => void;
   removeScore: (playerId: 'p1' | 'p2') => void;
   applyPenalty: (penalizedPlayerId: 'p1' | 'p2') => void;
+  decrementCurrentStreak: (playerId: 'p1' | 'p2') => void;
   finishCurrentRound: () => MatchRecord | null;
   dismissRoundModal: () => void;
   deleteMatch: (matchId: string) => void;
@@ -162,7 +165,7 @@ interface GameStore extends GameStateData {
 }
 
 const MAX_HISTORY = 30;
-const MAX_RECENT_PLAYERS = 12;
+const MAX_RECENT_PLAYERS = 15;
 const DEFAULT_NAMES = new Set(['вы', 'оппонент', 'игрок 1', 'игрок 2']);
 
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -199,6 +202,43 @@ function computeActiveElapsedMs(
     return state.roundElapsedMs;
   }
   return state.roundElapsedMs + delta;
+}
+
+export function getActivePlayerStreak(
+  rawEvents: RawRoundEvent[],
+  playerId: 'p1' | 'p2'
+): number {
+  let streak = 0;
+  for (const ev of rawEvents) {
+    if (ev.type === 'pot' && ev.playerId === playerId) {
+      streak += 1;
+      if (ev.visitEnded) {
+        streak = 0;
+      }
+    } else {
+      streak = 0;
+    }
+  }
+  return streak;
+}
+
+function closeOpenStreakForOpponent(
+  events: RawRoundEvent[],
+  playerToClose: 'p1' | 'p2'
+): RawRoundEvent[] {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const ev = events[i];
+    if (ev.type === 'pot' && ev.playerId === playerToClose) {
+      if (ev.visitEnded) return events;
+      const copy = [...events];
+      copy[i] = { ...ev, visitEnded: true };
+      return copy;
+    }
+    if (ev.type === 'penalty' || ev.playerId !== playerToClose) {
+      return events;
+    }
+  }
+  return events;
 }
 
 function replayRoundEvents(rawEvents: RawRoundEvent[], mode: GameMode) {
@@ -296,6 +336,16 @@ function replayRoundEvents(rawEvents: RawRoundEvent[], mode: GameMode) {
           : p2StreakPoints
         : 0;
 
+    if (raw.type === 'pot' && raw.visitEnded) {
+      if (raw.playerId === 'p1') {
+        p1StreakBalls = 0;
+        p1StreakPoints = 0;
+      } else {
+        p2StreakBalls = 0;
+        p2StreakPoints = 0;
+      }
+    }
+
     return {
       ...raw,
       beneficiaryId,
@@ -382,6 +432,10 @@ function buildMatchRecord(params: {
         maxStreakPoints = Math.max(maxStreakPoints, ev.streakPointsAfter);
         if (ev.ballNumber) pottedBallNumbers.push(ev.ballNumber);
         potTimes.push(ev.timeSinceLastEventMs);
+        if (ev.visitEnded) {
+          streaks.push(activeStreak);
+          activeStreak = 0;
+        }
       } else {
         if (activeStreak > 0) {
           streaks.push(activeStreak);
@@ -467,6 +521,7 @@ export const useGameStore = create<GameStore>()(
       history: [],
       savedMatches: [],
       recentPlayers: [],
+      removedPresetNames: [],
       defaultP1Name: '',
       roundElapsedMs: 0,
       currentRoundStartTime: null,
@@ -483,7 +538,15 @@ export const useGameStore = create<GameStore>()(
         const cleanP2 = p2Name.trim() || 'Оппонент';
         const nextRecent = updateRecentPlayerList(get().recentPlayers ?? [], [
           cleanP2,
+          cleanP1,
         ]);
+        const activeLowers = new Set([
+          cleanP1.toLowerCase(),
+          cleanP2.toLowerCase(),
+        ]);
+        const nextRemoved = (get().removedPresetNames ?? []).filter(
+          (n) => !activeLowers.has(n.toLowerCase())
+        );
 
         set({
           mode,
@@ -502,6 +565,7 @@ export const useGameStore = create<GameStore>()(
           isPaused: false,
           isActiveGame: true,
           recentPlayers: nextRecent,
+          removedPresetNames: nextRemoved,
         });
       },
 
@@ -564,11 +628,18 @@ export const useGameStore = create<GameStore>()(
       dismissRoundModal: () => set({ lastCompletedRound: null }),
 
       removeRecentPlayer: (name) =>
-        set((state) => ({
-          recentPlayers: (state.recentPlayers ?? []).filter(
-            (n) => n.toLowerCase() !== name.toLowerCase()
-          ),
-        })),
+        set((state) => {
+          const targetLower = name.trim().toLowerCase();
+          const currentRemoved = state.removedPresetNames ?? [];
+          return {
+            recentPlayers: (state.recentPlayers ?? []).filter(
+              (n) => n.toLowerCase() !== targetLower
+            ),
+            removedPresetNames: currentRemoved.includes(targetLower)
+              ? currentRemoved
+              : [...currentRemoved, targetLower],
+          };
+        }),
 
       deleteMatch: (matchId) =>
         set((state) => ({
@@ -609,9 +680,26 @@ export const useGameStore = create<GameStore>()(
         return validNew.length;
       },
 
-      addScore: (playerId, amount = 1, ballNumber) =>
+      decrementCurrentStreak: (playerId) =>
         set((state) => {
           if (state.isPaused) return state;
+          const currentEvents = state.currentRoundEvents ?? [];
+          const activeStreak = getActivePlayerStreak(currentEvents, playerId);
+          if (activeStreak < 2) return state;
+
+          const activeIndices: number[] = [];
+          for (let i = currentEvents.length - 1; i >= 0; i--) {
+            const ev = currentEvents[i];
+            if (ev.type === 'pot' && ev.playerId === playerId) {
+              if (ev.visitEnded) break;
+              activeIndices.unshift(i);
+            } else {
+              break;
+            }
+          }
+
+          if (activeIndices.length < 2) return state;
+          const targetIdx = activeIndices[0];
 
           const now = Date.now();
           const roundElapsedMs = computeActiveElapsedMs(state, now);
@@ -624,10 +712,48 @@ export const useGameStore = create<GameStore>()(
             pottedBalls: state.pottedBalls,
             roundElapsedMs,
             currentRoundStartTime: state.currentRoundStartTime,
-            currentRoundEvents: state.currentRoundEvents ?? [],
+            currentRoundEvents: currentEvents,
+            lastCompletedRound: null,
+          };
+
+          const nextRawEvents = currentEvents.map((ev, idx) =>
+            idx === targetIdx ? { ...ev, visitEnded: true } : ev
+          );
+
+          return {
+            history: [...state.history, snapshot].slice(-MAX_HISTORY),
+            currentRoundEvents: nextRawEvents,
+            roundElapsedMs,
+            lastTickTimestamp: now,
+          };
+        }),
+
+      addScore: (playerId, amount = 1, ballNumber) =>
+        set((state) => {
+          if (state.isPaused) return state;
+
+          const now = Date.now();
+          const roundElapsedMs = computeActiveElapsedMs(state, now);
+          const currentEvents = state.currentRoundEvents ?? [];
+
+          const snapshot: GameStateData = {
+            p1: state.p1,
+            p2: state.p2,
+            mode: state.mode,
+            initialBreaker: state.initialBreaker,
+            pottedBalls: state.pottedBalls,
+            roundElapsedMs,
+            currentRoundStartTime: state.currentRoundStartTime,
+            currentRoundEvents: currentEvents,
             lastCompletedRound: null,
           };
           const history = [...state.history, snapshot].slice(-MAX_HISTORY);
+
+          const opponentId = playerId === 'p1' ? 'p2' : 'p1';
+          const eventsWithClosedOpponent = closeOpenStreakForOpponent(
+            currentEvents,
+            opponentId
+          );
 
           const newEvent: RawRoundEvent = {
             id: uid(),
@@ -640,7 +766,7 @@ export const useGameStore = create<GameStore>()(
             ballNumber,
           };
 
-          const nextRawEvents = [...(state.currentRoundEvents ?? []), newEvent];
+          const nextRawEvents = [...eventsWithClosedOpponent, newEvent];
           const replayed = replayRoundEvents(nextRawEvents, state.mode);
 
           const nextP1 = { ...state.p1, score: replayed.p1Score };
@@ -706,19 +832,12 @@ export const useGameStore = create<GameStore>()(
 
           for (let i = currentEvents.length - 1; i >= 0; i--) {
             const ev = currentEvents[i];
-            if (ev.type === 'pot' && ev.playerId === playerId) {
+            const isPlayerPot = ev.type === 'pot' && ev.playerId === playerId;
+            const isOpponentPenalty =
+              ev.type === 'penalty' && ev.playerId !== playerId;
+            if (isPlayerPot || isOpponentPenalty) {
               removeIndex = i;
               break;
-            }
-          }
-
-          if (removeIndex === -1) {
-            for (let i = currentEvents.length - 1; i >= 0; i--) {
-              const ev = currentEvents[i];
-              if (ev.type === 'penalty' && ev.playerId !== playerId) {
-                removeIndex = i;
-                break;
-              }
             }
           }
 
@@ -739,9 +858,24 @@ export const useGameStore = create<GameStore>()(
             lastCompletedRound: null,
           };
 
+          const removedEvent = currentEvents[removeIndex];
           const nextRawEvents = currentEvents.filter(
             (_, i) => i !== removeIndex
           );
+
+          if (removedEvent.type === 'pot' && removedEvent.visitEnded) {
+            for (let i = removeIndex - 1; i >= 0; i--) {
+              const prevEv = nextRawEvents[i];
+              if (prevEv.type === 'pot' && prevEv.playerId === playerId) {
+                nextRawEvents[i] = { ...prevEv, visitEnded: true };
+                break;
+              }
+              if (prevEv.type === 'penalty' || prevEv.playerId !== playerId) {
+                break;
+              }
+            }
+          }
+
           const replayed = replayRoundEvents(nextRawEvents, state.mode);
 
           return {
@@ -761,6 +895,7 @@ export const useGameStore = create<GameStore>()(
 
           const now = Date.now();
           const roundElapsedMs = computeActiveElapsedMs(state, now);
+          const currentEvents = state.currentRoundEvents ?? [];
 
           const snapshot: GameStateData = {
             p1: state.p1,
@@ -770,10 +905,13 @@ export const useGameStore = create<GameStore>()(
             pottedBalls: state.pottedBalls,
             roundElapsedMs,
             currentRoundStartTime: state.currentRoundStartTime,
-            currentRoundEvents: state.currentRoundEvents ?? [],
+            currentRoundEvents: currentEvents,
             lastCompletedRound: null,
           };
           const history = [...state.history, snapshot].slice(-MAX_HISTORY);
+
+          const closedP1 = closeOpenStreakForOpponent(currentEvents, 'p1');
+          const closedBoth = closeOpenStreakForOpponent(closedP1, 'p2');
 
           const newEvent: RawRoundEvent = {
             id: uid(),
@@ -785,7 +923,7 @@ export const useGameStore = create<GameStore>()(
             amount: state.mode === 'classic-pyramid' ? 5 : 1,
           };
 
-          const nextRawEvents = [...(state.currentRoundEvents ?? []), newEvent];
+          const nextRawEvents = [...closedBoth, newEvent];
           const replayed = replayRoundEvents(nextRawEvents, state.mode);
 
           const nextP1 = { ...state.p1, score: replayed.p1Score };
@@ -878,6 +1016,7 @@ export const useGameStore = create<GameStore>()(
         set({
           roundElapsedMs,
           lastTickTimestamp: null,
+          isPaused: false,
           lastCompletedRound: matchRecord,
           savedMatches: [matchRecord, ...(state.savedMatches ?? [])],
           isActiveGame: false,
@@ -927,6 +1066,13 @@ export const useGameStore = create<GameStore>()(
             .sort((a, b) => b.endedAt - a.endedAt);
         }
 
+        const removedPresetNames = Array.isArray(persisted.removedPresetNames)
+          ? (persisted.removedPresetNames as string[])
+          : [];
+        const removedSet = new Set(
+          removedPresetNames.map((n) => n.toLowerCase())
+        );
+
         const existingRecent = Array.isArray(persisted.recentPlayers)
           ? (persisted.recentPlayers as string[])
           : [];
@@ -937,13 +1083,14 @@ export const useGameStore = create<GameStore>()(
         const recentPlayers = updateRecentPlayerList(
           existingRecent,
           namesFromMatches
-        );
+        ).filter((n) => !removedSet.has(n.toLowerCase()));
 
         return {
           ...currentState,
           ...persisted,
           savedMatches,
           recentPlayers,
+          removedPresetNames,
           lastTickTimestamp: null,
         };
       },
