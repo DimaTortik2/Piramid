@@ -52,7 +52,7 @@ export function TrainingPage() {
           balls={[
             { id: 'cue', x: 180, y: 211.5, isCue: true },
             { id: 1, x: 520, y: 195, number: 1 },
-            { id: 2, x: 612, y: 326, number: 2 },
+            { id: 2, x: 612, y: 324, number: 2 },
           ]}
           shots={[
             {
@@ -74,7 +74,7 @@ export function TrainingPage() {
               type="range"
               min={4}
               max={30}
-              step={1}
+              step={0.5}
               value={power}
               onChange={(e) => setPower(Number(e.target.value))}
               className="accent-primary w-full"
@@ -84,13 +84,13 @@ export function TrainingPage() {
           <label className="bg-neutral/70 text-neutral-foreground flex flex-col gap-1 rounded-xl p-2.5">
             <div className="flex justify-between">
               <span>Угол удара</span>
-              <span className="font-semibold">{angle}°</span>
+              <span className="font-semibold">{angle.toFixed(1)}°</span>
             </div>
             <input
               type="range"
-              min={-45}
-              max={45}
-              step={1}
+              min={-60}
+              max={60}
+              step={0.1}
               value={angle}
               onChange={(e) => setAngle(Number(e.target.value))}
               className="accent-primary w-full"
