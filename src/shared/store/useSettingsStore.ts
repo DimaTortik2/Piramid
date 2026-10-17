@@ -13,6 +13,9 @@ interface SettingsState {
 
   disableBlur: boolean;
   toggleDisableBlur: () => void;
+
+  disableDynamicBackground: boolean;
+  toggleDisableDynamicBackground: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -22,6 +25,7 @@ export const useSettingsStore = create<SettingsState>()(
       isGameZenMode: false,
       isDarkBalls: false,
       disableBlur: false,
+      disableDynamicBackground: false,
 
       toggleLecturesZenMode: () =>
         set((state) => ({ isLecturesZenMode: !state.isLecturesZenMode })),
@@ -31,6 +35,10 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({ isDarkBalls: !state.isDarkBalls })),
       toggleDisableBlur: () =>
         set((state) => ({ disableBlur: !state.disableBlur })),
+      toggleDisableDynamicBackground: () =>
+        set((state) => ({
+          disableDynamicBackground: !state.disableDynamicBackground,
+        })),
     }),
     {
       name: 'app-settings',

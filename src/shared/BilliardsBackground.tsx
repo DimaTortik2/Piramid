@@ -2,6 +2,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 import Matter from 'matter-js';
 import { cn } from '@/shared/lib/utils/cn';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
+
 const NOISE_SVG = `data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E`;
 
 const CONFIG = {
@@ -37,7 +38,8 @@ const fetchColorFromCSS = (isDark: boolean) => {
 
 function useInit<T extends HTMLElement = HTMLElement>(
   sceneRef: RefObject<T | null>,
-  isPaused: boolean
+  isPaused: boolean,
+  isDisabled: boolean
 ): {
   isPausedRef: RefObject<boolean | null>;
   engineRef: RefObject<Matter.Engine | null>;
@@ -49,7 +51,7 @@ function useInit<T extends HTMLElement = HTMLElement>(
   const renderRef = useRef<Matter.Render | null>(null);
 
   useEffect(() => {
-    if (!sceneRef.current) return;
+    if (!sceneRef.current || isDisabled) return;
 
     const { Engine, Render, Runner, Bodies, World, Body, Events } = Matter;
 
@@ -97,7 +99,7 @@ function useInit<T extends HTMLElement = HTMLElement>(
     World.add(engine.world, rightWall);
 
     const runner = Runner.create({
-      delta: 1000 / CONFIG.FPS, // Строго 60 FPS
+      delta: 1000 / CONFIG.FPS,
     });
 
     if (!isPausedRef.current) {
@@ -108,19 +110,13 @@ function useInit<T extends HTMLElement = HTMLElement>(
     renderRef.current = render;
     runnerRef.current = runner;
 
-    // Очищаем вылетевшее вниз
-    // И двигаем все вниз для эффекта полета камеры
     let lastTime = performance.now();
     const handleBeforeUpdate = () => {
       const now = performance.now();
-      // Сколько реальных миллисекунд прошло с прошлого кадра (на 60Hz это ~16ms, на 120Hz это ~8ms)
       const delta = now - lastTime;
       lastTime = now;
 
-      // Защита от скачка, если вкладку свернули и развернули
       const safeDelta = Math.min(delta, 100);
-
-      // Сдвиг строго за миллисекунду: (200px / 4000ms) * delta
       const driftY = (CONFIG.DRIFT_PX / CONFIG.DRIFT_MS) * safeDelta;
 
       const bodies = engine.world.bodies;
@@ -169,25 +165,28 @@ function useInit<T extends HTMLElement = HTMLElement>(
       renderRef.current = null;
       runnerRef.current = null;
     };
-  }, []);
+  }, [isDisabled, sceneRef]);
 
-  //Отвечает за то, на паузе ли bg
   useEffect(() => {
-    if (!runnerRef.current || !renderRef.current || !engineRef.current) return;
+    if (
+      isDisabled ||
+      !runnerRef.current ||
+      !renderRef.current ||
+      !engineRef.current
+    ) {
+      return;
+    }
 
     if (isPaused) {
-      // Пользователь зашел на лекцию: глушим движок и рендер!
       Matter.Runner.stop(runnerRef.current);
       Matter.Render.stop(renderRef.current);
     } else {
-      // Превентивный stop защищает от двойного запуска requestAnimationFrame
       Matter.Runner.stop(runnerRef.current);
       Matter.Render.stop(renderRef.current);
-      // Пользователь вышел с лекции: снимаем с паузы!
       Matter.Runner.run(runnerRef.current, engineRef.current);
       Matter.Render.run(renderRef.current);
     }
-  }, [isPaused]);
+  }, [isPaused, isDisabled]);
 
   return { isPausedRef, engineRef };
 }
@@ -195,10 +194,11 @@ function useInit<T extends HTMLElement = HTMLElement>(
 function useBallsSpawner(
   engineRef: RefObject<Matter.Engine | null>,
   isPausedRef: RefObject<boolean | null>,
-  isDarkBalls: boolean
+  isDarkBalls: boolean,
+  isDisabled: boolean
 ) {
   const activeColorRef = useRef(fetchColorFromCSS(isDarkBalls));
-  //Обновляем цвет если темные/светлые стали
+
   useEffect(() => {
     const newColor = fetchColorFromCSS(isDarkBalls);
     activeColorRef.current = newColor;
@@ -212,12 +212,10 @@ function useBallsSpawner(
     }
   }, [isDarkBalls, engineRef]);
 
-  // Спавнер шаров
   useEffect(() => {
-    if (!engineRef.current) return;
+    if (isDisabled || !engineRef.current) return;
 
     const activeTimeouts = new Set<ReturnType<typeof setTimeout>>();
-    // Запускает setTimeout, добавляет его в Set, а после выполнения - удаляет.
     const runWithTimeout = (callback: () => void, delay: number) => {
       const id = setTimeout(() => {
         activeTimeouts.delete(id);
@@ -228,14 +226,13 @@ function useBallsSpawner(
 
     const { Bodies, World, Body } = Matter;
 
-    // Стреляем шарами рандомно
     const spawnBall = () => {
       if (!document.hidden && !isPausedRef.current && engineRef.current) {
         const currentBallOptions = {
           ...CONFIG.BALL_OPTIONS,
           render: { fillStyle: activeColorRef.current },
         };
-        // 3% шанс на появление целой пирамиды
+
         if (Math.random() < CONFIG.PYRAMID_CHANCE) {
           const r = CONFIG.BALL_RADIUS;
           const d = r * 2.05;
@@ -273,18 +270,14 @@ function useBallsSpawner(
           }
 
           const targetY = window.innerHeight * CONFIG.IMPACT_Y_RATIO;
-
-          // Сколько миллисекунд пирамида будет ползти до центра
           const pyramidDistance = targetY - CONFIG.PYRAMID_START_Y;
           const driftSpeedPerMs = CONFIG.DRIFT_PX / CONFIG.DRIFT_MS;
           const pyramidTimeToTarget = pyramidDistance / driftSpeedPerMs;
 
-          // За сколько миллисекунд биток долетит от своего спавна (-50) до центра
           const cueDistance = targetY - CONFIG.CUE_BALL_START_Y;
           const cueSpeedPerMs = (CONFIG.CUE_BALL_SPEED * CONFIG.FPS) / 1000;
           const cueFlightTime = cueDistance / cueSpeedPerMs;
 
-          // Задержка перед выстрелом битка:
           const calculatedDelay = pyramidTimeToTarget - cueFlightTime;
           const cueDelay = Math.max(
             0,
@@ -303,14 +296,10 @@ function useBallsSpawner(
             );
             World.add(engineRef.current.world, cueBall);
 
-            // Небольшой разброс по горизонтали (aimX), чтобы удар был не идеально в лоб, а сочный
             const aimX = (Math.random() - 0.5) * 6;
-
-            // Сила удара берется из CONFIG.CUE_BALL_SPEED
             Body.setVelocity(cueBall, { x: aimX, y: CONFIG.CUE_BALL_SPEED });
           }, cueDelay);
 
-          // Пауза перед следующим шаром: ждем пока пирамида доедет, получит удар + 3 секунды полюбоваться разлетом
           runWithTimeout(spawnBall, pyramidTimeToTarget + 3000);
           return;
         }
@@ -336,13 +325,13 @@ function useBallsSpawner(
       const nextSpawnTime = Math.random() * 1000 + 200;
       runWithTimeout(spawnBall, nextSpawnTime);
     };
-    // Запускаем рекурсивный цикл
+
     spawnBall();
 
     return () => {
       activeTimeouts.forEach(clearTimeout);
     };
-  }, []);
+  }, [isDisabled, engineRef, isPausedRef]);
 }
 
 export function BilliardsBackground({
@@ -354,9 +343,22 @@ export function BilliardsBackground({
 }) {
   const sceneRef = useRef<HTMLDivElement>(null);
 
-  const { isPausedRef, engineRef } = useInit(sceneRef, isPaused);
-  const isDarkBalls = useSettingsStore((state) => state.isDarkBalls); 
-  useBallsSpawner(engineRef, isPausedRef,isDarkBalls);
+  const isDarkBalls = useSettingsStore((state) => state.isDarkBalls);
+  const disableDynamicBackground = useSettingsStore(
+    (state) => state.disableDynamicBackground
+  );
+
+  const { isPausedRef, engineRef } = useInit(
+    sceneRef,
+    isPaused,
+    disableDynamicBackground
+  );
+  useBallsSpawner(
+    engineRef,
+    isPausedRef,
+    isDarkBalls,
+    disableDynamicBackground
+  );
 
   return (
     <>
@@ -374,6 +376,9 @@ export function BilliardsBackground({
               url("${NOISE_SVG}");
             background-size: 4px 4px, 4px 4px, 200px 200px;
             opacity: 0.18;
+          }
+
+          .cloth-texture-animated {
             will-change: transform;
             animation: slideFelt ${CONFIG.DRIFT_MS}ms linear infinite;
           }
@@ -387,28 +392,30 @@ export function BilliardsBackground({
           className
         )}
       >
-        {/* Анимированная фактура сукна */}
         <div
-          style={{
-            top: -CONFIG.DRIFT_PX,
-            height: `calc(100% + ${CONFIG.DRIFT_PX}px)`,
-          }}
+          style={
+            disableDynamicBackground
+              ? undefined
+              : {
+                  top: -CONFIG.DRIFT_PX,
+                  height: `calc(100% + ${CONFIG.DRIFT_PX}px)`,
+                }
+          }
           className={cn(
-            'cloth-texture pointer-events-none absolute inset-x-0 bottom-0 w-full opacity-80',
+            'cloth-texture pointer-events-none absolute inset-0 w-full opacity-80',
+            !disableDynamicBackground && 'cloth-texture-animated',
             isPaused && '[animation-play-state:paused]'
           )}
         />
 
-        {/* Бильярдная лампа */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,230,0.08)_0%,transparent_60%)]" />
 
-        {/* Физический движок */}
-        <div ref={sceneRef} className="absolute inset-0" />
+        {!disableDynamicBackground && (
+          <div ref={sceneRef} className="absolute inset-0" />
+        )}
 
-        {/* Дымка */}
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(164,255,188,0.03)_0%,transparent_50%)]" />
 
-        {/* Градиент глубины */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-black/45 to-[#0a120c]" />
       </div>
     </>
