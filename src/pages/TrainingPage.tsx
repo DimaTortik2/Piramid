@@ -6,6 +6,8 @@ import {
 } from '@/shared/BilliardSimulator/BilliardSimulator';
 import {
   ArrowCounterClockwiseIcon,
+  CaretDownIcon,
+  CaretUpIcon,
   SlidersHorizontalIcon,
 } from '@phosphor-icons/react';
 
@@ -15,6 +17,7 @@ export function TrainingPage() {
   const [topSpin, setTopSpin] = useState(0);
   const [sideSpin, setSideSpin] = useState(0);
   const [curve, setCurve] = useState(0);
+  const [controlsOpen, setControlsOpen] = useState(false);
 
   const handleResetLab = () => {
     setPower(17);
@@ -24,23 +27,156 @@ export function TrainingPage() {
     setCurve(0);
   };
 
+  const adjustAngle = (delta: number) => {
+    setAngle((prev) =>
+      Math.max(-60, Math.min(60, Number((prev + delta).toFixed(1))))
+    );
+  };
+
+  const labControlsContent = (
+    <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2" data-no-tab-swipe>
+      <label className="bg-neutral/70 text-neutral-foreground flex flex-col gap-1.5 rounded-xl p-2.5 sm:col-span-2">
+        <div className="flex items-center justify-between gap-2">
+          <span>Угол удара</span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => adjustAngle(-1)}
+              className="bg-background/70 hover:bg-primary hover:text-primary-foreground rounded-lg px-2 py-0.5 text-[11px] font-semibold transition-colors"
+            >
+              -1°
+            </button>
+            <button
+              type="button"
+              onClick={() => adjustAngle(-0.1)}
+              className="bg-background/70 hover:bg-primary hover:text-primary-foreground rounded-lg px-2 py-0.5 text-[11px] font-semibold transition-colors"
+            >
+              -0.1°
+            </button>
+            <span className="min-w-12 text-center font-semibold">
+              {angle.toFixed(1)}°
+            </span>
+            <button
+              type="button"
+              onClick={() => adjustAngle(0.1)}
+              className="bg-background/70 hover:bg-primary hover:text-primary-foreground rounded-lg px-2 py-0.5 text-[11px] font-semibold transition-colors"
+            >
+              +0.1°
+            </button>
+            <button
+              type="button"
+              onClick={() => adjustAngle(1)}
+              className="bg-background/70 hover:bg-primary hover:text-primary-foreground rounded-lg px-2 py-0.5 text-[11px] font-semibold transition-colors"
+            >
+              +1°
+            </button>
+          </div>
+        </div>
+        <input
+          type="range"
+          min={-60}
+          max={60}
+          step={0.1}
+          value={angle}
+          onChange={(e) => setAngle(Number(e.target.value))}
+          className="accent-primary w-full"
+        />
+      </label>
+
+      <label className="bg-neutral/70 text-neutral-foreground flex flex-col gap-1 rounded-xl p-2.5">
+        <div className="flex justify-between">
+          <span>Сила удара</span>
+          <span className="font-semibold">{power}</span>
+        </div>
+        <input
+          type="range"
+          min={4}
+          max={30}
+          step={0.5}
+          value={power}
+          onChange={(e) => setPower(Number(e.target.value))}
+          className="accent-primary w-full"
+        />
+      </label>
+
+      <label className="bg-neutral/70 text-neutral-foreground flex flex-col gap-1 rounded-xl p-2.5">
+        <div className="flex justify-between">
+          <span>Оттяжка / Накат</span>
+          <span className="font-semibold">
+            {topSpin > 0 ? `+${topSpin}` : topSpin}
+          </span>
+        </div>
+        <input
+          type="range"
+          min={-1}
+          max={1}
+          step={0.05}
+          value={topSpin}
+          onChange={(e) => setTopSpin(Number(e.target.value))}
+          className="accent-primary w-full"
+        />
+      </label>
+
+      <label className="bg-neutral/70 text-neutral-foreground flex flex-col gap-1 rounded-xl p-2.5">
+        <div className="flex justify-between">
+          <span>Боковой винт</span>
+          <span className="font-semibold">
+            {sideSpin > 0 ? `+${sideSpin}` : sideSpin}
+          </span>
+        </div>
+        <input
+          type="range"
+          min={-1}
+          max={1}
+          step={0.05}
+          value={sideSpin}
+          onChange={(e) => setSideSpin(Number(e.target.value))}
+          className="accent-primary w-full"
+        />
+      </label>
+
+      <label className="bg-neutral/70 text-neutral-foreground flex flex-col gap-1 rounded-xl p-2.5">
+        <div className="flex justify-between">
+          <span>Массе / Дуговик</span>
+          <span className="font-semibold">
+            {curve > 0 ? `+${curve}` : curve}
+          </span>
+        </div>
+        <input
+          type="range"
+          min={-1}
+          max={1}
+          step={0.05}
+          value={curve}
+          onChange={(e) => setCurve(Number(e.target.value))}
+          className="accent-primary w-full"
+        />
+      </label>
+    </div>
+  );
+
   return (
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-125 flex-col gap-4 px-4 py-6 pb-24">
-      <PageHeader className="mb-1">Практика и разбор ударов</PageHeader>
+      <PageHeader className="mb-1">Тренировка</PageHeader>
 
       <div className="bg-background/80 flex flex-col gap-3 rounded-2xl p-3.5 backdrop-blur-lg">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <SlidersHorizontalIcon size={20} weight="bold" />
-            <h2 className="text-base font-semibold">
-              Интерактивная лаборатория
-            </h2>
+            <div>
+              <h2 className="text-base font-semibold leading-tight">
+                Интерактивный тренажер
+              </h2>
+              <p className="text-muted-foreground text-[11px]">
+                Нажмите на стол для увеличения или настройте удар ниже
+              </p>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={handleResetLab}
-            className="bg-neutral text-neutral-foreground hover:bg-primary hover:text-primary-foreground flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-medium transition-colors"
+            className="bg-neutral text-neutral-foreground hover:bg-primary hover:text-primary-foreground flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-medium transition-colors"
           >
             <ArrowCounterClockwiseIcon size={13} weight="bold" />
             Сбросить
@@ -52,7 +188,7 @@ export function TrainingPage() {
           balls={[
             { id: 'cue', x: 180, y: 211.5, isCue: true },
             { id: 1, x: 520, y: 195, number: 1 },
-            { id: 2, x: 612, y: 324, number: 2 },
+            { id: 2, x: 590, y: 295, number: 2 },
           ]}
           shots={[
             {
@@ -62,95 +198,48 @@ export function TrainingPage() {
               spin: { top: topSpin, side: sideSpin, curve },
             },
           ]}
+          extraControls={(isExpanded) =>
+            isExpanded ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-xs font-medium">
+                    Настройка удара
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleResetLab}
+                    className="bg-neutral text-neutral-foreground hover:bg-primary hover:text-primary-foreground flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium transition-colors"
+                  >
+                    <ArrowCounterClockwiseIcon size={12} weight="bold" />
+                    Сбросить
+                  </button>
+                </div>
+                {labControlsContent}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setControlsOpen((v) => !v)}
+                  className="bg-neutral text-neutral-foreground flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium sm:hidden"
+                >
+                  <span>
+                    Параметры удара ({angle.toFixed(1)}°, сила {power})
+                  </span>
+                  {controlsOpen ? (
+                    <CaretUpIcon size={14} weight="bold" />
+                  ) : (
+                    <CaretDownIcon size={14} weight="bold" />
+                  )}
+                </button>
+
+                <div className={controlsOpen ? 'block' : 'hidden sm:block'}>
+                  {labControlsContent}
+                </div>
+              </div>
+            )
+          }
         />
-
-        <div className="grid grid-cols-1 gap-2 pt-1 text-xs sm:grid-cols-2">
-          <label className="bg-neutral/70 text-neutral-foreground flex flex-col gap-1 rounded-xl p-2.5">
-            <div className="flex justify-between">
-              <span>Сила удара</span>
-              <span className="font-semibold">{power}</span>
-            </div>
-            <input
-              type="range"
-              min={4}
-              max={30}
-              step={0.5}
-              value={power}
-              onChange={(e) => setPower(Number(e.target.value))}
-              className="accent-primary w-full"
-            />
-          </label>
-
-          <label className="bg-neutral/70 text-neutral-foreground flex flex-col gap-1 rounded-xl p-2.5">
-            <div className="flex justify-between">
-              <span>Угол удара</span>
-              <span className="font-semibold">{angle.toFixed(1)}°</span>
-            </div>
-            <input
-              type="range"
-              min={-60}
-              max={60}
-              step={0.1}
-              value={angle}
-              onChange={(e) => setAngle(Number(e.target.value))}
-              className="accent-primary w-full"
-            />
-          </label>
-
-          <label className="bg-neutral/70 text-neutral-foreground flex flex-col gap-1 rounded-xl p-2.5">
-            <div className="flex justify-between">
-              <span>Оттяжка / Накат</span>
-              <span className="font-semibold">
-                {topSpin > 0 ? `+${topSpin}` : topSpin}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={-1}
-              max={1}
-              step={0.05}
-              value={topSpin}
-              onChange={(e) => setTopSpin(Number(e.target.value))}
-              className="accent-primary w-full"
-            />
-          </label>
-
-          <label className="bg-neutral/70 text-neutral-foreground flex flex-col gap-1 rounded-xl p-2.5">
-            <div className="flex justify-between">
-              <span>Боковой винт</span>
-              <span className="font-semibold">
-                {sideSpin > 0 ? `+${sideSpin}` : sideSpin}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={-1}
-              max={1}
-              step={0.05}
-              value={sideSpin}
-              onChange={(e) => setSideSpin(Number(e.target.value))}
-              className="accent-primary w-full"
-            />
-          </label>
-
-          <label className="bg-neutral/70 text-neutral-foreground flex flex-col gap-1 rounded-xl p-2.5 sm:col-span-2">
-            <div className="flex justify-between">
-              <span>Массе / Дуговик</span>
-              <span className="font-semibold">
-                {curve > 0 ? `+${curve}` : curve}
-              </span>
-            </div>
-            <input
-              type="range"
-              min={-1}
-              max={1}
-              step={0.05}
-              value={curve}
-              onChange={(e) => setCurve(Number(e.target.value))}
-              className="accent-primary w-full"
-            />
-          </label>
-        </div>
       </div>
 
       <BilliardSimulator
@@ -309,7 +398,7 @@ export function TrainingPage() {
 
       <BilliardSimulator
         title="Работа бокового винта от борта"
-        description="Два шара бьются в верхний борт под одинаковым углом, но с противоположным боковым винтом: один уходит круто вправо, второй — почти вертикально вниз."
+        description="Два шара бьются в верхний борт под одинаковым углом, но с противоположным боковым вращением: один отскакивает круто вправо, второй — почти вертикально вниз."
         pockets={false}
         walls={{ top: true, bottom: true, left: true, right: true }}
         balls={[
@@ -334,7 +423,7 @@ export function TrainingPage() {
 
       <BilliardSimulator
         title="Массе / Дуговик (Обвод шара-маски)"
-        description="Прямую линию перекрывает шар №9. Биток выходит ниже маски, по дуге заворачивает вверх в линию створа и укладывает шар №1 в правую верхнюю лузу."
+        description="Прямую линию удара перекрывает шар №9. Биток выходит ниже преграды, по дуге огибает маску и точно сыгрывает шар №1 в правую верхнюю лузу."
         balls={[
           { id: 'cue', x: 160, y: 260, isCue: true },
           { id: 9, x: 336, y: 196, number: 9 },
@@ -351,8 +440,8 @@ export function TrainingPage() {
       />
 
       <BilliardSimulator
-        title="Открытый фрагмент поля (Без бортов)"
-        description="Режим walls='none': борта и лузы отключены, шары свободно вылетают за границу видимости и удаляются из симуляции."
+        title="Подбой плотной группы шаров"
+        description="Прямой удар с нижней подкруткой по связке из трех шаров на открытом участке стола: крайние шары разлетаются в стороны, а биток мягко оттягивается назад."
         walls="none"
         pockets={false}
         height={320}
@@ -374,7 +463,7 @@ export function TrainingPage() {
 
       <BilliardSimulator
         title="Разбой полной пирамиды (15 шаров)"
-        description="Генерация пирамиды через хелпер createPyramidRack и начальный удар с оттяжкой."
+        description="Классический начальный удар из дома по верхушке пирамиды с оттяжкой битка назад к центральной линии стола."
         balls={[
           { id: 'cue', x: 175, y: 210, isCue: true },
           ...createPyramidRack({
@@ -388,9 +477,9 @@ export function TrainingPage() {
         shots={[
           {
             ballId: 'cue',
-            target: { x: 520, y: 204 },
-            power: 28,
-            spin: { top: -0.35, side: 0.15 },
+            target: { x: 492, y: 208.5 },
+            power: 27,
+            spin: { top: -0.55, side: 0 },
           },
         ]}
       />

@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  type PointerEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import { createPortal } from 'react-dom';
 import Matter from 'matter-js';
 import {
   ArrowCounterClockwiseIcon,
+  ArrowsInSimpleIcon,
+  ArrowsOutSimpleIcon,
   CaretLeftIcon,
   CaretRightIcon,
   CheckCircleIcon,
@@ -10,6 +20,7 @@ import {
   PauseIcon,
   PlayIcon,
   WarningCircleIcon,
+  XIcon,
 } from '@phosphor-icons/react';
 import { cn } from '@/shared/lib/utils/cn';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
@@ -124,6 +135,8 @@ export interface BilliardSimulatorProps {
   autoLoop?: boolean;
   loopDelayMs?: number;
   controls?: boolean;
+  expandable?: boolean;
+  extraControls?: ReactNode | ((isExpanded: boolean) => ReactNode);
   className?: string;
 }
 
@@ -228,7 +241,7 @@ const resolvePocketAimTarget = (
   if (pocket && typeof pocket === 'object') {
     return pocket;
   }
-  const cornerAim = 27;
+  const cornerAim = 28;
   const middleAimY = 20;
   switch (pocket) {
     case 'top-left':
@@ -355,6 +368,69 @@ const closestPointOnSegment = (
   return { x: x1 + t * dx, y: y1 + t * dy };
 };
 
+function SimulatorZoomModal({
+  onClose,
+  children,
+}: {
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div
+      data-no-tab-swipe
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md sm:p-6"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-background my-auto flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-y-auto rounded-2xl border border-white/10 p-3.5 shadow-2xl sm:p-5"
+      >
+        <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-2.5">
+          <span className="text-muted-foreground text-xs font-medium">
+            Детальный просмотр
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="bg-neutral text-neutral-foreground hover:bg-primary hover:text-primary-foreground flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-colors"
+          >
+            <XIcon size={14} weight="bold" />
+            Закрыть
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function BilliardSimulator({
   title,
   description,
@@ -377,16 +453,25 @@ export function BilliardSimulator({
   autoLoop = true,
   loopDelayMs = 2000,
   controls = true,
+  expandable = true,
+  extraControls,
   className,
 }: BilliardSimulatorProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const tapStartRef = useRef<{ x: number; y: number; time: number } | null>(
+    null
+  );
 
   const isDarkBalls = useSettingsStore((state) => state.isDarkBalls);
 
   const [activeSlideIdx, setActiveSlideIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [isVisible, setIsVisible] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [placeholderHeight, setPlaceholderHeight] = useState<
+    number | undefined
+  >(undefined);
   const [speedMultiplier, setSpeedMultiplier] = useState<1 | 0.5 | 0.25>(1);
   const [trajectoriesVisible, setTrajectoriesVisible] =
     useState(showTrajectories);
@@ -422,6 +507,18 @@ export function BilliardSimulator({
   const startLoopRef = useRef<(() => void) | null>(null);
   const stopLoopRef = useRef<(() => void) | null>(null);
 
+  const openExpanded = useCallback(() => {
+    if (!expandable || isExpanded) return;
+    if (hostRef.current) {
+      setPlaceholderHeight(hostRef.current.offsetHeight);
+    }
+    setIsExpanded(true);
+  }, [expandable, isExpanded]);
+
+  const closeExpanded = useCallback(() => {
+    setIsExpanded(false);
+  }, []);
+
   const triggerRestart = useCallback(() => {
     setShowVerdictBanner(false);
     setIsPlaying(true);
@@ -439,8 +536,29 @@ export function BilliardSimulator({
     setSpeedMultiplier((prev) => (prev === 1 ? 0.5 : prev === 0.5 ? 0.25 : 1));
   };
 
+  const handleCanvasPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (!expandable || isExpanded) return;
+    tapStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      time: performance.now(),
+    };
+  };
+
+  const handleCanvasPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (!expandable || isExpanded || !tapStartRef.current) return;
+    const dx = e.clientX - tapStartRef.current.x;
+    const dy = e.clientY - tapStartRef.current.y;
+    const dt = performance.now() - tapStartRef.current.time;
+    tapStartRef.current = null;
+
+    if (Math.hypot(dx, dy) < 7 && dt < 280) {
+      openExpanded();
+    }
+  };
+
   useEffect(() => {
-    const el = containerRef.current;
+    const el = hostRef.current;
     if (!el) return;
 
     const observer = new IntersectionObserver(
@@ -483,7 +601,7 @@ export function BilliardSimulator({
         ...activePockets.map((p) => ({
           ...p,
           radius: p.radius ?? 16,
-          captureRadius: p.captureRadius ?? 15.5,
+          captureRadius: p.captureRadius ?? 17,
         }))
       );
     } else if (activePockets) {
@@ -492,7 +610,7 @@ export function BilliardSimulator({
           x: 20,
           y: 20,
           radius: 16,
-          captureRadius: 16,
+          captureRadius: 18,
         });
       }
       if (resolvedWalls.top && resolvedWalls.right) {
@@ -500,7 +618,7 @@ export function BilliardSimulator({
           x: width - 20,
           y: 20,
           radius: 16,
-          captureRadius: 16,
+          captureRadius: 18,
         });
       }
       if (resolvedWalls.bottom && resolvedWalls.left) {
@@ -508,7 +626,7 @@ export function BilliardSimulator({
           x: 20,
           y: height - 20,
           radius: 16,
-          captureRadius: 16,
+          captureRadius: 18,
         });
       }
       if (resolvedWalls.bottom && resolvedWalls.right) {
@@ -516,7 +634,7 @@ export function BilliardSimulator({
           x: width - 20,
           y: height - 20,
           radius: 16,
-          captureRadius: 16,
+          captureRadius: 18,
         });
       }
       if (resolvedWalls.top && width >= 520) {
@@ -524,7 +642,7 @@ export function BilliardSimulator({
           x: width / 2,
           y: 16,
           radius: 15,
-          captureRadius: 14.5,
+          captureRadius: 16,
         });
       }
       if (resolvedWalls.bottom && width >= 520) {
@@ -532,7 +650,7 @@ export function BilliardSimulator({
           x: width / 2,
           y: height - 16,
           radius: 15,
-          captureRadius: 14.5,
+          captureRadius: 16,
         });
       }
     }
@@ -540,12 +658,10 @@ export function BilliardSimulator({
     const hasPockets = resolvedPockets.length > 0;
     const hasMiddlePockets = hasPockets && width >= 520;
     const c = CUSHION_SIZE;
-    const cornerCut = hasPockets ? 50 : c;
-    const cornerJawInner = 31;
-    const cornerJawDepth = 11;
-    const midCut = 23;
-    const midJawInner = 15;
-    const midJawDepth = 13;
+    const cornerCut = hasPockets ? 54 : c;
+    const cornerOuter = 32;
+    const midCut = 26;
+    const midOuter = 16;
 
     const railPolygons: { x: number; y: number }[][] = [];
     const railSegments: RailSegment[] = [];
@@ -553,27 +669,23 @@ export function BilliardSimulator({
     if (resolvedWalls.top) {
       if (hasMiddlePockets) {
         railPolygons.push([
-          { x: 0, y: 0 },
-          { x: width / 2, y: 0 },
-          { x: width / 2, y: midJawDepth },
-          { x: width / 2 - midJawInner, y: midJawDepth },
+          { x: hasPockets ? cornerOuter : 0, y: 0 },
+          { x: width / 2 - midOuter, y: 0 },
+          { x: width / 2 - midOuter, y: 10 },
           { x: width / 2 - midCut, y: c },
           { x: cornerCut, y: c },
-          { x: hasPockets ? cornerJawInner : 0, y: hasPockets ? cornerJawDepth : c },
-          { x: 0, y: hasPockets ? cornerJawDepth : c },
+          { x: hasPockets ? cornerOuter : 0, y: hasPockets ? 10 : c },
         ]);
         railPolygons.push([
-          { x: width / 2, y: 0 },
-          { x: width, y: 0 },
-          { x: width, y: hasPockets ? cornerJawDepth : c },
+          { x: width / 2 + midOuter, y: 0 },
+          { x: hasPockets ? width - cornerOuter : width, y: 0 },
           {
-            x: hasPockets ? width - cornerJawInner : width,
-            y: hasPockets ? cornerJawDepth : c,
+            x: hasPockets ? width - cornerOuter : width,
+            y: hasPockets ? 10 : c,
           },
           { x: width - cornerCut, y: c },
           { x: width / 2 + midCut, y: c },
-          { x: width / 2 + midJawInner, y: midJawDepth },
-          { x: width / 2, y: midJawDepth },
+          { x: width / 2 + midOuter, y: 10 },
         ]);
 
         railSegments.push(
@@ -592,8 +704,8 @@ export function BilliardSimulator({
             sideTag: 'top',
           },
           {
-            x1: cornerJawInner,
-            y1: cornerJawDepth,
+            x1: cornerOuter,
+            y1: 10,
             x2: cornerCut,
             y2: c,
             sideTag: 'jaw',
@@ -601,13 +713,13 @@ export function BilliardSimulator({
           {
             x1: width / 2 - midCut,
             y1: c,
-            x2: width / 2 - midJawInner,
-            y2: midJawDepth,
+            x2: width / 2 - midOuter,
+            y2: 10,
             sideTag: 'jaw',
           },
           {
-            x1: width / 2 + midJawInner,
-            y1: midJawDepth,
+            x1: width / 2 + midOuter,
+            y1: 10,
             x2: width / 2 + midCut,
             y2: c,
             sideTag: 'jaw',
@@ -615,24 +727,22 @@ export function BilliardSimulator({
           {
             x1: width - cornerCut,
             y1: c,
-            x2: width - cornerJawInner,
-            y2: cornerJawDepth,
+            x2: width - cornerOuter,
+            y2: 10,
             sideTag: 'jaw',
           }
         );
       } else {
         railPolygons.push([
-          { x: 0, y: 0 },
-          { x: width, y: 0 },
-          { x: width, y: hasPockets ? cornerJawDepth : c },
+          { x: hasPockets ? cornerOuter : 0, y: 0 },
+          { x: hasPockets ? width - cornerOuter : width, y: 0 },
           {
-            x: hasPockets ? width - cornerJawInner : width,
-            y: hasPockets ? cornerJawDepth : c,
+            x: hasPockets ? width - cornerOuter : width,
+            y: hasPockets ? 10 : c,
           },
           { x: width - cornerCut, y: c },
           { x: cornerCut, y: c },
-          { x: hasPockets ? cornerJawInner : 0, y: hasPockets ? cornerJawDepth : c },
-          { x: 0, y: hasPockets ? cornerJawDepth : c },
+          { x: hasPockets ? cornerOuter : 0, y: hasPockets ? 10 : c },
         ]);
         railSegments.push({
           x1: cornerCut,
@@ -647,30 +757,26 @@ export function BilliardSimulator({
     if (resolvedWalls.bottom) {
       if (hasMiddlePockets) {
         railPolygons.push([
-          { x: 0, y: height },
-          { x: width / 2, y: height },
-          { x: width / 2, y: height - midJawDepth },
-          { x: width / 2 - midJawInner, y: height - midJawDepth },
+          { x: hasPockets ? cornerOuter : 0, y: height },
+          { x: width / 2 - midOuter, y: height },
+          { x: width / 2 - midOuter, y: height - 10 },
           { x: width / 2 - midCut, y: height - c },
           { x: cornerCut, y: height - c },
           {
-            x: hasPockets ? cornerJawInner : 0,
-            y: hasPockets ? height - cornerJawDepth : height - c,
+            x: hasPockets ? cornerOuter : 0,
+            y: hasPockets ? height - 10 : height - c,
           },
-          { x: 0, y: hasPockets ? height - cornerJawDepth : height - c },
         ]);
         railPolygons.push([
-          { x: width / 2, y: height },
-          { x: width, y: height },
-          { x: width, y: hasPockets ? height - cornerJawDepth : height - c },
+          { x: width / 2 + midOuter, y: height },
+          { x: hasPockets ? width - cornerOuter : width, y: height },
           {
-            x: hasPockets ? width - cornerJawInner : width,
-            y: hasPockets ? height - cornerJawDepth : height - c,
+            x: hasPockets ? width - cornerOuter : width,
+            y: hasPockets ? height - 10 : height - c,
           },
           { x: width - cornerCut, y: height - c },
           { x: width / 2 + midCut, y: height - c },
-          { x: width / 2 + midJawInner, y: height - midJawDepth },
-          { x: width / 2, y: height - midJawDepth },
+          { x: width / 2 + midOuter, y: height - 10 },
         ]);
 
         railSegments.push(
@@ -689,8 +795,8 @@ export function BilliardSimulator({
             sideTag: 'bottom',
           },
           {
-            x1: cornerJawInner,
-            y1: height - cornerJawDepth,
+            x1: cornerOuter,
+            y1: height - 10,
             x2: cornerCut,
             y2: height - c,
             sideTag: 'jaw',
@@ -698,13 +804,13 @@ export function BilliardSimulator({
           {
             x1: width / 2 - midCut,
             y1: height - c,
-            x2: width / 2 - midJawInner,
-            y2: height - midJawDepth,
+            x2: width / 2 - midOuter,
+            y2: height - 10,
             sideTag: 'jaw',
           },
           {
-            x1: width / 2 + midJawInner,
-            y1: height - midJawDepth,
+            x1: width / 2 + midOuter,
+            y1: height - 10,
             x2: width / 2 + midCut,
             y2: height - c,
             sideTag: 'jaw',
@@ -712,27 +818,25 @@ export function BilliardSimulator({
           {
             x1: width - cornerCut,
             y1: height - c,
-            x2: width - cornerJawInner,
-            y2: height - cornerJawDepth,
+            x2: width - cornerOuter,
+            y2: height - 10,
             sideTag: 'jaw',
           }
         );
       } else {
         railPolygons.push([
-          { x: 0, y: height },
-          { x: width, y: height },
-          { x: width, y: hasPockets ? height - cornerJawDepth : height - c },
+          { x: hasPockets ? cornerOuter : 0, y: height },
+          { x: hasPockets ? width - cornerOuter : width, y: height },
           {
-            x: hasPockets ? width - cornerJawInner : width,
-            y: hasPockets ? height - cornerJawDepth : height - c,
+            x: hasPockets ? width - cornerOuter : width,
+            y: hasPockets ? height - 10 : height - c,
           },
           { x: width - cornerCut, y: height - c },
           { x: cornerCut, y: height - c },
           {
-            x: hasPockets ? cornerJawInner : 0,
-            y: hasPockets ? height - cornerJawDepth : height - c,
+            x: hasPockets ? cornerOuter : 0,
+            y: hasPockets ? height - 10 : height - c,
           },
-          { x: 0, y: hasPockets ? height - cornerJawDepth : height - c },
         ]);
         railSegments.push({
           x1: cornerCut,
@@ -746,20 +850,15 @@ export function BilliardSimulator({
 
     if (resolvedWalls.left) {
       railPolygons.push([
-        { x: 0, y: 0 },
-        { x: hasPockets ? cornerJawDepth : c, y: 0 },
-        {
-          x: hasPockets ? cornerJawDepth : c,
-          y: hasPockets ? cornerJawInner : 0,
-        },
+        { x: 0, y: hasPockets ? cornerOuter : 0 },
+        { x: hasPockets ? 10 : c, y: hasPockets ? cornerOuter : 0 },
         { x: c, y: cornerCut },
         { x: c, y: height - cornerCut },
         {
-          x: hasPockets ? cornerJawDepth : c,
-          y: hasPockets ? height - cornerJawInner : height,
+          x: hasPockets ? 10 : c,
+          y: hasPockets ? height - cornerOuter : height,
         },
-        { x: hasPockets ? cornerJawDepth : c, y: height },
-        { x: 0, y: height },
+        { x: 0, y: hasPockets ? height - cornerOuter : height },
       ]);
       railSegments.push({
         x1: c,
@@ -770,18 +869,12 @@ export function BilliardSimulator({
       });
       if (hasPockets) {
         railSegments.push(
-          {
-            x1: cornerJawDepth,
-            y1: cornerJawInner,
-            x2: c,
-            y2: cornerCut,
-            sideTag: 'jaw',
-          },
+          { x1: 10, y1: cornerOuter, x2: c, y2: cornerCut, sideTag: 'jaw' },
           {
             x1: c,
             y1: height - cornerCut,
-            x2: cornerJawDepth,
-            y2: height - cornerJawInner,
+            x2: 10,
+            y2: height - cornerOuter,
             sideTag: 'jaw',
           }
         );
@@ -790,20 +883,18 @@ export function BilliardSimulator({
 
     if (resolvedWalls.right) {
       railPolygons.push([
-        { x: width, y: 0 },
-        { x: hasPockets ? width - cornerJawDepth : width - c, y: 0 },
+        { x: width, y: hasPockets ? cornerOuter : 0 },
         {
-          x: hasPockets ? width - cornerJawDepth : width - c,
-          y: hasPockets ? cornerJawInner : 0,
+          x: hasPockets ? width - 10 : width - c,
+          y: hasPockets ? cornerOuter : 0,
         },
         { x: width - c, y: cornerCut },
         { x: width - c, y: height - cornerCut },
         {
-          x: hasPockets ? width - cornerJawDepth : width - c,
-          y: hasPockets ? height - cornerJawInner : height,
+          x: hasPockets ? width - 10 : width - c,
+          y: hasPockets ? height - cornerOuter : height,
         },
-        { x: hasPockets ? width - cornerJawDepth : width - c, y: height },
-        { x: width, y: height },
+        { x: width, y: hasPockets ? height - cornerOuter : height },
       ]);
       railSegments.push({
         x1: width - c,
@@ -815,8 +906,8 @@ export function BilliardSimulator({
       if (hasPockets) {
         railSegments.push(
           {
-            x1: width - cornerJawDepth,
-            y1: cornerJawInner,
+            x1: width - 10,
+            y1: cornerOuter,
             x2: width - c,
             y2: cornerCut,
             sideTag: 'jaw',
@@ -824,8 +915,8 @@ export function BilliardSimulator({
           {
             x1: width - c,
             y1: height - cornerCut,
-            x2: width - cornerJawDepth,
-            y2: height - cornerJawInner,
+            x2: width - 10,
+            y2: height - cornerOuter,
             sideTag: 'jaw',
           }
         );
@@ -926,11 +1017,12 @@ export function BilliardSimulator({
           }
         }
 
-        if (meta.hasHitBall && Math.abs(meta.topSpin) > 0.04) {
-          if (meta.ticksAfterHit <= 38 && meta.spinEnergy > 0.2) {
-            const pull = meta.topSpin * meta.spinEnergy * 0.029 * dtScale;
+        if (meta.hasHitBall && Math.abs(meta.topSpin) > 0.03) {
+          if (meta.ticksAfterHit <= 18 && meta.spinEnergy > 0.2) {
+            const pull = meta.topSpin * meta.spinEnergy * 0.052 * dtScale;
             meta.vx += Math.cos(meta.spinAxisAngle) * pull;
             meta.vy += Math.sin(meta.spinAxisAngle) * pull;
+            meta.topSpin *= Math.pow(0.88, dtScale);
           }
         }
 
@@ -948,8 +1040,8 @@ export function BilliardSimulator({
           if (
             newSpeed < 0.075 &&
             (!meta.hasHitBall ||
-              meta.ticksAfterHit > 20 ||
-              Math.abs(meta.topSpin) < 0.05)
+              meta.ticksAfterHit > 16 ||
+              Math.abs(meta.topSpin) < 0.04)
           ) {
             meta.vx = 0;
             meta.vy = 0;
@@ -972,7 +1064,7 @@ export function BilliardSimulator({
 
         if (!meta.isAirborne) {
           for (const pocket of resolvedPockets) {
-            const capR = pocket.captureRadius ?? 15.5;
+            const capR = pocket.captureRadius ?? 17.5;
             const distHole = Math.hypot(
               body.position.x - pocket.x,
               body.position.y - pocket.y
@@ -1025,8 +1117,8 @@ export function BilliardSimulator({
               meta.vx -= (1 + restitution) * vn * nx;
               meta.vy -= (1 + restitution) * vn * ny;
               meta.arcAngularVel = 0;
-              meta.topSpin *= 0.25;
-              meta.spinEnergy *= 0.45;
+              meta.topSpin *= 0.2;
+              meta.spinEnergy *= 0.4;
 
               if (Math.abs(meta.sideSpin) > 0.04 && seg.sideTag !== 'jaw') {
                 const curSpeed = Math.hypot(meta.vx, meta.vy);
@@ -1095,7 +1187,8 @@ export function BilliardSimulator({
                 metaA.arcAngularVel = 0;
                 metaA.spinAxisAngle = Math.atan2(metaA.vy, metaA.vx);
               } else if (metaA.hasHitBall) {
-                metaA.spinEnergy *= 0.5;
+                metaA.topSpin = 0;
+                metaA.spinEnergy = 0;
               }
 
               if (bWasFirstHit) {
@@ -1104,7 +1197,8 @@ export function BilliardSimulator({
                 metaB.arcAngularVel = 0;
                 metaB.spinAxisAngle = Math.atan2(metaB.vy, metaB.vx);
               } else if (metaB.hasHitBall) {
-                metaB.spinEnergy *= 0.5;
+                metaB.topSpin = 0;
+                metaB.spinEnergy = 0;
               }
 
               const restitution = 0.96;
@@ -1204,7 +1298,17 @@ export function BilliardSimulator({
       ctx.save();
       ctx.scale(dpr, dpr);
 
-      ctx.fillStyle = '#13361f';
+      const feltGrad = ctx.createRadialGradient(
+        width / 2,
+        height / 2,
+        30,
+        width / 2,
+        height / 2,
+        Math.max(width, height) * 0.75
+      );
+      feltGrad.addColorStop(0, '#163d23');
+      feltGrad.addColorStop(1, '#0e2817');
+      ctx.fillStyle = feltGrad;
       ctx.fillRect(0, 0, width, height);
 
       ctx.fillStyle = '#24160e';
@@ -1220,32 +1324,61 @@ export function BilliardSimulator({
       }
 
       if (hasPockets) {
-        const cornerBlock = 28;
-        if (resolvedWalls.top && resolvedWalls.left)
-          ctx.fillRect(0, 0, cornerBlock, cornerBlock);
-        if (resolvedWalls.top && resolvedWalls.right)
-          ctx.fillRect(width - cornerBlock, 0, cornerBlock, cornerBlock);
-        if (resolvedWalls.bottom && resolvedWalls.left)
-          ctx.fillRect(0, height - cornerBlock, cornerBlock, cornerBlock);
-        if (resolvedWalls.bottom && resolvedWalls.right)
+        const cornerCap = cornerOuter + 8;
+        if (resolvedWalls.top && resolvedWalls.left) {
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(cornerCap, 0);
+          ctx.lineTo(0, cornerCap);
+          ctx.closePath();
+          ctx.fill();
+        }
+        if (resolvedWalls.top && resolvedWalls.right) {
+          ctx.beginPath();
+          ctx.moveTo(width, 0);
+          ctx.lineTo(width - cornerCap, 0);
+          ctx.lineTo(width, cornerCap);
+          ctx.closePath();
+          ctx.fill();
+        }
+        if (resolvedWalls.bottom && resolvedWalls.left) {
+          ctx.beginPath();
+          ctx.moveTo(0, height);
+          ctx.lineTo(cornerCap, height);
+          ctx.lineTo(0, height - cornerCap);
+          ctx.closePath();
+          ctx.fill();
+        }
+        if (resolvedWalls.bottom && resolvedWalls.right) {
+          ctx.beginPath();
+          ctx.moveTo(width, height);
+          ctx.lineTo(width - cornerCap, height);
+          ctx.lineTo(width, height - cornerCap);
+          ctx.closePath();
+          ctx.fill();
+        }
+        if (resolvedWalls.top && hasMiddlePockets) {
+          ctx.fillRect(width / 2 - midOuter - 2, 0, (midOuter + 2) * 2, 10);
+        }
+        if (resolvedWalls.bottom && hasMiddlePockets) {
           ctx.fillRect(
-            width - cornerBlock,
-            height - cornerBlock,
-            cornerBlock,
-            cornerBlock
+            width / 2 - midOuter - 2,
+            height - 10,
+            (midOuter + 2) * 2,
+            10
           );
-        if (resolvedWalls.top && hasMiddlePockets)
-          ctx.fillRect(width / 2 - 20, 0, 40, 16);
-        if (resolvedWalls.bottom && hasMiddlePockets)
-          ctx.fillRect(width / 2 - 20, height - 16, 40, 16);
+        }
       }
 
       for (const pocket of resolvedPockets) {
         const pr = pocket.radius ?? 16;
         ctx.beginPath();
         ctx.arc(pocket.x, pocket.y, pr, 0, Math.PI * 2);
-        ctx.fillStyle = '#070a08';
+        ctx.fillStyle = '#060a08';
         ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.stroke();
       }
 
       for (const marker of activeMarkers) {
@@ -1445,7 +1578,7 @@ export function BilliardSimulator({
           }
           ctx.setLineDash([4, 4]);
           ctx.strokeStyle = meta.config.isCue
-            ? 'rgba(210, 75, 90, 0.7)'
+            ? 'rgba(225, 75, 95, 0.68)'
             : 'rgba(255, 255, 255, 0.35)';
           ctx.lineWidth = meta.config.isCue ? 2 : 1.5;
           ctx.stroke();
@@ -1464,22 +1597,42 @@ export function BilliardSimulator({
         ctx.translate(x, y);
         ctx.scale(scale, scale);
 
+        ctx.beginPath();
+        ctx.arc(1.5, 2, r * 0.98, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+        ctx.fill();
+
+        const grad = ctx.createRadialGradient(
+          -r * 0.32,
+          -r * 0.32,
+          r * 0.08,
+          0,
+          0,
+          r
+        );
         if (meta.config.isCue) {
-          ctx.fillStyle = '#6e1423';
+          grad.addColorStop(0, '#a8283b');
+          grad.addColorStop(0.55, '#6e1222');
+          grad.addColorStop(1, '#3a0710');
         } else if (isDarkBallsRef.current) {
-          ctx.fillStyle = '#1e2028';
+          grad.addColorStop(0, '#363a45');
+          grad.addColorStop(0.65, '#171920');
+          grad.addColorStop(1, '#07080a');
         } else {
-          ctx.fillStyle = '#f0ebd8';
+          grad.addColorStop(0, '#ffffff');
+          grad.addColorStop(0.65, '#f0ebd8');
+          grad.addColorStop(1, '#c5bba0');
         }
 
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
         ctx.fill();
 
         if (meta.config.number !== undefined) {
           ctx.beginPath();
           ctx.arc(0, 0, r * 0.46, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
           ctx.fill();
 
           ctx.fillStyle = '#111215';
@@ -1608,8 +1761,8 @@ export function BilliardSimulator({
         if (
           speed > 0.075 ||
           (meta.hasHitBall &&
-            meta.ticksAfterHit < 38 &&
-            Math.abs(meta.topSpin) > 0.04)
+            meta.ticksAfterHit < 18 &&
+            Math.abs(meta.topSpin) > 0.03)
         ) {
           anyActiveMotion = true;
         }
@@ -1657,7 +1810,7 @@ export function BilliardSimulator({
 
     drawScene();
 
-    if (isVisible && isPlaying) {
+    if ((isVisible || isExpanded) && isPlaying) {
       startLoopRef.current();
     }
 
@@ -1682,15 +1835,16 @@ export function BilliardSimulator({
     autoLoop,
     loopDelayMs,
     restartSeed,
+    isExpanded,
   ]);
 
   useEffect(() => {
-    if (isVisible && isPlaying) {
+    if ((isVisible || isExpanded) && isPlaying) {
       startLoopRef.current?.();
     } else {
       stopLoopRef.current?.();
     }
-  }, [isVisible, isPlaying]);
+  }, [isVisible, isExpanded, isPlaying]);
 
   const primarySpin = activeShots[0]?.spin;
   const hudSideOffset =
@@ -1698,14 +1852,13 @@ export function BilliardSimulator({
       ? primarySpin.side
       : (primarySpin?.curve ?? 0) * 0.8;
 
-  return (
-    <div
-      ref={containerRef}
-      className={cn(
-        'bg-background/80 flex flex-col overflow-hidden rounded-2xl p-3 backdrop-blur-lg',
-        className
-      )}
-    >
+  const renderedExtraControls =
+    typeof extraControls === 'function'
+      ? extraControls(isExpanded)
+      : extraControls;
+
+  const simulatorBody = (
+    <div className="flex w-full flex-col" data-no-tab-swipe>
       {slides && slides.length > 1 && (
         <div className="mb-2.5 flex items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1.5">
@@ -1777,7 +1930,7 @@ export function BilliardSimulator({
                     left: `${50 + hudSideOffset * 34}%`,
                     top: `${50 - (primarySpin.top ?? 0) * 34}%`,
                   }}
-                  className="absolute size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#6e1423]"
+                  className="absolute size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#6e1222]"
                 />
               </div>
               <div className="flex flex-col text-[10px] leading-tight">
@@ -1803,12 +1956,26 @@ export function BilliardSimulator({
         </div>
       )}
 
-      <div className="relative w-full overflow-hidden rounded-xl">
+      <div
+        onPointerDown={handleCanvasPointerDown}
+        onPointerUp={handleCanvasPointerUp}
+        className={cn(
+          'relative w-full overflow-hidden rounded-xl',
+          expandable && !isExpanded && 'cursor-pointer'
+        )}
+      >
         <canvas
           ref={canvasRef}
           style={{ aspectRatio: `${width} / ${height}` }}
           className="block w-full select-none"
         />
+
+        {expandable && !isExpanded && (
+          <div className="pointer-events-none absolute right-2 bottom-2 flex items-center gap-1 rounded-lg bg-black/50 px-2 py-1 text-[10px] font-medium text-white/85 backdrop-blur-xs sm:hidden">
+            <ArrowsOutSimpleIcon size={12} weight="bold" />
+            <span>Увеличить</span>
+          </div>
+        )}
 
         {activeVerdict && (
           <div
@@ -1881,16 +2048,62 @@ export function BilliardSimulator({
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={cycleSpeed}
-            className="bg-neutral text-neutral-foreground flex h-8 items-center gap-1 rounded-xl px-2.5 text-xs font-medium transition-colors"
-          >
-            <GaugeIcon size={14} weight="bold" />
-            {speedMultiplier}x
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={cycleSpeed}
+              className="bg-neutral text-neutral-foreground flex h-8 items-center gap-1 rounded-xl px-2.5 text-xs font-medium transition-colors"
+            >
+              <GaugeIcon size={14} weight="bold" />
+              {speedMultiplier}x
+            </button>
+
+            {expandable && (
+              <button
+                type="button"
+                onClick={isExpanded ? closeExpanded : openExpanded}
+                aria-label={isExpanded ? 'Свернуть' : 'Развернуть'}
+                className="bg-neutral text-neutral-foreground hover:bg-primary hover:text-primary-foreground flex size-8 items-center justify-center rounded-xl transition-colors"
+              >
+                {isExpanded ? (
+                  <ArrowsInSimpleIcon size={15} weight="bold" />
+                ) : (
+                  <ArrowsOutSimpleIcon size={15} weight="bold" />
+                )}
+              </button>
+            )}
+          </div>
         </div>
       )}
+
+      {renderedExtraControls && (
+        <div className="mt-3">{renderedExtraControls}</div>
+      )}
     </div>
+  );
+
+  return (
+    <>
+      <div
+        ref={hostRef}
+        style={
+          isExpanded && placeholderHeight
+            ? { minHeight: `${placeholderHeight}px` }
+            : undefined
+        }
+        className={cn(
+          'bg-background/80 flex flex-col overflow-hidden rounded-2xl p-3 backdrop-blur-lg',
+          className
+        )}
+      >
+        {!isExpanded && simulatorBody}
+      </div>
+
+      {isExpanded && (
+        <SimulatorZoomModal onClose={closeExpanded}>
+          {simulatorBody}
+        </SimulatorZoomModal>
+      )}
+    </>
   );
 }
