@@ -22,8 +22,7 @@
  *         cutOffset?: 0 // 0 = точно в лузу, >0.6 или <-0.6 = намеренный промах
  *       }
  *       Если вместе с `aimAt` задан `spin.curve`, симулятор автоматически
- *       рассчитает стартовый угол дуги так, чтобы биток по дуге пришел
- *       ровно в точку резки прицельного шара!
+ *       выстроит точную круговую дугу от битка до точки резки прицельного шара.
  *    Б) Прицел в конкретную координату стола (`target`):
  *       target: { x: 450, y: 160 }
  *    В) Прицел по углу в градусах (`angle`):
@@ -34,8 +33,8 @@
  *    - jumpOffTable?: true — шар при ударе в борт вылетает за пределы стола
  *    - spin:
  *        * top: -1 (оттяжка назад), 0 (клапштос / остановка / 90°), +1 (накат вперед)
- *        * side: -1 (левый боковой винт), +1 (правый винт)
- *        * curve: от -1 до +1 (массе / дуговик — <0 дуга вверх/влево, >0 дуга вниз/вправо)
+ *        * side: -1 (левый боковой винт), +1 (правый боковой винт)
+ *        * curve: от -1 до +1 (массе / дуговик — изгиб траектории до удара)
  *
  * 5. ПЛАШКА ВЕРДИКТА (verdict):
  *    verdict: { type: 'foul' | 'valid', title: '...', subtitle: '...' }
@@ -101,11 +100,10 @@ export interface SimulatorShotConfig {
 export interface SimulatorPocketConfig {
   x: number;
   y: number;
+  mouthX?: number;
+  mouthY?: number;
   radius?: number;
-  kind?: 'corner' | 'middle' | 'custom';
-  cornerX?: -1 | 1;
-  cornerY?: -1 | 1;
-  middleY?: -1 | 1;
+  captureRadius?: number;
 }
 
 export interface SimulatorWallsConfig {
@@ -190,8 +188,8 @@ export function createPyramidRack({
   startNumber?: number;
 }): SimulatorBallConfig[] {
   const result: SimulatorBallConfig[] = [];
-  const gap = ballRadius * 2.04;
-  const rowStep = ballRadius * Math.sqrt(3) * 1.02;
+  const gap = ballRadius * 2.03;
+  const rowStep = ballRadius * Math.sqrt(3) * 1.015;
   let num = startNumber;
 
   for (let row = 0; row < rows; row++) {
@@ -233,11 +231,12 @@ export function createPyramidRack({
 interface InternalBallMeta {
   config: SimulatorBallConfig;
   radius: number;
+  vx: number;
+  vy: number;
   topSpin: number;
   sideSpin: number;
   curve: number;
-  initialAngle: number;
-  arcLength: number;
+  arcAngularVel: number;
   spinAxisAngle: number;
   spinEnergy: number;
   hasHitBall: boolean;
@@ -249,16 +248,22 @@ interface InternalBallMeta {
   potAnimation?: {
     x: number;
     y: number;
-    vx: number;
-    vy: number;
     pocketX: number;
     pocketY: number;
     progress: number;
   };
 }
 
+interface RailSegment {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  sideTag: 'top' | 'bottom' | 'left' | 'right' | 'jaw';
+}
+
 const CUSHION_SIZE = 26;
-const CURVE_K = 0.0022;
+const SUBSTEPS = 8;
 
 const resolvePocketAimTarget = (
   pocket: PocketPresetName | { x: number; y: number } | undefined,
@@ -268,26 +273,26 @@ const resolvePocketAimTarget = (
   if (pocket && typeof pocket === 'object') {
     return pocket;
   }
-  const cornerTarget = 22;
-  const middleTargetY = 18;
+  const cornerAim = 28;
+  const middleAimY = 22;
   switch (pocket) {
     case 'top-left':
-      return { x: cornerTarget, y: cornerTarget };
+      return { x: cornerAim, y: cornerAim };
     case 'top-middle':
-      return { x: width / 2, y: middleTargetY };
+      return { x: width / 2, y: middleAimY };
     case 'bottom-left':
-      return { x: cornerTarget, y: height - cornerTarget };
+      return { x: cornerAim, y: height - cornerAim };
     case 'bottom-middle':
-      return { x: width / 2, y: height - middleTargetY };
+      return { x: width / 2, y: height - middleAimY };
     case 'bottom-right':
-      return { x: width - cornerTarget, y: height - cornerTarget };
+      return { x: width - cornerAim, y: height - cornerAim };
     case 'top-right':
     default:
-      return { x: width - cornerTarget, y: cornerTarget };
+      return { x: width - cornerAim, y: cornerAim };
   }
 };
 
-const resolveGhostAndLaunch = (
+const computeShotGeometry = (
   shot: SimulatorShotConfig,
   strikerX: number,
   strikerY: number,
@@ -296,9 +301,19 @@ const resolveGhostAndLaunch = (
   defaultRadius: number,
   width: number,
   height: number
-): { launchAngle: number; ghostX?: number; ghostY?: number; chordDist?: number } => {
+): {
+  launchAngle: number;
+  ghostX?: number;
+  ghostY?: number;
+  chordDist?: number;
+  curveRadius?: number;
+  halfTurnAngle: number;
+} => {
   const curve = Math.max(-1, Math.min(1, shot.spin?.curve ?? 0));
-  const kappa = curve * CURVE_K;
+  const halfTurnAngle = curve * 0.44;
+
+  let targetX: number | undefined;
+  let targetY: number | undefined;
 
   if (shot.aimAt) {
     const objBall = balls.find((b) => b.id === shot.aimAt?.ballId);
@@ -321,36 +336,68 @@ const resolveGhostAndLaunch = (
       const perpY = ux;
       const offset = (shot.aimAt.cutOffset ?? 0) * sumR;
 
-      const ghostX = objBall.x - ux * sumR + perpX * offset;
-      const ghostY = objBall.y - uy * sumR + perpY * offset;
-
-      const chordDx = ghostX - strikerX;
-      const chordDy = ghostY - strikerY;
-      const chordDist = Math.hypot(chordDx, chordDy) || 1;
-      const chordAngle = Math.atan2(chordDy, chordDx);
-
-      const halfTurnArg = Math.max(-0.85, Math.min(0.85, (kappa * chordDist) / 2));
-      const launchAngle = chordAngle - Math.asin(halfTurnArg);
-
-      return { launchAngle, ghostX, ghostY, chordDist };
+      targetX = objBall.x - ux * sumR + perpX * offset;
+      targetY = objBall.y - uy * sumR + perpY * offset;
     }
+  } else if (shot.target) {
+    targetX = shot.target.x;
+    targetY = shot.target.y;
   }
 
-  if (shot.target) {
-    const chordDx = shot.target.x - strikerX;
-    const chordDy = shot.target.y - strikerY;
+  if (targetX !== undefined && targetY !== undefined) {
+    const chordDx = targetX - strikerX;
+    const chordDy = targetY - strikerY;
     const chordDist = Math.hypot(chordDx, chordDy) || 1;
     const chordAngle = Math.atan2(chordDy, chordDx);
-    const halfTurnArg = Math.max(-0.85, Math.min(0.85, (kappa * chordDist) / 2));
+
+    if (Math.abs(halfTurnAngle) > 0.01) {
+      const curveRadius = chordDist / (2 * Math.sin(halfTurnAngle));
+      const launchAngle = chordAngle - halfTurnAngle;
+      return {
+        launchAngle,
+        ghostX: targetX,
+        ghostY: targetY,
+        chordDist,
+        curveRadius,
+        halfTurnAngle,
+      };
+    }
+
     return {
-      launchAngle: chordAngle - Math.asin(halfTurnArg),
-      ghostX: shot.target.x,
-      ghostY: shot.target.y,
+      launchAngle: chordAngle,
+      ghostX: targetX,
+      ghostY: targetY,
       chordDist,
+      halfTurnAngle: 0,
     };
   }
 
-  return { launchAngle: ((shot.angle ?? 0) * Math.PI) / 180 };
+  const baseAngle = ((shot.angle ?? 0) * Math.PI) / 180;
+  if (Math.abs(halfTurnAngle) > 0.01) {
+    return {
+      launchAngle: baseAngle,
+      curveRadius: 340 / (2 * Math.sin(halfTurnAngle)),
+      halfTurnAngle,
+    };
+  }
+
+  return { launchAngle: baseAngle, halfTurnAngle: 0 };
+};
+
+const closestPointOnSegment = (
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+) => {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return { x: x1, y: y1 };
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
+  return { x: x1 + t * dx, y: y1 + t * dy };
 };
 
 export function BilliardSimulator({
@@ -458,7 +505,7 @@ export function BilliardSimulator({
 
     setShowVerdictBanner(false);
 
-    const { Engine, World, Bodies, Body, Events } = Matter;
+    const { Engine, World, Bodies, Body } = Matter;
     const engine = Engine.create({
       gravity: { x: 0, y: 0, scale: 0 },
     });
@@ -478,194 +525,367 @@ export function BilliardSimulator({
     const resolvedPockets: SimulatorPocketConfig[] = [];
     if (Array.isArray(activePockets)) {
       resolvedPockets.push(
-        ...activePockets.map((p) => ({ ...p, kind: p.kind ?? 'custom' }))
+        ...activePockets.map((p) => ({
+          ...p,
+          mouthX: p.mouthX ?? p.x,
+          mouthY: p.mouthY ?? p.y,
+          radius: p.radius ?? 16,
+          captureRadius: p.captureRadius ?? 22,
+        }))
       );
     } else if (activePockets) {
-      const cornerR = 14;
-      const middleR = 13;
-      if (resolvedWalls.top && resolvedWalls.left)
+      if (resolvedWalls.top && resolvedWalls.left) {
         resolvedPockets.push({
-          x: 16,
-          y: 16,
-          radius: cornerR,
-          kind: 'corner',
-          cornerX: -1,
-          cornerY: -1,
+          x: 18,
+          y: 18,
+          mouthX: 28,
+          mouthY: 28,
+          radius: 16,
+          captureRadius: 23,
         });
-      if (resolvedWalls.top && resolvedWalls.right)
+      }
+      if (resolvedWalls.top && resolvedWalls.right) {
         resolvedPockets.push({
-          x: width - 16,
-          y: 16,
-          radius: cornerR,
-          kind: 'corner',
-          cornerX: 1,
-          cornerY: -1,
+          x: width - 18,
+          y: 18,
+          mouthX: width - 28,
+          mouthY: 28,
+          radius: 16,
+          captureRadius: 23,
         });
-      if (resolvedWalls.bottom && resolvedWalls.left)
+      }
+      if (resolvedWalls.bottom && resolvedWalls.left) {
         resolvedPockets.push({
-          x: 16,
-          y: height - 16,
-          radius: cornerR,
-          kind: 'corner',
-          cornerX: -1,
-          cornerY: 1,
+          x: 18,
+          y: height - 18,
+          mouthX: 28,
+          mouthY: height - 28,
+          radius: 16,
+          captureRadius: 23,
         });
-      if (resolvedWalls.bottom && resolvedWalls.right)
+      }
+      if (resolvedWalls.bottom && resolvedWalls.right) {
         resolvedPockets.push({
-          x: width - 16,
-          y: height - 16,
-          radius: cornerR,
-          kind: 'corner',
-          cornerX: 1,
-          cornerY: 1,
+          x: width - 18,
+          y: height - 18,
+          mouthX: width - 28,
+          mouthY: height - 28,
+          radius: 16,
+          captureRadius: 23,
         });
-      if (resolvedWalls.top && width >= 520)
+      }
+      if (resolvedWalls.top && width >= 520) {
         resolvedPockets.push({
           x: width / 2,
           y: 14,
-          radius: middleR,
-          kind: 'middle',
-          middleY: -1,
+          mouthX: width / 2,
+          mouthY: 22,
+          radius: 15,
+          captureRadius: 21,
         });
-      if (resolvedWalls.bottom && width >= 520)
+      }
+      if (resolvedWalls.bottom && width >= 520) {
         resolvedPockets.push({
           x: width / 2,
           y: height - 14,
-          radius: middleR,
-          kind: 'middle',
-          middleY: 1,
+          mouthX: width / 2,
+          mouthY: height - 22,
+          radius: 15,
+          captureRadius: 21,
         });
+      }
     }
 
-    const wallBodies: Matter.Body[] = [];
-    const wallOptions: Matter.IChamferableBodyDefinition = {
-      isStatic: true,
-      restitution: 0.88,
-      friction: 0.005,
-      frictionStatic: 0,
-      slop: 0.01,
-      collisionFilter: { category: 0x0002 },
-    };
-
     const hasPockets = resolvedPockets.length > 0;
-    const cornerCut = hasPockets ? 40 : CUSHION_SIZE;
-    const middleCut = hasPockets && width >= 520 ? 22 : 0;
+    const hasMiddlePockets = hasPockets && width >= 520;
+    const c = CUSHION_SIZE;
+    const cornerCut = hasPockets ? 52 : c;
+    const cornerOuter = 30;
+    const midCut = 28;
+    const midOuter = 16;
+
+    const railPolygons: { x: number; y: number }[][] = [];
+    const railSegments: RailSegment[] = [];
 
     if (resolvedWalls.top) {
-      if (middleCut > 0) {
-        const segW = width / 2 - cornerCut - middleCut;
-        wallBodies.push(
-          Bodies.rectangle(
-            cornerCut + segW / 2,
-            CUSHION_SIZE / 2,
-            segW,
-            CUSHION_SIZE,
-            { ...wallOptions, chamfer: { radius: 5 }, label: 'wall-top' }
-          ),
-          Bodies.rectangle(
-            width / 2 + middleCut + segW / 2,
-            CUSHION_SIZE / 2,
-            segW,
-            CUSHION_SIZE,
-            { ...wallOptions, chamfer: { radius: 5 }, label: 'wall-top' }
-          )
+      if (hasMiddlePockets) {
+        railPolygons.push([
+          { x: hasPockets ? cornerOuter : 0, y: 0 },
+          { x: width / 2 - midOuter, y: 0 },
+          { x: width / 2 - midOuter, y: 10 },
+          { x: width / 2 - midCut, y: c },
+          { x: cornerCut, y: c },
+          { x: hasPockets ? cornerOuter : 0, y: hasPockets ? 10 : c },
+        ]);
+        railPolygons.push([
+          { x: width / 2 + midOuter, y: 0 },
+          { x: hasPockets ? width - cornerOuter : width, y: 0 },
+          {
+            x: hasPockets ? width - cornerOuter : width,
+            y: hasPockets ? 10 : c,
+          },
+          { x: width - cornerCut, y: c },
+          { x: width / 2 + midCut, y: c },
+          { x: width / 2 + midOuter, y: 10 },
+        ]);
+
+        railSegments.push(
+          {
+            x1: cornerCut,
+            y1: c,
+            x2: width / 2 - midCut,
+            y2: c,
+            sideTag: 'top',
+          },
+          {
+            x1: width / 2 + midCut,
+            y1: c,
+            x2: width - cornerCut,
+            y2: c,
+            sideTag: 'top',
+          },
+          {
+            x1: cornerOuter,
+            y1: 10,
+            x2: cornerCut,
+            y2: c,
+            sideTag: 'jaw',
+          },
+          {
+            x1: width / 2 - midCut,
+            y1: c,
+            x2: width / 2 - midOuter,
+            y2: 10,
+            sideTag: 'jaw',
+          },
+          {
+            x1: width / 2 + midOuter,
+            y1: 10,
+            x2: width / 2 + midCut,
+            y2: c,
+            sideTag: 'jaw',
+          },
+          {
+            x1: width - cornerCut,
+            y1: c,
+            x2: width - cornerOuter,
+            y2: 10,
+            sideTag: 'jaw',
+          }
         );
       } else {
-        const segW = width - cornerCut * 2;
-        wallBodies.push(
-          Bodies.rectangle(width / 2, CUSHION_SIZE / 2, segW, CUSHION_SIZE, {
-            ...wallOptions,
-            chamfer: { radius: 5 },
-            label: 'wall-top',
-          })
-        );
+        railPolygons.push([
+          { x: hasPockets ? cornerOuter : 0, y: 0 },
+          { x: hasPockets ? width - cornerOuter : width, y: 0 },
+          {
+            x: hasPockets ? width - cornerOuter : width,
+            y: hasPockets ? 10 : c,
+          },
+          { x: width - cornerCut, y: c },
+          { x: cornerCut, y: c },
+          { x: hasPockets ? cornerOuter : 0, y: hasPockets ? 10 : c },
+        ]);
+        railSegments.push({
+          x1: cornerCut,
+          y1: c,
+          x2: width - cornerCut,
+          y2: c,
+          sideTag: 'top',
+        });
       }
     }
 
     if (resolvedWalls.bottom) {
-      if (middleCut > 0) {
-        const segW = width / 2 - cornerCut - middleCut;
-        wallBodies.push(
-          Bodies.rectangle(
-            cornerCut + segW / 2,
-            height - CUSHION_SIZE / 2,
-            segW,
-            CUSHION_SIZE,
-            { ...wallOptions, chamfer: { radius: 5 }, label: 'wall-bottom' }
-          ),
-          Bodies.rectangle(
-            width / 2 + middleCut + segW / 2,
-            height - CUSHION_SIZE / 2,
-            segW,
-            CUSHION_SIZE,
-            { ...wallOptions, chamfer: { radius: 5 }, label: 'wall-bottom' }
-          )
+      if (hasMiddlePockets) {
+        railPolygons.push([
+          { x: hasPockets ? cornerOuter : 0, y: height },
+          { x: width / 2 - midOuter, y: height },
+          { x: width / 2 - midOuter, y: height - 10 },
+          { x: width / 2 - midCut, y: height - c },
+          { x: cornerCut, y: height - c },
+          {
+            x: hasPockets ? cornerOuter : 0,
+            y: hasPockets ? height - 10 : height - c,
+          },
+        ]);
+        railPolygons.push([
+          { x: width / 2 + midOuter, y: height },
+          { x: hasPockets ? width - cornerOuter : width, y: height },
+          {
+            x: hasPockets ? width - cornerOuter : width,
+            y: hasPockets ? height - 10 : height - c,
+          },
+          { x: width - cornerCut, y: height - c },
+          { x: width / 2 + midCut, y: height - c },
+          { x: width / 2 + midOuter, y: height - 10 },
+        ]);
+
+        railSegments.push(
+          {
+            x1: cornerCut,
+            y1: height - c,
+            x2: width / 2 - midCut,
+            y2: height - c,
+            sideTag: 'bottom',
+          },
+          {
+            x1: width / 2 + midCut,
+            y1: height - c,
+            x2: width - cornerCut,
+            y2: height - c,
+            sideTag: 'bottom',
+          },
+          {
+            x1: cornerOuter,
+            y1: height - 10,
+            x2: cornerCut,
+            y2: height - c,
+            sideTag: 'jaw',
+          },
+          {
+            x1: width / 2 - midCut,
+            y1: height - c,
+            x2: width / 2 - midOuter,
+            y2: height - 10,
+            sideTag: 'jaw',
+          },
+          {
+            x1: width / 2 + midOuter,
+            y1: height - 10,
+            x2: width / 2 + midCut,
+            y2: height - c,
+            sideTag: 'jaw',
+          },
+          {
+            x1: width - cornerCut,
+            y1: height - c,
+            x2: width - cornerOuter,
+            y2: height - 10,
+            sideTag: 'jaw',
+          }
         );
       } else {
-        const segW = width - cornerCut * 2;
-        wallBodies.push(
-          Bodies.rectangle(
-            width / 2,
-            height - CUSHION_SIZE / 2,
-            segW,
-            CUSHION_SIZE,
-            { ...wallOptions, chamfer: { radius: 5 }, label: 'wall-bottom' }
-          )
-        );
+        railPolygons.push([
+          { x: hasPockets ? cornerOuter : 0, y: height },
+          { x: hasPockets ? width - cornerOuter : width, y: height },
+          {
+            x: hasPockets ? width - cornerOuter : width,
+            y: hasPockets ? height - 10 : height - c,
+          },
+          { x: width - cornerCut, y: height - c },
+          { x: cornerCut, y: height - c },
+          {
+            x: hasPockets ? cornerOuter : 0,
+            y: hasPockets ? height - 10 : height - c,
+          },
+        ]);
+        railSegments.push({
+          x1: cornerCut,
+          y1: height - c,
+          x2: width - cornerCut,
+          y2: height - c,
+          sideTag: 'bottom',
+        });
       }
     }
 
     if (resolvedWalls.left) {
-      const segH = height - cornerCut * 2;
-      wallBodies.push(
-        Bodies.rectangle(CUSHION_SIZE / 2, height / 2, CUSHION_SIZE, segH, {
-          ...wallOptions,
-          chamfer: { radius: 5 },
-          label: 'wall-left',
-        })
-      );
+      railPolygons.push([
+        { x: 0, y: hasPockets ? cornerOuter : 0 },
+        { x: hasPockets ? 10 : c, y: hasPockets ? cornerOuter : 0 },
+        { x: c, y: cornerCut },
+        { x: c, y: height - cornerCut },
+        {
+          x: hasPockets ? 10 : c,
+          y: hasPockets ? height - cornerOuter : height,
+        },
+        { x: 0, y: hasPockets ? height - cornerOuter : height },
+      ]);
+      railSegments.push({
+        x1: c,
+        y1: cornerCut,
+        x2: c,
+        y2: height - cornerCut,
+        sideTag: 'left',
+      });
+      if (hasPockets) {
+        railSegments.push(
+          { x1: 10, y1: cornerOuter, x2: c, y2: cornerCut, sideTag: 'jaw' },
+          {
+            x1: c,
+            y1: height - cornerCut,
+            x2: 10,
+            y2: height - cornerOuter,
+            sideTag: 'jaw',
+          }
+        );
+      }
     }
 
     if (resolvedWalls.right) {
-      const segH = height - cornerCut * 2;
-      wallBodies.push(
-        Bodies.rectangle(
-          width - CUSHION_SIZE / 2,
-          height / 2,
-          CUSHION_SIZE,
-          segH,
-          { ...wallOptions, chamfer: { radius: 5 }, label: 'wall-right' }
-        )
-      );
+      railPolygons.push([
+        { x: width, y: hasPockets ? cornerOuter : 0 },
+        {
+          x: hasPockets ? width - 10 : width - c,
+          y: hasPockets ? cornerOuter : 0,
+        },
+        { x: width - c, y: cornerCut },
+        { x: width - c, y: height - cornerCut },
+        {
+          x: hasPockets ? width - 10 : width - c,
+          y: hasPockets ? height - cornerOuter : height,
+        },
+        { x: width, y: hasPockets ? height - cornerOuter : height },
+      ]);
+      railSegments.push({
+        x1: width - c,
+        y1: cornerCut,
+        x2: width - c,
+        y2: height - cornerCut,
+        sideTag: 'right',
+      });
+      if (hasPockets) {
+        railSegments.push(
+          {
+            x1: width - 10,
+            y1: cornerOuter,
+            x2: width - c,
+            y2: cornerCut,
+            sideTag: 'jaw',
+          },
+          {
+            x1: width - c,
+            y1: height - cornerCut,
+            x2: width - 10,
+            y2: height - cornerOuter,
+            sideTag: 'jaw',
+          }
+        );
+      }
     }
 
-    World.add(engine.world, wallBodies);
-
+    const bodyList: Matter.Body[] = [];
     const bodyMap = new Map<string | number, Matter.Body>();
     const metaMap = new Map<number, InternalBallMeta>();
 
     activeBalls.forEach((b) => {
       const r = b.radius ?? ballRadius;
       const body = Bodies.circle(b.x, b.y, r, {
-        restitution: 0.95,
-        friction: 0.002,
-        frictionAir: 0.0135,
-        frictionStatic: 0,
-        slop: 0.005,
-        density: 0.002,
-        collisionFilter: { category: 0x0001, mask: 0x0001 | 0x0002 },
+        isSensor: true,
         label: `ball-${b.id}`,
       });
 
+      bodyList.push(body);
       bodyMap.set(b.id, body);
       metaMap.set(body.id, {
         config: b,
         radius: r,
+        vx: 0,
+        vy: 0,
         topSpin: 0,
         sideSpin: 0,
         curve: 0,
-        initialAngle: 0,
-        arcLength: 0,
+        arcAngularVel: 0,
         spinAxisAngle: 0,
         spinEnergy: 0,
         hasHitBall: false,
@@ -677,114 +897,6 @@ export function BilliardSimulator({
 
       World.add(engine.world, body);
     });
-
-    const postStepImpulses: (() => void)[] = [];
-
-    const handleCollision = (event: Matter.IEventCollision<Matter.Engine>) => {
-      for (const pair of event.pairs) {
-        const metaA = metaMap.get(pair.bodyA.id);
-        const metaB = metaMap.get(pair.bodyB.id);
-
-        if (metaA && metaB) {
-          const dx = pair.bodyB.position.x - pair.bodyA.position.x;
-          const dy = pair.bodyB.position.y - pair.bodyA.position.y;
-          const dist = Math.hypot(dx, dy) || 1;
-          const nx = dx / dist;
-          const ny = dy / dist;
-
-          const registerBallHit = (
-            strikerBody: Matter.Body,
-            strikerMeta: InternalBallMeta,
-            targetBody: Matter.Body,
-            normalX: number,
-            normalY: number
-          ) => {
-            if (strikerMeta.hasHitBall) return;
-            strikerMeta.hasHitBall = true;
-            strikerMeta.ticksAfterHit = 0;
-
-            const preSpeed = Math.hypot(
-              strikerBody.velocity.x,
-              strikerBody.velocity.y
-            );
-            if (preSpeed > 0.2) {
-              strikerMeta.spinAxisAngle = Math.atan2(
-                strikerBody.velocity.y,
-                strikerBody.velocity.x
-              );
-            }
-
-            const top = strikerMeta.topSpin;
-            const side = strikerMeta.sideSpin;
-            const energy = Math.min(strikerMeta.spinEnergy, 16);
-
-            postStepImpulses.push(() => {
-              if (Math.abs(top) < 0.08 && energy > 2) {
-                const vx = strikerBody.velocity.x;
-                const vy = strikerBody.velocity.y;
-                const dot = vx * normalX + vy * normalY;
-                Body.setVelocity(strikerBody, {
-                  x: (vx - dot * normalX) * 0.88,
-                  y: (vy - dot * normalY) * 0.88,
-                });
-              }
-
-              if (Math.abs(side) > 0.05) {
-                const tangentX = -normalY;
-                const tangentY = normalX;
-                const throwForce = -side * energy * 0.055;
-                Body.setVelocity(targetBody, {
-                  x: targetBody.velocity.x + tangentX * throwForce,
-                  y: targetBody.velocity.y + tangentY * throwForce,
-                });
-              }
-            });
-          };
-
-          if (metaA.spinEnergy > 0.1 && !metaA.hasHitBall) {
-            registerBallHit(pair.bodyA, metaA, pair.bodyB, nx, ny);
-          }
-          if (metaB.spinEnergy > 0.1 && !metaB.hasHitBall) {
-            registerBallHit(pair.bodyB, metaB, pair.bodyA, -nx, -ny);
-          }
-        } else if (metaA || metaB) {
-          const ballBody = metaA ? pair.bodyA : pair.bodyB;
-          const wallBody = metaA ? pair.bodyB : pair.bodyA;
-          const ballMeta = (metaA || metaB)!;
-
-          ballMeta.curve = 0;
-
-          if (Math.abs(ballMeta.sideSpin) > 0.04) {
-            const side = ballMeta.sideSpin;
-            const spinEn = ballMeta.spinEnergy;
-            const wLabel = wallBody.label;
-            ballMeta.sideSpin *= 0.45;
-
-            postStepImpulses.push(() => {
-              const speed = Math.hypot(
-                ballBody.velocity.x,
-                ballBody.velocity.y
-              );
-              const boost = side * Math.max(speed * 0.48, spinEn * 0.22);
-
-              let tx = 0;
-              let ty = 0;
-              if (wLabel === 'wall-top') tx = 1;
-              else if (wLabel === 'wall-bottom') tx = -1;
-              else if (wLabel === 'wall-left') ty = -1;
-              else if (wLabel === 'wall-right') ty = 1;
-
-              Body.setVelocity(ballBody, {
-                x: ballBody.velocity.x + tx * boost,
-                y: ballBody.velocity.y + ty * boost,
-              });
-            });
-          }
-        }
-      }
-    };
-
-    Events.on(engine, 'collisionStart', handleCollision);
 
     const cueLeadInTicks = showCue && activeShots.length > 0 ? 32 : 0;
     let elapsedTicks = 0;
@@ -800,7 +912,7 @@ export function BilliardSimulator({
       const meta = metaMap.get(body.id);
       if (!meta || meta.potted) return;
 
-      const { launchAngle } = resolveGhostAndLaunch(
+      const { launchAngle, curveRadius } = computeShotGeometry(
         shot,
         body.position.x,
         body.position.y,
@@ -811,28 +923,242 @@ export function BilliardSimulator({
         height
       );
 
-      const vx = Math.cos(launchAngle) * shot.power;
-      const vy = Math.sin(launchAngle) * shot.power;
-
+      meta.vx = Math.cos(launchAngle) * shot.power;
+      meta.vy = Math.sin(launchAngle) * shot.power;
       meta.topSpin = Math.max(-1, Math.min(1, shot.spin?.top ?? 0));
       meta.sideSpin = Math.max(-1, Math.min(1, shot.spin?.side ?? 0));
       meta.curve = Math.max(-1, Math.min(1, shot.spin?.curve ?? 0));
-      meta.initialAngle = launchAngle;
-      meta.arcLength = 0;
+      meta.arcAngularVel = curveRadius ? 1 / curveRadius : 0;
       meta.spinAxisAngle = launchAngle;
       meta.spinEnergy = shot.power;
       meta.hasHitBall = false;
       meta.ticksAfterHit = 0;
       meta.jumpOffTable = Boolean(shot.jumpOffTable);
-
-      if (meta.jumpOffTable) {
-        body.collisionFilter.mask = 0x0001;
-      }
-
-      Body.setVelocity(body, { x: vx, y: vy });
     };
 
-    const stepFixedPhysics = () => {
+    const stepSubPhysics = () => {
+      const dtScale = 1 / SUBSTEPS;
+      const dragPerSub = Math.pow(0.9865, dtScale);
+
+      for (const body of bodyList) {
+        const meta = metaMap.get(body.id);
+        if (!meta || meta.potted) continue;
+
+        if (!meta.hasHitBall && Math.abs(meta.arcAngularVel) > 0.00001) {
+          const speed = Math.hypot(meta.vx, meta.vy);
+          if (speed > 0.2) {
+            const ds = speed * dtScale;
+            const dTheta = ds * meta.arcAngularVel;
+            const cosT = Math.cos(dTheta);
+            const sinT = Math.sin(dTheta);
+            const nx = meta.vx * cosT - meta.vy * sinT;
+            const ny = meta.vx * sinT + meta.vy * cosT;
+            meta.vx = nx;
+            meta.vy = ny;
+          }
+        }
+
+        if (meta.hasHitBall && Math.abs(meta.topSpin) > 0.04) {
+          if (meta.ticksAfterHit <= 38 && meta.spinEnergy > 0.2) {
+            const pull = meta.topSpin * meta.spinEnergy * 0.029 * dtScale;
+            meta.vx += Math.cos(meta.spinAxisAngle) * pull;
+            meta.vy += Math.sin(meta.spinAxisAngle) * pull;
+          }
+        }
+
+        const nextX = body.position.x + meta.vx * dtScale;
+        const nextY = body.position.y + meta.vy * dtScale;
+        Body.setPosition(body, { x: nextX, y: nextY });
+
+        meta.vx *= dragPerSub;
+        meta.vy *= dragPerSub;
+
+        const speed = Math.hypot(meta.vx, meta.vy);
+        if (speed > 0) {
+          const decel = 0.0032 * dtScale;
+          const newSpeed = Math.max(0, speed - decel);
+          if (
+            newSpeed < 0.075 &&
+            (!meta.hasHitBall ||
+              meta.ticksAfterHit > 20 ||
+              Math.abs(meta.topSpin) < 0.05)
+          ) {
+            meta.vx = 0;
+            meta.vy = 0;
+          } else {
+            const ratio = newSpeed / speed;
+            meta.vx *= ratio;
+            meta.vy *= ratio;
+          }
+        }
+
+        if (
+          meta.jumpOffTable &&
+          (body.position.x < c + meta.radius ||
+            body.position.x > width - c - meta.radius ||
+            body.position.y < c + meta.radius ||
+            body.position.y > height - c - meta.radius)
+        ) {
+          meta.isAirborne = true;
+        }
+
+        if (!meta.isAirborne) {
+          for (const pocket of resolvedPockets) {
+            const capR = pocket.captureRadius ?? 22;
+            const mx = pocket.mouthX ?? pocket.x;
+            const my = pocket.mouthY ?? pocket.y;
+            const distHole = Math.hypot(
+              body.position.x - pocket.x,
+              body.position.y - pocket.y
+            );
+            const distMouth = Math.hypot(
+              body.position.x - mx,
+              body.position.y - my
+            );
+
+            if (distHole <= capR || distMouth <= 13) {
+              meta.potted = true;
+              meta.vx = 0;
+              meta.vy = 0;
+              meta.potAnimation = {
+                x: body.position.x,
+                y: body.position.y,
+                pocketX: pocket.x,
+                pocketY: pocket.y,
+                progress: 0,
+              };
+              break;
+            }
+          }
+        }
+
+        if (meta.potted || meta.jumpOffTable) continue;
+
+        for (const seg of railSegments) {
+          const closest = closestPointOnSegment(
+            body.position.x,
+            body.position.y,
+            seg.x1,
+            seg.y1,
+            seg.x2,
+            seg.y2
+          );
+          const dx = body.position.x - closest.x;
+          const dy = body.position.y - closest.y;
+          const dist = Math.hypot(dx, dy);
+
+          if (dist < meta.radius && dist > 0.0001) {
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const overlap = meta.radius - dist;
+
+            Body.setPosition(body, {
+              x: body.position.x + nx * overlap,
+              y: body.position.y + ny * overlap,
+            });
+
+            const vn = meta.vx * nx + meta.vy * ny;
+            if (vn < 0) {
+              const restitution = seg.sideTag === 'jaw' ? 0.55 : 0.86;
+              meta.vx -= (1 + restitution) * vn * nx;
+              meta.vy -= (1 + restitution) * vn * ny;
+              meta.arcAngularVel = 0;
+
+              if (Math.abs(meta.sideSpin) > 0.04 && seg.sideTag !== 'jaw') {
+                const curSpeed = Math.hypot(meta.vx, meta.vy);
+                const boost =
+                  meta.sideSpin * Math.max(curSpeed * 0.48, meta.spinEnergy * 0.22);
+                let tx = 0;
+                let ty = 0;
+                if (seg.sideTag === 'top') tx = 1;
+                else if (seg.sideTag === 'bottom') tx = -1;
+                else if (seg.sideTag === 'left') ty = -1;
+                else if (seg.sideTag === 'right') ty = 1;
+
+                meta.vx += tx * boost;
+                meta.vy += ty * boost;
+                meta.sideSpin *= 0.45;
+              }
+            }
+          }
+        }
+      }
+
+      for (let i = 0; i < bodyList.length; i++) {
+        const bodyA = bodyList[i];
+        const metaA = metaMap.get(bodyA.id);
+        if (!metaA || metaA.potted) continue;
+
+        for (let j = i + 1; j < bodyList.length; j++) {
+          const bodyB = bodyList[j];
+          const metaB = metaMap.get(bodyB.id);
+          if (!metaB || metaB.potted) continue;
+
+          const dx = bodyB.position.x - bodyA.position.x;
+          const dy = bodyB.position.y - bodyA.position.y;
+          const dist = Math.hypot(dx, dy);
+          const minDist = metaA.radius + metaB.radius;
+
+          if (dist < minDist && dist > 0.0001) {
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const tx = -ny;
+            const ty = nx;
+
+            const overlap = minDist - dist;
+            Body.setPosition(bodyA, {
+              x: bodyA.position.x - nx * (overlap * 0.5),
+              y: bodyA.position.y - ny * (overlap * 0.5),
+            });
+            Body.setPosition(bodyB, {
+              x: bodyB.position.x + nx * (overlap * 0.5),
+              y: bodyB.position.y + ny * (overlap * 0.5),
+            });
+
+            const vAn = metaA.vx * nx + metaA.vy * ny;
+            const vAt = metaA.vx * tx + metaA.vy * ty;
+            const vBn = metaB.vx * nx + metaB.vy * ny;
+            const vBt = metaB.vx * tx + metaB.vy * ty;
+
+            if (vAn - vBn > 0) {
+              const aWasStriker = !metaA.hasHitBall && metaA.spinEnergy > 0.1;
+              const bWasStriker = !metaB.hasHitBall && metaB.spinEnergy > 0.1;
+
+              if (aWasStriker) {
+                metaA.hasHitBall = true;
+                metaA.ticksAfterHit = 0;
+                metaA.arcAngularVel = 0;
+                metaA.spinAxisAngle = Math.atan2(metaA.vy, metaA.vx);
+              }
+              if (bWasStriker) {
+                metaB.hasHitBall = true;
+                metaB.ticksAfterHit = 0;
+                metaB.arcAngularVel = 0;
+                metaB.spinAxisAngle = Math.atan2(metaB.vy, metaB.vx);
+              }
+
+              const restitution = 0.96;
+              let nextVAn = vBn * restitution;
+              let nextVBn = vAn * restitution;
+
+              if (aWasStriker && Math.abs(metaA.topSpin) < 0.08) {
+                nextVAn = 0;
+              }
+              if (bWasStriker && Math.abs(metaB.topSpin) < 0.08) {
+                nextVBn = 0;
+              }
+
+              metaA.vx = vAt * tx + nextVAn * nx;
+              metaA.vy = vAt * ty + nextVAn * ny;
+              metaB.vx = vBt * tx + nextVBn * nx;
+              metaB.vy = vBt * ty + nextVBn * ny;
+            }
+          }
+        }
+      }
+    };
+
+    const stepOneFrame = () => {
       activeShots.forEach((shot, idx) => {
         if (shotFiredFlags[idx]) return;
         const triggerTick =
@@ -843,60 +1169,18 @@ export function BilliardSimulator({
         }
       });
 
-      metaMap.forEach((meta, bodyId) => {
-        const body = engine.world.bodies.find((b) => b.id === bodyId);
-        if (!body || meta.potted) return;
+      for (let s = 0; s < SUBSTEPS; s++) {
+        stepSubPhysics();
+      }
 
-        if (!meta.hasHitBall && Math.abs(meta.curve) > 0.01) {
-          const speed = Math.hypot(body.velocity.x, body.velocity.y);
-          if (speed > 0.25) {
-            const ds = speed * (1 - body.frictionAir);
-            const kappa = meta.curve * CURVE_K;
-            const stepAngle =
-              meta.initialAngle + kappa * (meta.arcLength + ds * 0.5);
-            Body.setVelocity(body, {
-              x: Math.cos(stepAngle) * speed,
-              y: Math.sin(stepAngle) * speed,
-            });
-            meta.arcLength += ds;
-          }
-        }
+      for (const body of bodyList) {
+        const meta = metaMap.get(body.id);
+        if (!meta || meta.potted) continue;
 
-        if (meta.hasHitBall && Math.abs(meta.topSpin) > 0.04) {
+        if (meta.hasHitBall) {
           meta.ticksAfterHit += 1;
-          if (meta.ticksAfterHit <= 38 && meta.spinEnergy > 0.2) {
-            const pullStrength = meta.topSpin * meta.spinEnergy * 0.028;
-            Body.setVelocity(body, {
-              x:
-                body.velocity.x +
-                Math.cos(meta.spinAxisAngle) * pullStrength,
-              y:
-                body.velocity.y +
-                Math.sin(meta.spinAxisAngle) * pullStrength,
-            });
-          }
         }
-
         meta.spinEnergy *= 0.992;
-
-        const speed = Math.hypot(body.velocity.x, body.velocity.y);
-        if (
-          speed > 0 &&
-          speed < 0.08 &&
-          (!meta.hasHitBall || meta.ticksAfterHit > 18)
-        ) {
-          Body.setVelocity(body, { x: 0, y: 0 });
-        }
-
-        if (
-          meta.jumpOffTable &&
-          (body.position.x < CUSHION_SIZE + meta.radius ||
-            body.position.x > width - CUSHION_SIZE - meta.radius ||
-            body.position.y < CUSHION_SIZE + meta.radius ||
-            body.position.y > height - CUSHION_SIZE - meta.radius)
-        ) {
-          meta.isAirborne = true;
-        }
 
         const lastPt = meta.trail[meta.trail.length - 1];
         if (
@@ -904,41 +1188,6 @@ export function BilliardSimulator({
           Math.hypot(body.position.x - lastPt.x, body.position.y - lastPt.y) > 3
         ) {
           meta.trail.push({ x: body.position.x, y: body.position.y });
-        }
-
-        if (!meta.isAirborne) {
-          for (const pocket of resolvedPockets) {
-            const pr = pocket.radius ?? 14;
-            const dx = pocket.x - body.position.x;
-            const dy = pocket.y - body.position.y;
-            const dist = Math.hypot(dx, dy);
-
-            if (dist < pr + 4.5) {
-              meta.potted = true;
-              meta.potAnimation = {
-                x: body.position.x,
-                y: body.position.y,
-                vx: body.velocity.x,
-                vy: body.velocity.y,
-                pocketX: pocket.x,
-                pocketY: pocket.y,
-                progress: 0,
-              };
-              World.remove(engine.world, body);
-              break;
-            } else if (dist < pr + 12) {
-              const ux = dx / (dist || 1);
-              const uy = dy / (dist || 1);
-              const velTowards =
-                body.velocity.x * ux + body.velocity.y * uy;
-              if (velTowards > -0.2) {
-                Body.setVelocity(body, {
-                  x: body.velocity.x + ux * 0.22,
-                  y: body.velocity.y + uy * 0.22,
-                });
-              }
-            }
-          }
         }
 
         const margin = meta.radius * 3.5;
@@ -949,15 +1198,9 @@ export function BilliardSimulator({
           body.position.y > height + margin
         ) {
           meta.potted = true;
-          World.remove(engine.world, body);
+          meta.vx = 0;
+          meta.vy = 0;
         }
-      });
-
-      Engine.update(engine, 1000 / 60);
-
-      while (postStepImpulses.length > 0) {
-        const fn = postStepImpulses.shift();
-        fn?.();
       }
 
       elapsedTicks += 1;
@@ -992,50 +1235,37 @@ export function BilliardSimulator({
       ctx.fillStyle = feltGrad;
       ctx.fillRect(0, 0, width, height);
 
-      const railColor = '#24160e';
-      const c = CUSHION_SIZE;
-      ctx.fillStyle = railColor;
-      if (resolvedWalls.top) ctx.fillRect(0, 0, width, c);
-      if (resolvedWalls.bottom) ctx.fillRect(0, height - c, width, c);
-      if (resolvedWalls.left) ctx.fillRect(0, 0, c, height);
-      if (resolvedWalls.right) ctx.fillRect(width - c, 0, c, height);
+      if (hasPockets) {
+        ctx.fillStyle = '#180f0a';
+        const backSize = 34;
+        if (resolvedWalls.top && resolvedWalls.left)
+          ctx.fillRect(0, 0, backSize, backSize);
+        if (resolvedWalls.top && resolvedWalls.right)
+          ctx.fillRect(width - backSize, 0, backSize, backSize);
+        if (resolvedWalls.bottom && resolvedWalls.left)
+          ctx.fillRect(0, height - backSize, backSize, backSize);
+        if (resolvedWalls.bottom && resolvedWalls.right)
+          ctx.fillRect(width - backSize, height - backSize, backSize, backSize);
+        if (resolvedWalls.top && hasMiddlePockets)
+          ctx.fillRect(width / 2 - 20, 0, 40, 14);
+        if (resolvedWalls.bottom && hasMiddlePockets)
+          ctx.fillRect(width / 2 - 20, height - 14, 40, 14);
+      }
+
+      ctx.fillStyle = '#24160e';
+      for (const poly of railPolygons) {
+        if (poly.length === 0) continue;
+        ctx.beginPath();
+        ctx.moveTo(poly[0].x, poly[0].y);
+        for (let i = 1; i < poly.length; i++) {
+          ctx.lineTo(poly[i].x, poly[i].y);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
 
       for (const pocket of resolvedPockets) {
-        const pr = pocket.radius ?? 14;
-
-        ctx.fillStyle = '#0e2817';
-        if (pocket.kind === 'middle' && pocket.middleY) {
-          const isTop = pocket.middleY === -1;
-          const railEdgeY = isTop ? c : height - c;
-          ctx.beginPath();
-          ctx.moveTo(pocket.x - 21, railEdgeY);
-          ctx.lineTo(pocket.x - pr, pocket.y);
-          ctx.lineTo(pocket.x + pr, pocket.y);
-          ctx.lineTo(pocket.x + 21, railEdgeY);
-          ctx.closePath();
-          ctx.fill();
-        } else if (
-          pocket.kind === 'corner' &&
-          pocket.cornerX &&
-          pocket.cornerY
-        ) {
-          const isLeft = pocket.cornerX === -1;
-          const isTop = pocket.cornerY === -1;
-          const xEdge = isLeft ? c : width - c;
-          const yEdge = isTop ? c : height - c;
-          const xJaw = isLeft ? 40 : width - 40;
-          const yJaw = isTop ? 40 : height - 40;
-
-          ctx.beginPath();
-          ctx.moveTo(xJaw, yEdge);
-          ctx.lineTo(pocket.x + (isLeft ? 8 : -8), pocket.y - (isTop ? 8 : -8));
-          ctx.lineTo(pocket.x - (isLeft ? 8 : -8), pocket.y + (isTop ? 8 : -8));
-          ctx.lineTo(xEdge, yJaw);
-          ctx.lineTo(xEdge, yEdge);
-          ctx.closePath();
-          ctx.fill();
-        }
-
+        const pr = pocket.radius ?? 16;
         ctx.beginPath();
         ctx.arc(pocket.x, pocket.y, pr, 0, Math.PI * 2);
         ctx.fillStyle = '#060a08';
@@ -1110,59 +1340,55 @@ export function BilliardSimulator({
         if (cueBody && cueMeta) {
           const sx = cueBody.position.x;
           const sy = cueBody.position.y;
-          const { launchAngle, ghostX, ghostY, chordDist } =
-            resolveGhostAndLaunch(
-              firstShot,
-              sx,
-              sy,
-              cueMeta.radius,
-              activeBalls,
-              ballRadius,
-              width,
-              height
-            );
-
-          const curveVal = Math.max(
-            -1,
-            Math.min(1, firstShot.spin?.curve ?? 0)
+          const {
+            launchAngle,
+            ghostX,
+            ghostY,
+            chordDist,
+            curveRadius,
+            halfTurnAngle,
+          } = computeShotGeometry(
+            firstShot,
+            sx,
+            sy,
+            cueMeta.radius,
+            activeBalls,
+            ballRadius,
+            width,
+            height
           );
 
-          if (Math.abs(curveVal) > 0.02) {
-            const kappa = curveVal * CURVE_K;
-            const maxArc = chordDist ? chordDist * 1.06 : 380;
-            const stepS = 8;
+          if (Math.abs(halfTurnAngle) > 0.01 && curveRadius) {
+            const totalArc =
+              chordDist !== undefined
+                ? Math.abs(2 * halfTurnAngle * curveRadius)
+                : 340;
+            const steps = 36;
+            const stepLen = totalArc / steps;
             let px = sx;
             let py = sy;
-            let hitGhost: { x: number; y: number } | null = null;
+            let curAng = launchAngle;
 
             ctx.save();
             ctx.beginPath();
             ctx.setLineDash([4, 5]);
             ctx.moveTo(px, py);
 
-            for (let s = 0; s < maxArc; s += stepS) {
-              const ang = launchAngle + kappa * (s + stepS * 0.5);
-              px += Math.cos(ang) * stepS;
-              py += Math.sin(ang) * stepS;
+            for (let i = 0; i < steps; i++) {
+              curAng += (stepLen / curveRadius) * 0.5;
+              px += Math.cos(curAng) * stepLen;
+              py += Math.sin(curAng) * stepLen;
+              curAng += (stepLen / curveRadius) * 0.5;
               ctx.lineTo(px, py);
-
-              if (
-                ghostX !== undefined &&
-                ghostY !== undefined &&
-                Math.hypot(px - ghostX, py - ghostY) < stepS * 0.8
-              ) {
-                hitGhost = { x: ghostX, y: ghostY };
-                break;
-              }
             }
 
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
             ctx.lineWidth = 1.25;
             ctx.stroke();
 
-            if (hitGhost) {
+            if (ghostX !== undefined && ghostY !== undefined) {
               ctx.beginPath();
-              ctx.arc(hitGhost.x, hitGhost.y, cueMeta.radius, 0, Math.PI * 2);
+              ctx.arc(ghostX, ghostY, cueMeta.radius, 0, Math.PI * 2);
               ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
               ctx.stroke();
             }
@@ -1172,14 +1398,13 @@ export function BilliardSimulator({
             const dirY = Math.sin(launchAngle);
 
             let closestDist = 900;
-            metaMap.forEach((m, bId) => {
-              if (m.config.id === firstShot.ballId) return;
-              const other = engine.world.bodies.find((b) => b.id === bId);
-              if (!other) return;
+            for (const other of bodyList) {
+              const m = metaMap.get(other.id);
+              if (!m || m.config.id === firstShot.ballId) continue;
               const ox = other.position.x - sx;
               const oy = other.position.y - sy;
               const proj = ox * dirX + oy * dirY;
-              if (proj <= 0) return;
+              if (proj <= 0) continue;
               const perpSq = ox * ox + oy * oy - proj * proj;
               const sumR = cueMeta.radius + m.radius;
               if (perpSq < sumR * sumR) {
@@ -1188,7 +1413,7 @@ export function BilliardSimulator({
                   closestDist = hitDist;
                 }
               }
-            });
+            }
 
             const endX = sx + dirX * closestDist;
             const endY = sy + dirY * closestDist;
@@ -1286,23 +1511,24 @@ export function BilliardSimulator({
         ctx.restore();
       };
 
-      metaMap.forEach((meta, bodyId) => {
+      for (const body of bodyList) {
+        const meta = metaMap.get(body.id);
+        if (!meta) continue;
+
         if (meta.potted) {
           if (meta.potAnimation && meta.potAnimation.progress < 1) {
             const anim = meta.potAnimation;
-            anim.progress = Math.min(1, anim.progress + 0.11);
-            anim.x += (anim.pocketX - anim.x) * 0.25;
-            anim.y += (anim.pocketY - anim.y) * 0.25;
+            anim.progress = Math.min(1, anim.progress + 0.12);
+            anim.x += (anim.pocketX - anim.x) * 0.28;
+            anim.y += (anim.pocketY - anim.y) * 0.28;
             const scale = 1 - anim.progress;
             if (scale > 0.05) {
               drawSingleBall(anim.x, anim.y, meta.radius, meta, scale);
             }
           }
-          return;
+          continue;
         }
 
-        const body = engine.world.bodies.find((b) => b.id === bodyId);
-        if (!body) return;
         const scale = meta.isAirborne ? 1.22 : 1;
         drawSingleBall(
           body.position.x,
@@ -1311,7 +1537,7 @@ export function BilliardSimulator({
           meta,
           scale
         );
-      });
+      }
 
       if (showCue && activeShots.length > 0 && elapsedTicks < cueLeadInTicks) {
         const firstShot = activeShots[0];
@@ -1325,7 +1551,7 @@ export function BilliardSimulator({
               ? (progress / 0.74) * maxPull
               : (1 - (progress - 0.74) / 0.26) * maxPull;
 
-          const { launchAngle } = resolveGhostAndLaunch(
+          const { launchAngle } = computeShotGeometry(
             firstShot,
             cueBody.position.x,
             cueBody.position.y,
@@ -1376,7 +1602,7 @@ export function BilliardSimulator({
       stepAccumulator += speedMultiplierRef.current;
       let stepped = false;
       while (stepAccumulator >= 1) {
-        stepFixedPhysics();
+        stepOneFrame();
         stepAccumulator -= 1;
         stepped = true;
       }
@@ -1388,7 +1614,7 @@ export function BilliardSimulator({
       const allPendingShotsFired = shotFiredFlags.every(Boolean);
       let anyActiveMotion = false;
 
-      metaMap.forEach((meta, bodyId) => {
+      metaMap.forEach((meta) => {
         if (
           meta.potAnimation &&
           meta.potAnimation.progress > 0 &&
@@ -1397,12 +1623,9 @@ export function BilliardSimulator({
           anyActiveMotion = true;
         }
         if (meta.potted) return;
-        const body = engine.world.bodies.find((b) => b.id === bodyId);
-        if (!body) return;
-        const speed = Math.hypot(body.velocity.x, body.velocity.y);
+        const speed = Math.hypot(meta.vx, meta.vy);
         if (
-          speed > 0.08 ||
-          (!meta.hasHitBall && Math.abs(meta.curve) > 0.05 && speed > 0.2) ||
+          speed > 0.075 ||
           (meta.hasHitBall &&
             meta.ticksAfterHit < 38 &&
             Math.abs(meta.topSpin) > 0.04)
@@ -1459,7 +1682,6 @@ export function BilliardSimulator({
 
     return () => {
       stopLoopRef.current?.();
-      Events.off(engine, 'collisionStart', handleCollision);
       World.clear(engine.world, false);
       Engine.clear(engine);
     };

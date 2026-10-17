@@ -10,14 +10,14 @@ import {
 } from '@phosphor-icons/react';
 
 export function TrainingPage() {
-  const [power, setPower] = useState(16);
+  const [power, setPower] = useState(17);
   const [angle, setAngle] = useState(0);
   const [topSpin, setTopSpin] = useState(0);
   const [sideSpin, setSideSpin] = useState(0);
   const [curve, setCurve] = useState(0);
 
   const handleResetLab = () => {
-    setPower(16);
+    setPower(17);
     setAngle(0);
     setTopSpin(0);
     setSideSpin(0);
@@ -50,9 +50,9 @@ export function TrainingPage() {
         <BilliardSimulator
           className="bg-transparent p-0 backdrop-blur-none"
           balls={[
-            { id: 'cue', x: 180, y: 210, isCue: true },
-            { id: 1, x: 440, y: 210, number: 1 },
-            { id: 2, x: 580, y: 120, number: 2 },
+            { id: 'cue', x: 180, y: 211.5, isCue: true },
+            { id: 1, x: 520, y: 195, number: 1 },
+            { id: 2, x: 612, y: 326, number: 2 },
           ]}
           shots={[
             {
@@ -257,7 +257,7 @@ export function TrainingPage() {
               'Удар в нижнюю часть битка. Шар №1 точно падает в правую верхнюю лузу, а биток за счет обратного вращения возвращается назад.',
             balls: [
               { id: 'cue', x: 210, y: 210, isCue: true },
-              { id: 1, x: 470, y: 125, number: 1 },
+              { id: 1, x: 490, y: 135, number: 1 },
             ],
             shots: [
               {
@@ -275,7 +275,7 @@ export function TrainingPage() {
               'Плотный удар в центр битка без верхнего и нижнего вращения. Шар №5 падает в угол, а биток уходит строго под 90° по касательной.',
             balls: [
               { id: 'cue', x: 200, y: 250, isCue: true },
-              { id: 5, x: 450, y: 160, number: 5 },
+              { id: 5, x: 470, y: 155, number: 5 },
             ],
             shots: [
               {
@@ -293,13 +293,13 @@ export function TrainingPage() {
               'Шар №3 уходит в угловую лузу, а верхнее вращение захватывает сукно и вытягивает биток вперед по дуге.',
             balls: [
               { id: 'cue', x: 180, y: 260, isCue: true },
-              { id: 3, x: 440, y: 160, number: 3 },
+              { id: 3, x: 460, y: 155, number: 3 },
             ],
             shots: [
               {
                 ballId: 'cue',
                 aimAt: { ballId: 3, pocket: 'top-right' },
-                power: 15,
+                power: 16,
                 spin: { top: 0.95, side: 0.2 },
               },
             ],
@@ -336,15 +336,15 @@ export function TrainingPage() {
         title="Массе / Дуговик (Обвод шара-маски)"
         description="Прямую линию перекрывает шар №9. Биток выходит ниже маски, по дуге заворачивает вверх в линию створа и укладывает шар №1 в правую верхнюю лузу."
         balls={[
-          { id: 'cue', x: 170, y: 235, isCue: true },
-          { id: 9, x: 355, y: 176, number: 9 },
-          { id: 1, x: 560, y: 125, number: 1 },
+          { id: 'cue', x: 160, y: 260, isCue: true },
+          { id: 9, x: 336, y: 196, number: 9 },
+          { id: 1, x: 540, y: 140, number: 1 },
         ]}
         shots={[
           {
             ballId: 'cue',
             aimAt: { ballId: 1, pocket: 'top-right' },
-            power: 17.5,
+            power: 18,
             spin: { curve: -0.85, top: 0.2, side: -0.7 },
           },
         ]}
