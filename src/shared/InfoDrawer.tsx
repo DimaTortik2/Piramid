@@ -1,4 +1,3 @@
-import { Button } from '@/shared/Button';
 import type { ReactNode } from 'react';
 import { Drawer } from 'vaul';
 

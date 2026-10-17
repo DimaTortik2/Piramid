@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
   useGameStore,
@@ -230,7 +231,7 @@ function MatchAccordionItem({
             </span>
           </div>
 
-          <span className="bg-foreground/10 shrink-0 rounded-lg px-2.5 py-0.5 text-sm font-extrabold whitespace-nowrap">
+          <span className="shrink-0 px-2.5 py-0.5 text-sm font-extrabold whitespace-nowrap">
             {match.p1.finalScore} : {match.p2.finalScore}
           </span>
 
@@ -328,7 +329,6 @@ function MatchAccordionItem({
           <div className="bg-foreground/5 rounded-2xl p-3">
             <div className="flex items-center justify-between text-xs opacity-75">
               <span>Ход набора очков</span>
-              <span>Смен лидера: {match.leadChanges}</span>
             </div>
 
             <MatchScoreChart match={match} />
@@ -374,12 +374,31 @@ export function HistoryPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const getScrollTop = () =>
+      Math.max(
+        window.scrollY || 0,
+        document.documentElement.scrollTop || 0,
+        document.body.scrollTop || 0
+      );
+
     const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 350);
+      setShowScrollTop(getScrollTop() > 300);
     };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, {
+      passive: true,
+      capture: true,
+    });
+    return () =>
+      window.removeEventListener('scroll', handleScroll, { capture: true });
   }, []);
+
+  const handleScrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+    document.body.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const totalBallsPotted = savedMatches.reduce(
     (acc, m) => acc + m.p1.ballsPotted + m.p2.ballsPotted,
@@ -549,19 +568,23 @@ export function HistoryPage() {
         </div>
       )}
 
-      <button
-        type="button"
-        title="Наверх"
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className={cn(
-          'bg-neutral text-neutral-foreground fixed right-4 bottom-20 z-40 flex size-11 items-center justify-center rounded-full shadow-lg transition-all duration-200',
-          showScrollTop
-            ? 'translate-y-0 opacity-100'
-            : 'pointer-events-none translate-y-4 opacity-0'
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <button
+            type="button"
+            title="Наверх"
+            onClick={handleScrollToTop}
+            className={cn(
+              'bg-background text-neutral-foreground fixed right-4 bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] z-50 flex size-11 items-center justify-center rounded-full shadow-xl transition-all duration-200 active:scale-90',
+              showScrollTop
+                ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+                : 'pointer-events-none translate-y-4 scale-90 opacity-0'
+            )}
+          >
+            <ArrowUpIcon weight="bold" className="size-5" />
+          </button>,
+          document.body
         )}
-      >
-        <ArrowUpIcon weight="bold" className="size-5" />
-      </button>
 
       <ShareSessionDrawer
         match={shareMatch}

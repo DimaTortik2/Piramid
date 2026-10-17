@@ -1,7 +1,9 @@
 import { useEffect, useRef, type RefObject } from 'react';
+import { useLocation } from 'react-router-dom';
 import Matter from 'matter-js';
 import { cn } from '@/shared/lib/utils/cn';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
+import { useDisciplineStore } from '@/shared/store/useDisciplineStore';
 
 const NOISE_SVG = `data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E`;
 
@@ -342,11 +344,15 @@ export function BilliardsBackground({
   isPaused: boolean;
 }) {
   const sceneRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
 
   const isDarkBalls = useSettingsStore((state) => state.isDarkBalls);
   const disableDynamicBackground = useSettingsStore(
     (state) => state.disableDynamicBackground
   );
+  const discipline = useDisciplineStore((state) => state.discipline);
+
+  const isBlueFelt = location.pathname === '/' && discipline !== 'pyramid';
 
   const { isPausedRef, engineRef } = useInit(
     sceneRef,
@@ -387,7 +393,8 @@ export function BilliardsBackground({
 
       <div
         className={cn(
-          'fixed inset-0 -z-10 overflow-hidden bg-[#11311c]',
+          'fixed inset-0 -z-10 overflow-hidden transition-colors duration-700 ease-in-out',
+          isBlueFelt ? 'bg-[#0f2d4a]' : 'bg-[#11311c]',
           isPaused && 'invisible opacity-0',
           className
         )}
@@ -414,9 +421,21 @@ export function BilliardsBackground({
           <div ref={sceneRef} className="absolute inset-0" />
         )}
 
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(164,255,188,0.03)_0%,transparent_50%)]" />
+        <div
+          className={cn(
+            'pointer-events-none absolute inset-0 transition-opacity duration-700',
+            isBlueFelt
+              ? 'bg-[radial-gradient(ellipse_at_50%_50%,rgba(140,210,255,0.05)_0%,transparent_50%)]'
+              : 'bg-[radial-gradient(ellipse_at_50%_50%,rgba(164,255,188,0.03)_0%,transparent_50%)]'
+          )}
+        />
 
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-black/45 to-[#0a120c]" />
+        <div
+          className={cn(
+            'pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-black/45 transition-colors duration-700',
+            isBlueFelt ? 'to-[#07111c]' : 'to-[#0a120c]'
+          )}
+        />
       </div>
     </>
   );

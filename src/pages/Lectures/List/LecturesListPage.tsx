@@ -1,5 +1,6 @@
 import { useZenMode } from '@/shared/hooks/useZenMode';
 import { cn } from '@/shared/lib/utils/cn';
+import { PageHeader } from '@/shared/PageHeader';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
 import { Link, useOutletContext } from 'react-router-dom';
 
@@ -48,6 +49,7 @@ export function LecturesListPage({}: LecturesListPageProps) {
 
   return (
     <div className="mx-auto flex w-full max-w-125 flex-col gap-3 px-1 py-3">
+      <PageHeader>Материал</PageHeader>
       {LECTURES_DATA.map((d) => (
         <Link onClick={handleLectureClick} key={d.to} to={'/lectures/' + d.to}>
           <ListElement desc={d.desc} title={d.title} />

@@ -72,11 +72,13 @@ export function getTelegramUserName(): string | null {
 }
 
 export function triggerHaptic(
-  type: 'pot' | 'undo' | 'penalty' | 'win' | 'tab' = 'pot'
+  type: 'pot' | 'undo' | 'penalty' | 'win' | 'tab' | 'light' | 'medium' | 'heavy' | 'rigid' | 'soft' = 'pot'
 ) {
   const tg = getTelegramWebApp();
   if (tg?.HapticFeedback) {
-    if (type === 'pot') tg.HapticFeedback.impactOccurred('medium');
+    if (type === 'light' || type === 'medium' || type === 'heavy' || type === 'rigid' || type === 'soft') {
+      tg.HapticFeedback.impactOccurred(type);
+    } else if (type === 'pot') tg.HapticFeedback.impactOccurred('medium');
     else if (type === 'undo') tg.HapticFeedback.impactOccurred('light');
     else if (type === 'tab') tg.HapticFeedback.selectionChanged();
     else if (type === 'penalty')
@@ -86,8 +88,8 @@ export function triggerHaptic(
   }
 
   if ('vibrate' in navigator) {
-    if (type === 'pot') navigator.vibrate(15);
-    else if (type === 'undo' || type === 'tab') navigator.vibrate(8);
+    if (type === 'pot' || type === 'medium' || type === 'heavy') navigator.vibrate(15);
+    else if (type === 'undo' || type === 'tab' || type === 'light' || type === 'rigid' || type === 'soft') navigator.vibrate(8);
     else if (type === 'penalty') navigator.vibrate([25, 40, 25]);
     else if (type === 'win') navigator.vibrate([20, 50, 40]);
   }

@@ -8,82 +8,199 @@ import {
 } from 'react-router-dom';
 import {
   HouseIcon,
-  TextAlignCenterIcon,
-  BarbellIcon,
+  TextAlignLeftIcon,
+  DotsThreeVerticalIcon,
+  GearSixIcon,
+  EyeIcon,
+  QuestionIcon,
 } from '@phosphor-icons/react';
 import { cn } from '@/shared/lib/utils/cn';
 import { NavigationLoader } from '@/shared/Loaders/NavigationLoader';
 import { BilliardsBackground } from '@/shared/BilliardsBackground';
 import { useZenMode } from '@/shared/hooks/useZenMode';
-import { type TouchEvent, useEffect, useRef } from 'react';
+import { type TouchEvent, useEffect, useRef, useState } from 'react';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
+import {
+  DISCIPLINES,
+  useDisciplineStore,
+} from '@/shared/store/useDisciplineStore';
+import { Popover } from '@/shared/Popover';
+import { InfoDrawer } from '@/shared/InfoDrawer';
+import { Faq } from '@/shared/Faq';
+import { FAQS } from '@/app/data/faqs';
+import { ActionCard } from '@/shared/ActionCard';
+import { Button } from '@/shared/Button';
 import {
   getTelegramWebApp,
   initTelegramMiniApp,
   triggerHaptic,
 } from '@/shared/lib/telegram';
 
-const NAV_ITEMS = [
-  {
-    id: 'home',
-    label: 'Главная',
-    icon: HouseIcon,
-    align: 'justify-self-start',
-    to: '/',
-  },
-  {
-    id: 'materials',
-    label: 'Материал',
-    icon: TextAlignCenterIcon,
-    align: 'justify-self-center',
-    to: '/lectures',
-  },
-  {
-    id: 'practice',
-    label: 'Практика',
-    icon: BarbellIcon,
-    align: 'justify-self-end',
-    to: '/training',
-  },
-] as const;
+function DisciplineIndicator() {
+  const { discipline, setDiscipline } = useDisciplineStore();
 
-const SWIPE_TAB_ROUTES: string[] = NAV_ITEMS.map((item) => item.to);
+  return (
+    <div className="mx-auto flex w-full max-w-125 items-center gap-2.5 px-4 pt-3 pb-1">
+      {DISCIPLINES.map((item) => {
+        const isActive = item.id === discipline;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            aria-label={item.label}
+            onClick={() => {
+              triggerHaptic('tab');
+              setDiscipline(item.id);
+            }}
+            className={cn(
+              'h-4 rounded-full transition-all duration-300',
+              isActive
+                ? 'w-12 bg-white shadow-sm'
+                : 'w-4 bg-white/40 hover:bg-white/60'
+            )}
+          />
+        );
+      })}
+    </div>
+  );
+}
 
 export const NavBar = ({ className }: { className?: string }) => {
+  const navigate = useNavigate();
+  const { discipline, setDiscipline } = useDisciplineStore();
+  const [isFaqOpen, setIsFaqOpen] = useState(false);
+
+  const ensurePyramidMode = () => {
+    if (discipline !== 'pyramid') {
+      setDiscipline('pyramid');
+    }
+  };
+
   return (
-    <div className={cn('bg-background pb-safe w-full', className)}>
-      <nav className="mx-auto grid max-w-md grid-cols-3 items-center px-4 py-2">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              replace
-              to={item.to}
-              key={item.id}
-              className={({ isActive }) =>
-                cn(
-                  'flex flex-col items-center justify-center gap-1 text-xs md:text-sm',
-                  'text-muted-foreground/50 hover:text-foreground transition-all',
-                  isActive && 'text-foreground',
-                  item.align
-                )
-              }
+    <>
+      <div
+        className={cn(
+          'pointer-events-none sticky bottom-0 z-50 w-full px-3 pt-1 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]',
+          className
+        )}
+      >
+        <nav className="bg-background/90 pointer-events-auto mx-auto grid max-w-125 grid-cols-3 items-center rounded-full px-7 py-3.5 shadow-2xl backdrop-blur-lg">
+          <NavLink
+            to="/lectures"
+            onClick={ensurePyramidMode}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center justify-self-start transition-colors',
+                'text-muted-foreground/60 hover:text-foreground',
+                isActive && discipline === 'pyramid' && 'text-foreground'
+              )
+            }
+          >
+            <TextAlignLeftIcon className="size-7" />
+          </NavLink>
+
+          <NavLink
+            to="/"
+            onClick={ensurePyramidMode}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center justify-self-center transition-colors',
+                'text-muted-foreground/60 hover:text-foreground',
+                isActive && discipline === 'pyramid' && 'text-foreground'
+              )
+            }
+          >
+            <HouseIcon className="size-7" />
+          </NavLink>
+
+          <div className="justify-self-end">
+            <Popover
+              trigger={({ isOpen, toggle }) => (
+                <button
+                  type="button"
+                  aria-label="Меню"
+                  onClick={() => {
+                    triggerHaptic('tab');
+                    toggle();
+                  }}
+                  className={cn(
+                    'flex items-center justify-center transition-colors',
+                    'text-muted-foreground/60 hover:text-foreground',
+                    isOpen && 'text-foreground'
+                  )}
+                >
+                  <DotsThreeVerticalIcon className="size-7" weight="bold" />
+                </button>
+              )}
             >
-              <Icon className="size-[1.75em]" />
-              <span className="font-medium tracking-tight">{item.label}</span>
-            </NavLink>
-          );
-        })}
-      </nav>
-    </div>
+              {({ close }) => (
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      close();
+                      ensurePyramidMode();
+                      navigate('/settings');
+                    }}
+                    className="hover:bg-foreground/10 flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition-colors"
+                  >
+                    <GearSixIcon className="size-5 shrink-0" />
+                    <span>Настройки</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      close();
+                      ensurePyramidMode();
+                      navigate('/spectator');
+                    }}
+                    className="hover:bg-foreground/10 flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition-colors"
+                  >
+                    <EyeIcon className="size-5 shrink-0" />
+                    <span>Созерцать</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      close();
+                      setIsFaqOpen(true);
+                    }}
+                    className="hover:bg-foreground/10 flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition-colors"
+                  >
+                    <QuestionIcon className="size-5 shrink-0" />
+                    <span>Частые вопросы</span>
+                  </button>
+                </div>
+              )}
+            </Popover>
+          </div>
+        </nav>
+      </div>
+
+      <InfoDrawer
+        isOpen={isFaqOpen}
+        onOpenChange={setIsFaqOpen}
+        content={
+          <div className="flex max-h-[70dvh] flex-col gap-3 overflow-y-auto py-2">
+            <h3 className="mb-1 text-center text-lg font-medium">
+              Частые вопросы
+            </h3>
+            {FAQS.map((faq) => (
+              <Faq key={faq.question} answer={faq.answer}>
+                {faq.question}
+              </Faq>
+            ))}
+          </div>
+        }
+      />
+    </>
   );
 };
 
 export function RootLayout() {
   const matches = useMatches();
-  const hideNavBar = matches.some(
-    (match) => (match.handle as { hideNavBar?: boolean })?.hideNavBar
-  );
   const isPaused = matches.some(
     (match) => (match.handle as { pauseBackground?: boolean })?.pauseBackground
   );
@@ -91,6 +208,16 @@ export function RootLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const zenMode = useZenMode();
+
+  const isMainPage = location.pathname === '/';
+
+  const { discipline, setDiscipline, nextDiscipline, prevDiscipline } =
+    useDisciplineStore();
+
+  const activeDisciplineIndex = Math.max(
+    0,
+    DISCIPLINES.findIndex((d) => d.id === discipline)
+  );
 
   const touchState = useRef<{
     startX: number;
@@ -150,17 +277,13 @@ export function RootLayout() {
     };
   }, [location.pathname, navigate]);
 
-  const currentTabIndex = SWIPE_TAB_ROUTES.indexOf(location.pathname);
-  const canSwipeTabs = !hideNavBar && currentTabIndex !== -1;
-
   const handleTouchStart = (e: TouchEvent<HTMLElement>) => {
-    if (!canSwipeTabs || e.touches.length !== 1) return;
+    if (!isMainPage || e.touches.length !== 1) return;
 
     const x = e.touches[0].clientX;
     const y = e.touches[0].clientY;
     const now = performance.now();
 
-    // Игнорируем системные жесты «Назад» у самых краев экрана
     const isEdgeSwipe = x < 24 || x > window.innerWidth - 24;
 
     const target = e.target as HTMLElement | null;
@@ -184,7 +307,7 @@ export function RootLayout() {
 
   const handleTouchMove = (e: TouchEvent<HTMLElement>) => {
     const st = touchState.current;
-    if (!canSwipeTabs || st.ignored || e.touches.length !== 1) return;
+    if (!isMainPage || st.ignored || e.touches.length !== 1) return;
 
     const x = e.touches[0].clientX;
     const y = e.touches[0].clientY;
@@ -209,7 +332,7 @@ export function RootLayout() {
   const handleTouchEnd = (e: TouchEvent<HTMLElement>) => {
     const st = touchState.current;
     if (
-      !canSwipeTabs ||
+      !isMainPage ||
       st.ignored ||
       st.lockedAxis !== 'x' ||
       e.changedTouches.length !== 1
@@ -226,25 +349,22 @@ export function RootLayout() {
     const totalDuration = Math.max(1, now - st.startTime);
     const timeSinceLastMove = now - st.lastTime;
 
-    // Если палец остановился перед отпусканием или жест ушел по диагонали — отменяем
     if (timeSinceLastMove > 90 || absDx < absDy * 1.8) return;
 
     const avgVelocity = absDx / totalDuration;
     const peakVelocity = Math.max(avgVelocity, Math.abs(st.instantVelocityX));
 
     const isFastFlick =
-      absDx >= 65 && peakVelocity >= 0.5 && totalDuration <= 360;
+      absDx >= 50 && peakVelocity >= 0.35 && totalDuration <= 400;
     const isLongDeliberateSwipe =
-      absDx >= window.innerWidth * 0.45 && peakVelocity >= 0.22;
+      absDx >= window.innerWidth * 0.35 && peakVelocity >= 0.18;
 
     if (!isFastFlick && !isLongDeliberateSwipe) return;
 
-    if (dx < 0 && currentTabIndex < SWIPE_TAB_ROUTES.length - 1) {
-      triggerHaptic('tab');
-      navigate(SWIPE_TAB_ROUTES[currentTabIndex + 1], { replace: true });
-    } else if (dx > 0 && currentTabIndex > 0) {
-      triggerHaptic('tab');
-      navigate(SWIPE_TAB_ROUTES[currentTabIndex - 1], { replace: true });
+    if (dx < 0) {
+      if (nextDiscipline()) triggerHaptic('tab');
+    } else if (dx > 0) {
+      if (prevDiscipline()) triggerHaptic('tab');
     }
   };
 
@@ -252,21 +372,70 @@ export function RootLayout() {
     <div className="animate-app-fade-in text-foreground relative flex min-h-dvh w-full flex-col bg-cover bg-center bg-no-repeat">
       <ScrollRestoration />
       <BilliardsBackground isPaused={isPaused} className="h-full w-full" />
+
+      {isMainPage && <DisciplineIndicator />}
+
       <main
-        className="relative z-10 flex-1"
+        className="relative z-10 flex flex-1 flex-col overflow-x-hidden"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         <NavigationLoader />
-        <Outlet context={zenMode} />
+        {!isMainPage ? (
+          <Outlet context={zenMode} />
+        ) : (
+          <div
+            className="flex flex-1 transition-transform duration-300 ease-out"
+            style={{
+              transform: `translate3d(-${activeDisciplineIndex * 100}%, 0, 0)`,
+            }}
+          >
+            <div className="flex w-full shrink-0 flex-col">
+              <Outlet context={zenMode} />
+            </div>
+
+            {DISCIPLINES.slice(1).map((item) => (
+              <div
+                key={item.id}
+                className="flex w-full shrink-0 flex-col items-center justify-center px-4 text-center"
+              >
+                <div className="w-full max-w-125">
+                  <ActionCard
+                    title={
+                      <span className="text-xl font-medium">В разработке</span>
+                    }
+                    desc={
+                      <span className="mt-2 block text-base">
+                        При дальнейшем развитии проекта есть возможность выпуска
+                        новых бильярдных игр
+                      </span>
+                    }
+                    actions={
+                      <Button
+                        onClick={() => {
+                          triggerHaptic('tab');
+                          setDiscipline('pyramid');
+                        }}
+                      >
+                        Вернуться в Пирамиду
+                      </Button>
+                    }
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
+
       <div
         key={location.pathname}
         aria-hidden="true"
         className="animate-page-reveal pointer-events-none fixed inset-0 z-40 bg-[#0d0b09]"
       />
-      {!hideNavBar && <NavBar className="sticky bottom-0 z-50" />}
+      {isMainPage && <NavBar />}
     </div>
   );
 }

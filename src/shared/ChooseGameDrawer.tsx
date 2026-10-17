@@ -11,9 +11,9 @@ import {
   CrownIcon,
   InfinityIcon,
   LightningIcon,
+  MinusIcon,
   QuestionIcon,
   TargetIcon,
-  TrashIcon,
   UsersIcon,
   XIcon,
   type Icon,
@@ -124,14 +124,9 @@ function PlayerInputPopover({
 
   return (
     <div ref={containerRef} className="relative flex flex-1 items-center">
-      <div
-        className={cn(
-          'bg-neutral text-neutral-foreground relative flex w-full items-center rounded-2xl transition-all',
-          isOpen && 'ring-primary/50 ring-2'
-        )}
-      >
+      <div className="bg-neutral text-neutral-foreground relative flex w-full items-center rounded-2xl transition-opacity">
         <input
-          className="w-full bg-transparent py-2.5 pr-7 pl-3 text-sm outline-none placeholder:opacity-45"
+          className="w-full bg-transparent py-2.5 pr-7 pl-3.5 text-sm outline-none placeholder:opacity-45"
           value={value}
           onFocus={() => setIsOpen(true)}
           onClick={() => setIsOpen(true)}
@@ -147,25 +142,25 @@ function PlayerInputPopover({
               onChange('');
               setIsOpen(true);
             }}
-            className="absolute right-2 p-1 opacity-40 hover:opacity-80"
+            className="absolute right-2 p-1 opacity-40 transition-opacity hover:opacity-80"
           >
-            <XIcon className="size-3.5" />
+            <MinusIcon className="size-3.5" />
           </button>
         )}
       </div>
 
       <div
         className={cn(
-          'bg-background/95 text-foreground border-foreground/10 absolute bottom-full z-50 mb-3 min-w-48 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-lg transition-all duration-200',
+          'bg-neutral text-neutral-foreground absolute bottom-full z-50 mb-2 w-full min-w-44 rounded-2xl p-1.5 shadow-[0_12px_36px_rgba(0,0,0,0.55)] transition-all duration-150',
           align === 'left'
             ? 'left-0 origin-bottom-left'
             : 'right-0 origin-bottom-right',
           showTooltip
             ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
-            : 'pointer-events-none translate-y-2 scale-95 opacity-0'
+            : 'pointer-events-none translate-y-1.5 scale-95 opacity-0'
         )}
       >
-        <div className="flex max-h-44 flex-col gap-0.5 overflow-y-auto">
+        <div className="flex max-h-40 flex-col gap-1 overflow-y-auto">
           {savedNames.map((name) => {
             const isSelected =
               value.trim().toLowerCase() === name.toLowerCase();
@@ -173,10 +168,10 @@ function PlayerInputPopover({
               <div
                 key={name}
                 className={cn(
-                  'flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 text-xs transition-colors',
+                  'flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs transition-colors',
                   isSelected
                     ? 'bg-primary text-primary-foreground font-semibold'
-                    : 'hover:bg-foreground/10'
+                    : 'hover:bg-neutral-foreground/10'
                 )}
               >
                 <button
@@ -199,9 +194,14 @@ function PlayerInputPopover({
                     e.stopPropagation();
                     onDeleteName(name);
                   }}
-                  className="text-destructive/80 hover:text-destructive shrink-0 p-0.5 transition-opacity"
+                  className={cn(
+                    'shrink-0 p-0.5 transition-opacity',
+                    isSelected
+                      ? 'text-primary-foreground/70 hover:text-primary-foreground'
+                      : 'text-destructive hover:opacity-80'
+                  )}
                 >
-                  <TrashIcon className="size-3.5" />
+                  <XIcon weight='bold' className="size-3.5" />
                 </button>
               </div>
             );
