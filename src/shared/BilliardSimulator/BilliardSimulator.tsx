@@ -10,8 +10,6 @@ import { createPortal } from 'react-dom';
 import Matter from 'matter-js';
 import {
   ArrowCounterClockwiseIcon,
-  ArrowsInSimpleIcon,
-  ArrowsOutSimpleIcon,
   CaretLeftIcon,
   CaretRightIcon,
   CheckCircleIcon,
@@ -370,9 +368,11 @@ const closestPointOnSegment = (
 
 function SimulatorZoomModal({
   onClose,
+  shouldRotate,
   children,
 }: {
   onClose: () => void;
+  shouldRotate: boolean;
   children: ReactNode;
 }) {
   useEffect(() => {
@@ -405,25 +405,25 @@ function SimulatorZoomModal({
           onClose();
         }
       }}
-      className="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md sm:p-6"
+      className="fixed inset-0 z-100 flex items-center justify-center overflow-hidden bg-black/85 p-3 backdrop-blur-md sm:p-6"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-background my-auto flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-y-auto rounded-2xl border border-white/10 p-3.5 shadow-2xl sm:p-5"
+        className={cn(
+          'bg-background/95 relative flex flex-col overflow-y-auto rounded-2xl p-3.5 shadow-2xl backdrop-blur-lg sm:p-5',
+          shouldRotate
+            ? 'max-h-[calc(100dvw-16px)] w-[calc(100dvh-24px)] shrink-0 rotate-90'
+            : 'max-h-[92dvh] w-full max-w-4xl'
+        )}
       >
-        <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-2.5">
-          <span className="text-muted-foreground text-xs font-medium">
-            Детальный просмотр
-          </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-neutral text-neutral-foreground hover:bg-primary hover:text-primary-foreground flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-colors"
-          >
-            <XIcon size={14} weight="bold" />
-            Закрыть
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Закрыть"
+          className="text-muted-foreground hover:text-foreground absolute top-3 right-3 z-20 flex size-7 items-center justify-center transition-colors"
+        >
+          <XIcon size={20} weight="bold" />
+        </button>
         {children}
       </div>
     </div>,
@@ -464,11 +464,15 @@ export function BilliardSimulator({
   );
 
   const isDarkBalls = useSettingsStore((state) => state.isDarkBalls);
+  const autoRotateSimulator = useSettingsStore(
+    (state) => state.autoRotateSimulator
+  );
 
   const [activeSlideIdx, setActiveSlideIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [isVisible, setIsVisible] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isNarrowPortrait, setIsNarrowPortrait] = useState(false);
   const [placeholderHeight, setPlaceholderHeight] = useState<
     number | undefined
   >(undefined);
@@ -506,6 +510,20 @@ export function BilliardSimulator({
 
   const startLoopRef = useRef<(() => void) | null>(null);
   const stopLoopRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const checkViewport = () => {
+      setIsNarrowPortrait(
+        window.innerWidth < 640 && window.innerHeight > window.innerWidth
+      );
+    };
+    checkViewport();
+    window.addEventListener('resize', checkViewport);
+    return () => window.removeEventListener('resize', checkViewport);
+  }, []);
+
+  const shouldRotateModal =
+    isExpanded && isNarrowPortrait && autoRotateSimulator;
 
   const openExpanded = useCallback(() => {
     if (!expandable || isExpanded) return;
@@ -1857,25 +1875,32 @@ export function BilliardSimulator({
       ? extraControls(isExpanded)
       : extraControls;
 
+  const hasMultipleSlides = Boolean(slides && slides.length > 1);
+  const showDescription = Boolean(activeDescription && !shouldRotateModal);
+
   const simulatorBody = (
     <div className="flex w-full flex-col" data-no-tab-swipe>
-      {slides && slides.length > 1 && (
-        <div className="mb-2.5 flex items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-1.5">
+      {hasMultipleSlides && slides && (
+        <div
+          className={cn(
+            'mb-2 flex items-center justify-between gap-2 px-0.5',
+            isExpanded && 'pr-8'
+          )}
+        >
+          <div className="flex items-center gap-1.5">
             {slides.map((s, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => selectSlide(idx)}
+                aria-label={s.label}
                 className={cn(
-                  'rounded-xl px-3 py-1 text-xs font-medium transition-colors',
+                  'h-1.5 rounded-full transition-all duration-300',
                   activeSlideIdx === idx
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-neutral text-neutral-foreground opacity-65 hover:opacity-100'
+                    ? 'bg-primary w-6'
+                    : 'bg-foreground/20 hover:bg-foreground/40 w-1.5'
                 )}
-              >
-                {s.label}
-              </button>
+              />
             ))}
           </div>
 
@@ -1885,37 +1910,52 @@ export function BilliardSimulator({
               onClick={() =>
                 selectSlide((activeSlideIdx - 1 + slides.length) % slides.length)
               }
-              className="bg-neutral text-neutral-foreground flex size-7 items-center justify-center rounded-lg"
+              className="bg-neutral text-neutral-foreground hover:bg-primary hover:text-primary-foreground flex size-7 items-center justify-center rounded-lg transition-colors"
               aria-label="Предыдущий вариант"
             >
-              <CaretLeftIcon size={14} weight="bold" />
+              <CaretLeftIcon size={13} weight="bold" />
             </button>
             <button
               type="button"
               onClick={() => selectSlide((activeSlideIdx + 1) % slides.length)}
-              className="bg-neutral text-neutral-foreground flex size-7 items-center justify-center rounded-lg"
+              className="bg-neutral text-neutral-foreground hover:bg-primary hover:text-primary-foreground flex size-7 items-center justify-center rounded-lg transition-colors"
               aria-label="Следующий вариант"
             >
-              <CaretRightIcon size={14} weight="bold" />
+              <CaretRightIcon size={13} weight="bold" />
             </button>
           </div>
         </div>
       )}
 
-      {(activeTitle || activeDescription) && (
-        <div className="mb-2.5 flex items-start justify-between gap-3 px-0.5">
-          <div>
-            {activeTitle && (
-              <h3 className="text-foreground text-base font-semibold leading-snug">
-                {activeTitle}
-              </h3>
-            )}
-            {activeDescription && (
-              <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
-                {activeDescription}
-              </p>
-            )}
-          </div>
+      {(activeTitle || showDescription || (showSpinHud && primarySpin)) && (
+        <div
+          className={cn(
+            'mb-2.5 flex px-0.5',
+            shouldRotateModal
+              ? 'flex-row items-center justify-between gap-3'
+              : 'flex-col items-start gap-2',
+            isExpanded && !hasMultipleSlides && 'pr-8'
+          )}
+        >
+          {(activeTitle || showDescription) && (
+            <div className="min-w-0 flex-1">
+              {activeTitle && (
+                <h3
+                  className={cn(
+                    'text-foreground font-semibold leading-snug',
+                    shouldRotateModal ? 'truncate text-sm' : 'text-base'
+                  )}
+                >
+                  {activeTitle}
+                </h3>
+              )}
+              {showDescription && (
+                <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">
+                  {activeDescription}
+                </p>
+              )}
+            </div>
+          )}
 
           {showSpinHud && primarySpin && (
             <div
@@ -1959,23 +1999,25 @@ export function BilliardSimulator({
       <div
         onPointerDown={handleCanvasPointerDown}
         onPointerUp={handleCanvasPointerUp}
+        style={
+          shouldRotateModal ? { aspectRatio: `${width} / ${height}` } : undefined
+        }
         className={cn(
-          'relative w-full overflow-hidden rounded-xl',
+          'relative overflow-hidden rounded-xl',
+          shouldRotateModal
+            ? 'mx-auto max-h-[calc(100dvw-115px)] w-auto max-w-full'
+            : 'w-full',
           expandable && !isExpanded && 'cursor-pointer'
         )}
       >
         <canvas
           ref={canvasRef}
           style={{ aspectRatio: `${width} / ${height}` }}
-          className="block w-full select-none"
+          className={cn(
+            'block select-none',
+            shouldRotateModal ? 'h-full w-full' : 'w-full'
+          )}
         />
-
-        {expandable && !isExpanded && (
-          <div className="pointer-events-none absolute right-2 bottom-2 flex items-center gap-1 rounded-lg bg-black/50 px-2 py-1 text-[10px] font-medium text-white/85 backdrop-blur-xs sm:hidden">
-            <ArrowsOutSimpleIcon size={12} weight="bold" />
-            <span>Увеличить</span>
-          </div>
-        )}
 
         {activeVerdict && (
           <div
@@ -2048,31 +2090,14 @@ export function BilliardSimulator({
             </button>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={cycleSpeed}
-              className="bg-neutral text-neutral-foreground flex h-8 items-center gap-1 rounded-xl px-2.5 text-xs font-medium transition-colors"
-            >
-              <GaugeIcon size={14} weight="bold" />
-              {speedMultiplier}x
-            </button>
-
-            {expandable && (
-              <button
-                type="button"
-                onClick={isExpanded ? closeExpanded : openExpanded}
-                aria-label={isExpanded ? 'Свернуть' : 'Развернуть'}
-                className="bg-neutral text-neutral-foreground hover:bg-primary hover:text-primary-foreground flex size-8 items-center justify-center rounded-xl transition-colors"
-              >
-                {isExpanded ? (
-                  <ArrowsInSimpleIcon size={15} weight="bold" />
-                ) : (
-                  <ArrowsOutSimpleIcon size={15} weight="bold" />
-                )}
-              </button>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={cycleSpeed}
+            className="bg-neutral text-neutral-foreground flex h-8 items-center gap-1 rounded-xl px-2.5 text-xs font-medium transition-colors"
+          >
+            <GaugeIcon size={14} weight="bold" />
+            {speedMultiplier}x
+          </button>
         </div>
       )}
 
@@ -2100,7 +2125,10 @@ export function BilliardSimulator({
       </div>
 
       {isExpanded && (
-        <SimulatorZoomModal onClose={closeExpanded}>
+        <SimulatorZoomModal
+          onClose={closeExpanded}
+          shouldRotate={shouldRotateModal}
+        >
           {simulatorBody}
         </SimulatorZoomModal>
       )}

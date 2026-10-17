@@ -16,6 +16,9 @@ interface SettingsState {
 
   disableDynamicBackground: boolean;
   toggleDisableDynamicBackground: () => void;
+
+  autoRotateSimulator: boolean;
+  toggleAutoRotateSimulator: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -26,6 +29,7 @@ export const useSettingsStore = create<SettingsState>()(
       isDarkBalls: false,
       disableBlur: false,
       disableDynamicBackground: false,
+      autoRotateSimulator: true,
 
       toggleLecturesZenMode: () =>
         set((state) => ({ isLecturesZenMode: !state.isLecturesZenMode })),
@@ -38,6 +42,10 @@ export const useSettingsStore = create<SettingsState>()(
       toggleDisableDynamicBackground: () =>
         set((state) => ({
           disableDynamicBackground: !state.disableDynamicBackground,
+        })),
+      toggleAutoRotateSimulator: () =>
+        set((state) => ({
+          autoRotateSimulator: !state.autoRotateSimulator,
         })),
     }),
     {

@@ -3,6 +3,7 @@ import {
   DiscoBallIcon,
   DropSlashIcon,
   SparkleIcon,
+  DeviceRotateIcon,
   type Icon,
 } from '@phosphor-icons/react';
 import { Toggle } from '@/shared/Toggle';
@@ -34,6 +35,8 @@ export function SettingsPage() {
     toggleDisableBlur,
     disableDynamicBackground,
     toggleDisableDynamicBackground,
+    autoRotateSimulator,
+    toggleAutoRotateSimulator,
   } = useSettingsStore();
 
   const isTma = isTelegramMiniApp();
@@ -58,6 +61,16 @@ export function SettingsPage() {
       checked: isLecturesZenMode,
       onChange: toggleLecturesZenMode,
       hidden: isTma,
+    },
+    {
+      id: 'auto-rotate-simulator',
+      title: 'Автоповорот тренажера',
+      description:
+        'Поворачивает бильярдный стол горизонтально при открытии на узких экранах',
+      ariaLabel: 'Включить автоповорот тренажера на узких экранах',
+      icon: DeviceRotateIcon,
+      checked: autoRotateSimulator,
+      onChange: toggleAutoRotateSimulator,
     },
     {
       id: 'dark-balls',
