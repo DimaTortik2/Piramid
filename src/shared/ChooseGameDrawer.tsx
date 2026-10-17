@@ -5,7 +5,17 @@ import { getTelegramUserName } from '@/shared/lib/telegram';
 import { cn } from '@/shared/lib/utils/cn';
 import { useGameStore } from '@/shared/store/gameStore';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
-import { QuestionIcon } from '@phosphor-icons/react';
+import {
+  CirclesThreePlusIcon,
+  CrownIcon,
+  CrosshairIcon,
+  InfinityIcon,
+  LightningIcon,
+  QuestionIcon,
+  TargetIcon,
+  UsersIcon,
+  type Icon,
+} from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 
@@ -16,6 +26,7 @@ const GAME_DATA: {
   title: string;
   desc: string;
   lectureHref: string;
+  icon: Icon;
   piramidName:
     | 'free-pyramid'
     | 'combined-pyramid'
@@ -29,6 +40,7 @@ const GAME_DATA: {
     desc: 'Любой шар биток, любой прицельный',
     piramidName: 'free-pyramid',
     lectureHref: '/lectures/first',
+    icon: CirclesThreePlusIcon,
   },
   {
     id: 2,
@@ -36,6 +48,7 @@ const GAME_DATA: {
     desc: 'Биток один (цветной). Забил биток - снимаешь любой шар, биток возвращаешь в дом',
     piramidName: 'combined-pyramid',
     lectureHref: '/lectures/first',
+    icon: TargetIcon,
   },
   {
     id: 3,
@@ -43,6 +56,7 @@ const GAME_DATA: {
     desc: 'То же самое, что Комбинированная, но после забитого битка играешь с руки с любого места',
     piramidName: 'dynamic-pyramid',
     lectureHref: '/lectures/first',
+    icon: LightningIcon,
   },
   {
     id: 4,
@@ -50,6 +64,7 @@ const GAME_DATA: {
     desc: 'Шар номер 1 = 11 очков. Остальные = по номиналу. Последний шар на столе = +10 очков. Игра идет до 71 очка',
     piramidName: 'classic-pyramid',
     lectureHref: '/lectures/first',
+    icon: CrownIcon,
   },
   {
     id: 5,
@@ -57,8 +72,10 @@ const GAME_DATA: {
     desc: 'Играют не до 8 шаров, а до лимита (например, до 50 или 100 забитых), пирамида постоянно переставляется',
     piramidName: 'continuous-free-pyramid',
     lectureHref: '/lectures/first',
+    icon: InfinityIcon,
   },
 ];
+
 const SELECTED_PIRAMID_DEFAULT_ID = 1;
 
 export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
@@ -95,31 +112,60 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
       content={
         <div className="flex flex-col gap-2">
           <p className="mb-2 text-xl">Выберите пирамиду</p>
-          {GAME_DATA.map((d) => (
-            <button
-              className={cn(
-                'flex w-full justify-between rounded-2xl px-3 py-2 transition-all',
-                selectedPiramidId === d.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-neutral text-neutral-foreground hover:bg-primary/60 hover:text-primary-foreground hover:translate-y-[-2px]'
-              )}
-              onClick={() =>
-                setSelectedPiramidId((prev) => (prev === d.id ? prev : d.id))
-              }
-              key={d.id}
-            >
-              <div>
-                <p className="text-left text-lg">{d.title}</p>
-                <p className="text-left text-sm opacity-60">{d.desc}</p>
-              </div>
-              <Link to={d.lectureHref}>
-                <QuestionIcon className="size-8" />
-              </Link>
-            </button>
-          ))}
+          {GAME_DATA.map((d) => {
+            const IconComponent = d.icon;
+            const isSelected = selectedPiramidId === d.id;
+
+            return (
+              <button
+                type="button"
+                className={cn(
+                  'flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-2.5 transition-all',
+                  isSelected
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-neutral text-neutral-foreground hover:bg-primary/60 hover:text-primary-foreground hover:translate-y-[-2px]'
+                )}
+                onClick={() =>
+                  setSelectedPiramidId((prev) => (prev === d.id ? prev : d.id))
+                }
+                key={d.id}
+              >
+                <div className="flex items-center gap-3 text-left">
+                  <div
+                    className={cn(
+                      'flex size-10 shrink-0 items-center justify-center transition-all',
+                      isSelected
+                        ? 'text-primary-foreground'
+                        : ' text-neutral-foreground/70'
+                    )}
+                  >
+                    <IconComponent size={22} weight="fill" />
+                  </div>
+                  <div>
+                    <p className="text-left text-base font-medium leading-snug">
+                      {d.title}
+                    </p>
+                    <p className="mt-0.5 text-left text-xs opacity-60">
+                      {d.desc}
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  to={d.lectureHref}
+                  onClick={(e) => e.stopPropagation()}
+                  className="shrink-0 p-1 opacity-60 transition-opacity hover:opacity-100"
+                >
+                  <QuestionIcon className="size-6" weight="bold" />
+                </Link>
+              </button>
+            );
+          })}
 
           <div className="mt-2 flex flex-col gap-2">
-            <p className="mt-2 text-xl">Игроки</p>
+            <div className="mt-2 flex items-center gap-2">
+              <UsersIcon size={20} weight="fill" className="opacity-70" />
+              <p className="text-xl">Игроки</p>
+            </div>
             <input
               className="bg-neutral text-neutral-foreground w-full rounded-2xl px-3 py-3 outline-none"
               value={p1Name}
@@ -135,7 +181,10 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
           </div>
 
           <div className="mt-2 flex flex-col gap-2">
-            <p className="text-sm opacity-70">Кто разбивает первую партию?</p>
+            <div className="flex items-center gap-1.5 opacity-70">
+              <CrosshairIcon size={16} weight="bold" />
+              <p className="text-sm">Кто разбивает первую партию?</p>
+            </div>
             <div className="flex gap-2">
               <button
                 type="button"
