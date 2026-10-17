@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { InfoDrawer } from '@/shared/InfoDrawer';
 import { Button } from '@/shared/Button';
 import { Circle } from '@/shared/Circle';
-import type { GameSessionRecord, GameMode } from '@/shared/store/gameStore';
+import type { MatchRecord, GameMode } from '@/shared/store/gameStore';
 import {
   ShareNetworkIcon,
   DownloadSimpleIcon,
@@ -12,6 +12,7 @@ import {
   FireIcon,
   ClockIcon,
   CameraIcon,
+  ArrowArcLeftIcon,
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { cn } from '@/shared/lib/utils/cn';
@@ -21,46 +22,39 @@ const MODE_NAMES: Record<GameMode, string> = {
   'free-pyramid': 'Свободная пирамида',
   'combined-pyramid': 'Комбинированная пирамида',
   'dynamic-pyramid': 'Динамичная пирамида',
-  'classic-pyramid': 'Русская пирамида (71)',
+  'classic-pyramid': 'Русская пирамида',
   'continuous-free-pyramid': 'Свободная с продолжением',
 };
 
-export function normalizeSessionWinnerLeft(
-  session: GameSessionRecord
-): GameSessionRecord {
-  if (session.winnerId !== 'p2') return session;
+export function normalizeMatchWinnerLeft(match: MatchRecord): MatchRecord {
+  if (match.winnerId !== 'p2') return match;
 
   return {
-    ...session,
+    ...match,
     winnerId: 'p1',
-    p1: session.p2,
-    p2: session.p1,
-    matches: session.matches.map((m) => ({
-      ...m,
-      winnerId:
-        m.winnerId === 'p1' ? 'p2' : m.winnerId === 'p2' ? 'p1' : m.winnerId,
-      p1: { ...m.p2, playerId: 'p1' },
-      p2: { ...m.p1, playerId: 'p2' },
-      maxLeadP1: m.maxLeadP2,
-      maxLeadP2: m.maxLeadP1,
-      events: m.events.map((ev) => ({
-        ...ev,
-        playerId: ev.playerId === 'p1' ? 'p2' : 'p1',
-        beneficiaryId: ev.beneficiaryId === 'p1' ? 'p2' : 'p1',
-        pointsDeltaP1: ev.pointsDeltaP2,
-        pointsDeltaP2: ev.pointsDeltaP1,
-        scoreAfterP1: ev.scoreAfterP2,
-        scoreAfterP2: ev.scoreAfterP1,
-      })),
+    p1: { ...match.p2, playerId: 'p1' },
+    p2: { ...match.p1, playerId: 'p2' },
+    maxLeadP1: match.maxLeadP2,
+    maxLeadP2: match.maxLeadP1,
+    events: match.events.map((ev) => ({
+      ...ev,
+      playerId: ev.playerId === 'p1' ? 'p2' : 'p1',
+      beneficiaryId: ev.beneficiaryId === 'p1' ? 'p2' : 'p1',
+      pointsDeltaP1: ev.pointsDeltaP2,
+      pointsDeltaP2: ev.pointsDeltaP1,
+      scoreAfterP1: ev.scoreAfterP2,
+      scoreAfterP2: ev.scoreAfterP1,
     })),
   };
 }
 
-export function buildShareCaption(session: GameSessionRecord): string {
-  const s = normalizeSessionWinnerLeft(session);
+export const normalizeSessionWinnerLeft = normalizeMatchWinnerLeft;
+
+export function buildShareCaption(match: MatchRecord): string {
+  const m = normalizeMatchWinnerLeft(match);
   const winnerLine =
-    s.winnerId === 'draw' ? 'Ничья!' : `${s.p1.name} победил(а)`;
-  return `Русский бильярд!\n${winnerLine}\n${MODE_NAMES[s.mode]} - ${s.p1.roundsWon}:${s.p2.roundsWon}`;
+    m.winnerId === 'draw' ? 'Ничья!' : `Победа: ${m.p1.name}`;
+  return `Русский бильярд!\n${winnerLine}\n${MODE_NAMES[m.mode]} — ${m.p1.finalScore}:${m.p2.finalScore}`;
 }
 
 function formatDuration(ms: number) {
@@ -122,10 +116,10 @@ interface CardAsset {
   file: File;
 }
 
-async function generateSessionCardAsset(
-  rawSession: GameSessionRecord
+async function generateMatchCardAsset(
+  rawMatch: MatchRecord
 ): Promise<CardAsset | null> {
-  const session = normalizeSessionWinnerLeft(rawSession);
+  const match = normalizeMatchWinnerLeft(rawMatch);
   const canvas = document.createElement('canvas');
   const W = 1080;
   const H = 1180;
@@ -146,13 +140,7 @@ async function generateSessionCardAsset(
   ctx.fillStyle = bgMain;
   ctx.fill();
 
-  const topGlow = ctx.createRadialGradient(W / 2, 100, 30, W / 2, 180, 520);
-  topGlow.addColorStop(0, 'rgba(245, 196, 81, 0.14)');
-  topGlow.addColorStop(1, 'rgba(245, 196, 81, 0)');
-  ctx.fillStyle = topGlow;
-  ctx.fillRect(0, 0, W, 560);
-
-  const dateStr = new Date(session.endedAt).toLocaleDateString('ru-RU', {
+  const dateStr = new Date(match.endedAt).toLocaleDateString('ru-RU', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -161,7 +149,7 @@ async function generateSessionCardAsset(
   ctx.font = '700 28px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = accentGreen;
   ctx.textAlign = 'left';
-  ctx.fillText(MODE_NAMES[session.mode].toUpperCase(), 68, 92);
+  ctx.fillText(MODE_NAMES[match.mode].toUpperCase(), 68, 92);
 
   ctx.font = '500 26px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textMuted;
@@ -172,7 +160,7 @@ async function generateSessionCardAsset(
   ctx.fillStyle = bgCard;
   ctx.fill();
 
-  const hasWinner = session.winnerId === 'p1';
+  const hasWinner = match.winnerId === 'p1';
 
   if (hasWinner) {
     const badgeX = 260;
@@ -197,18 +185,18 @@ async function generateSessionCardAsset(
   ctx.textAlign = 'center';
 
   ctx.fillStyle = hasWinner ? accentGreen : textLight;
-  ctx.fillText(String(session.p1.roundsWon), 260, 364);
+  ctx.fillText(String(match.p1.finalScore), 260, 364);
 
   ctx.fillStyle = 'rgba(244, 239, 225, 0.22)';
   ctx.fillText(':', W / 2, 352);
 
   ctx.fillStyle = textLight;
-  ctx.fillText(String(session.p2.roundsWon), W - 260, 364);
+  ctx.fillText(String(match.p2.finalScore), W - 260, 364);
 
   ctx.font = '700 38px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textLight;
-  ctx.fillText(session.p1.name.slice(0, 15), 260, 438, 360);
-  ctx.fillText(session.p2.name.slice(0, 15), W - 260, 438, 360);
+  ctx.fillText(match.p1.name.slice(0, 15), 260, 438, 360);
+  ctx.fillText(match.p2.name.slice(0, 15), W - 260, 438, 360);
 
   roundRect(ctx, 64, 518, W - 128, 215, 44);
   ctx.fillStyle = bgCard;
@@ -222,19 +210,17 @@ async function generateSessionCardAsset(
   ctx.font = '800 62px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textLight;
   ctx.textAlign = 'left';
-  ctx.fillText(String(session.p1.totalBallsPotted), 112, 648);
+  ctx.fillText(String(match.p1.ballsPotted), 112, 648);
 
   ctx.textAlign = 'right';
-  ctx.fillText(String(session.p2.totalBallsPotted), W - 112, 648);
+  ctx.fillText(String(match.p2.ballsPotted), W - 112, 648);
 
   const barX = 112;
   const barY = 676;
   const barW = W - 224;
   const barH = 22;
-  const totalBalls =
-    session.p1.totalBallsPotted + session.p2.totalBallsPotted;
-  const p1Ratio =
-    totalBalls > 0 ? session.p1.totalBallsPotted / totalBalls : 0.5;
+  const totalBalls = match.p1.ballsPotted + match.p2.ballsPotted;
+  const p1Ratio = totalBalls > 0 ? match.p1.ballsPotted / totalBalls : 0.5;
 
   roundRect(ctx, barX, barY, barW, barH, 11);
   ctx.fillStyle = ballShadowColor;
@@ -261,14 +247,11 @@ async function generateSessionCardAsset(
   ctx.textAlign = 'left';
   ctx.fillText('ЛУЧШАЯ СЕРИЯ', 106, 828);
 
-  const bestStreak = Math.max(
-    session.p1.maxStreakBalls,
-    session.p2.maxStreakBalls
-  );
+  const bestStreak = Math.max(match.p1.maxStreakBalls, match.p2.maxStreakBalls);
   const streakHolder =
-    session.p1.maxStreakBalls >= session.p2.maxStreakBalls
-      ? session.p1.name
-      : session.p2.name;
+    match.p1.maxStreakBalls >= match.p2.maxStreakBalls
+      ? match.p1.name
+      : match.p2.name;
 
   ctx.font = '800 76px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = accentGreen;
@@ -277,9 +260,7 @@ async function generateSessionCardAsset(
   ctx.font = '500 26px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textLight;
   ctx.fillText(
-    bestStreak > 0
-      ? `${streakHolder.slice(0, 12)} (${session.p1.maxStreakBalls} vs ${session.p2.maxStreakBalls})`
-      : 'Без серий',
+    bestStreak > 0 ? streakHolder.slice(0, 15) : 'Без серий',
     106,
     990,
     halfW - 84
@@ -293,12 +274,12 @@ async function generateSessionCardAsset(
   ctx.font = '600 25px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textMuted;
   ctx.textAlign = 'left';
-  ctx.fillText('ВРЕМЯ В ИГРЕ', rightX + 42, 828);
+  ctx.fillText('ВРЕМЯ ПАРТИИ', rightX + 42, 828);
 
   ctx.font = '800 50px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textLight;
   ctx.fillText(
-    formatDuration(session.totalDurationMs),
+    formatDuration(match.durationMs),
     rightX + 42,
     915,
     halfW - 84
@@ -307,7 +288,7 @@ async function generateSessionCardAsset(
   ctx.font = '500 26px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textMuted;
   ctx.fillText(
-    `Сыграно партий: ${session.matchesCount}`,
+    `Штрафы: ${match.p1.penaltiesCommitted} : ${match.p2.penaltiesCommitted}`,
     rightX + 42,
     990,
     halfW - 84
@@ -316,7 +297,7 @@ async function generateSessionCardAsset(
   ctx.font = '600 24px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = 'rgba(244, 239, 225, 0.35)';
   ctx.textAlign = 'center';
-  ctx.fillText('РУССКИЙ БИЛЬЯРД • ИТОГИ МАТЧА', W / 2, 1116);
+  ctx.fillText('РУССКИЙ БИЛЬЯРД • ИТОГИ ПАРТИИ', W / 2, 1116);
 
   return new Promise((resolve) => {
     canvas.toBlob(
@@ -325,7 +306,7 @@ async function generateSessionCardAsset(
           resolve(null);
           return;
         }
-        const fileName = `billiard-${session.id.slice(0, 6)}.png`;
+        const fileName = `billiard-${match.id.slice(0, 6)}.png`;
         const file = new File([blob], fileName, { type: 'image/png' });
         resolve({ blob, file });
       },
@@ -336,17 +317,24 @@ async function generateSessionCardAsset(
 }
 
 export function ShareSessionDrawer({
-  session: rawSession,
+  match: rawMatch,
+  session: legacyMatchProp,
   isOpen,
   onOpenChange,
+  onUndo,
+  closeLabel = 'Закрыть',
 }: {
-  session: GameSessionRecord | null;
+  match?: MatchRecord | null;
+  session?: MatchRecord | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  onUndo?: () => void;
+  closeLabel?: string;
 }) {
-  const session = useMemo(
-    () => (rawSession ? normalizeSessionWinnerLeft(rawSession) : null),
-    [rawSession]
+  const targetMatch = rawMatch ?? legacyMatchProp ?? null;
+  const match = useMemo(
+    () => (targetMatch ? normalizeMatchWinnerLeft(targetMatch) : null),
+    [targetMatch]
   );
 
   const [cardAsset, setCardAsset] = useState<CardAsset | null>(null);
@@ -355,10 +343,10 @@ export function ShareSessionDrawer({
 
   useEffect(() => {
     let active = true;
-    if (session && isOpen) {
+    if (match && isOpen) {
       setCopied(false);
       setScreenshotMode(false);
-      generateSessionCardAsset(session).then((asset) => {
+      generateMatchCardAsset(match).then((asset) => {
         if (active) setCardAsset(asset);
       });
     } else {
@@ -368,34 +356,28 @@ export function ShareSessionDrawer({
     return () => {
       active = false;
     };
-  }, [session, isOpen]);
+  }, [match, isOpen]);
 
-  if (!session) return null;
+  if (!match) return null;
 
-  const shareText = buildShareCaption(session);
+  const shareText = buildShareCaption(match);
   const inTMA = isTelegramMiniApp();
 
-  const dateStr = new Date(session.endedAt).toLocaleDateString('ru-RU', {
+  const dateStr = new Date(match.endedAt).toLocaleDateString('ru-RU', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   });
 
-  const totalBalls =
-    session.p1.totalBallsPotted + session.p2.totalBallsPotted;
+  const totalBalls = match.p1.ballsPotted + match.p2.ballsPotted;
   const p1Ratio =
-    totalBalls > 0
-      ? Math.round((session.p1.totalBallsPotted / totalBalls) * 100)
-      : 50;
+    totalBalls > 0 ? Math.round((match.p1.ballsPotted / totalBalls) * 100) : 50;
 
-  const bestStreak = Math.max(
-    session.p1.maxStreakBalls,
-    session.p2.maxStreakBalls
-  );
+  const bestStreak = Math.max(match.p1.maxStreakBalls, match.p2.maxStreakBalls);
   const bestStreakHolder =
-    session.p1.maxStreakBalls >= session.p2.maxStreakBalls
-      ? session.p1.name
-      : session.p2.name;
+    match.p1.maxStreakBalls >= match.p2.maxStreakBalls
+      ? match.p1.name
+      : match.p2.name;
 
   const handleCopy = async () => {
     if (inTMA) {
@@ -474,19 +456,19 @@ export function ShareSessionDrawer({
             className="w-full"
             onClick={() => onOpenChange(false)}
           >
-            Закрыть
+            {closeLabel}
           </Button>
         ) : undefined
       }
       content={
-        <div className="flex flex-col items-center gap-3.5 py-1">
+        <div className="flex flex-col items-center gap-3 py-1">
           <div
             onClick={() => inTMA && setScreenshotMode((prev) => !prev)}
-            className="bg-neutral text-neutral-foreground relative w-full overflow-hidden rounded-3xl p-4 sm:p-5 shadow-xl"
+            className="bg-neutral text-neutral-foreground relative w-full overflow-hidden rounded-3xl p-4 shadow-xl sm:p-5"
           >
             <div className="mb-3 flex items-center justify-between gap-2 text-[11px] sm:text-xs">
               <span className="text-approve truncate font-semibold tracking-wider uppercase">
-                {MODE_NAMES[session.mode]}
+                {MODE_NAMES[match.mode]}
               </span>
               <span className="shrink-0 opacity-50">{dateStr}</span>
             </div>
@@ -494,7 +476,7 @@ export function ShareSessionDrawer({
             <div className="bg-background/10 rounded-2xl p-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                  {session.winnerId === 'p1' ? (
+                  {match.winnerId === 'p1' ? (
                     <span className="bg-gold/15 text-gold flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase">
                       <CrownIcon weight="fill" className="size-3.5" /> Победа
                     </span>
@@ -504,13 +486,13 @@ export function ShareSessionDrawer({
                   <span
                     className={cn(
                       'text-5xl font-extrabold tracking-tight',
-                      session.winnerId === 'p1' && 'text-approve'
+                      match.winnerId === 'p1' && 'text-approve'
                     )}
                   >
-                    {session.p1.roundsWon}
+                    {match.p1.finalScore}
                   </span>
                   <span className="w-full truncate text-center text-sm font-bold">
-                    {session.p1.name}
+                    {match.p1.name}
                   </span>
                 </div>
 
@@ -519,10 +501,10 @@ export function ShareSessionDrawer({
                 <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
                   <span className="h-5" />
                   <span className="text-5xl font-extrabold tracking-tight">
-                    {session.p2.roundsWon}
+                    {match.p2.finalScore}
                   </span>
                   <span className="w-full truncate text-center text-sm font-bold">
-                    {session.p2.name}
+                    {match.p2.name}
                   </span>
                 </div>
               </div>
@@ -531,13 +513,13 @@ export function ShareSessionDrawer({
             <div className="bg-background/10 mt-3 rounded-2xl p-3.5">
               <div className="mb-1.5 flex items-center justify-between text-xs">
                 <span className="text-lg font-extrabold">
-                  {session.p1.totalBallsPotted}
+                  {match.p1.ballsPotted}
                 </span>
                 <span className="text-[11px] tracking-wider uppercase opacity-60">
                   Забито шаров
                 </span>
                 <span className="text-lg font-extrabold">
-                  {session.p2.totalBallsPotted}
+                  {match.p2.ballsPotted}
                 </span>
               </div>
               <div className="flex h-2.5 w-full overflow-hidden rounded-full">
@@ -554,7 +536,7 @@ export function ShareSessionDrawer({
 
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div className="bg-background/10 flex flex-col justify-between rounded-2xl p-3.5">
-                <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] uppercase opacity-60">
+                <div className="flex items-center gap-1.5 text-[10px] uppercase opacity-60 sm:text-[11px]">
                   <FireIcon
                     weight="fill"
                     className="text-approve size-3.5 shrink-0"
@@ -562,28 +544,27 @@ export function ShareSessionDrawer({
                   <span className="truncate">Лучшая серия</span>
                 </div>
                 <div className="mt-1.5 flex flex-col">
-                  <span className="text-approve text-2xl font-extrabold leading-none">
+                  <span className="text-approve text-2xl leading-none font-extrabold">
                     {bestStreak}
                   </span>
                   <span className="mt-1 truncate text-[11px] opacity-75">
-                    {bestStreak > 0
-                      ? `${bestStreakHolder} (${session.p1.maxStreakBalls} vs ${session.p2.maxStreakBalls})`
-                      : 'Без серий'}
+                    {bestStreak > 0 ? bestStreakHolder : 'Без серий'}
                   </span>
                 </div>
               </div>
 
               <div className="bg-background/10 flex flex-col justify-between rounded-2xl p-3.5">
-                <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] uppercase opacity-60">
+                <div className="flex items-center gap-1.5 text-[10px] uppercase opacity-60 sm:text-[11px]">
                   <ClockIcon weight="fill" className="size-3.5 shrink-0" />
-                  <span className="truncate">Время в игре</span>
+                  <span className="truncate">Время партии</span>
                 </div>
                 <div className="mt-1.5 flex flex-col">
-                  <span className="truncate text-base sm:text-lg font-extrabold leading-tight">
-                    {formatDuration(session.totalDurationMs)}
+                  <span className="truncate text-base leading-tight font-extrabold sm:text-lg">
+                    {formatDuration(match.durationMs)}
                   </span>
                   <span className="mt-1 text-[11px] opacity-60">
-                    Сыграно партий: {session.matchesCount}
+                    Штрафы: {match.p1.penaltiesCommitted} :{' '}
+                    {match.p2.penaltiesCommitted}
                   </span>
                 </div>
               </div>
@@ -595,13 +576,10 @@ export function ShareSessionDrawer({
               {inTMA && (
                 <div
                   onClick={() => setScreenshotMode(true)}
-                  className="bg-neutral/80 text-neutral-foreground flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-center text-xs"
+                  className="bg-neutral/80 text-neutral-foreground flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl px-3 py-2 text-center text-xs"
                 >
                   <CameraIcon className="text-approve size-4 shrink-0" />
-                  <span>
-                    Сделайте скриншот карточки для отправки фото (нажмите, чтобы
-                    скрыть кнопки)
-                  </span>
+                  <span>Сделайте скриншот карточки для отправки фото</span>
                 </div>
               )}
 
@@ -648,6 +626,17 @@ export function ShareSessionDrawer({
                   </button>
                 )}
               </div>
+
+              {onUndo && (
+                <button
+                  type="button"
+                  onClick={onUndo}
+                  className="text-neutral-foreground/70 hover:text-neutral-foreground flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium transition-colors"
+                >
+                  <ArrowArcLeftIcon className="size-4" />
+                  Отменить последний шар и вернуться в игру
+                </button>
+              )}
             </>
           )}
         </div>

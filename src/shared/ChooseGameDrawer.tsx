@@ -3,20 +3,21 @@ import type { useZenMode } from '@/shared/hooks/useZenMode';
 import { InfoDrawer, type InfoDrawerProps } from '@/shared/InfoDrawer';
 import { getTelegramUserName } from '@/shared/lib/telegram';
 import { cn } from '@/shared/lib/utils/cn';
-import { useGameStore } from '@/shared/store/gameStore';
+import { useGameStore, type GameMode } from '@/shared/store/gameStore';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
 import {
+  ArrowsLeftRightIcon,
   CirclesThreePlusIcon,
   CrownIcon,
-  CrosshairIcon,
   InfinityIcon,
   LightningIcon,
   QuestionIcon,
   TargetIcon,
   UsersIcon,
+  XIcon,
   type Icon,
 } from '@phosphor-icons/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 
 interface ChooseGameDrawerProps extends Omit<InfoDrawerProps, 'content'> {}
@@ -24,52 +25,47 @@ interface ChooseGameDrawerProps extends Omit<InfoDrawerProps, 'content'> {}
 const GAME_DATA: {
   id: number;
   title: string;
-  desc: string;
+  tag: string;
   lectureHref: string;
   icon: Icon;
-  piramidName:
-    | 'free-pyramid'
-    | 'combined-pyramid'
-    | 'dynamic-pyramid'
-    | 'classic-pyramid'
-    | 'continuous-free-pyramid';
+  piramidName: GameMode;
 }[] = [
   {
     id: 1,
-    title: 'Свободная пирамида (Американка)',
-    desc: 'Любой шар биток, любой прицельный',
+    title: 'Американка',
+    tag: 'Любой шар',
     piramidName: 'free-pyramid',
     lectureHref: '/lectures/first',
     icon: CirclesThreePlusIcon,
   },
   {
     id: 2,
-    title: 'Комбинированная пирамида (Московка)',
-    desc: 'Биток один (цветной). Забил биток - снимаешь любой шар, биток возвращаешь в дом',
+    title: 'Московка',
+    tag: 'Один биток',
     piramidName: 'combined-pyramid',
     lectureHref: '/lectures/first',
     icon: TargetIcon,
   },
   {
     id: 3,
-    title: 'Динамичная пирамида (Невская)',
-    desc: 'То же самое, что Комбинированная, но после забитого битка играешь с руки с любого места',
+    title: 'Невская',
+    tag: 'Биток с руки',
     piramidName: 'dynamic-pyramid',
     lectureHref: '/lectures/first',
     icon: LightningIcon,
   },
   {
     id: 4,
-    title: 'Русская пирамида (Классическая 71 очко)',
-    desc: 'Шар номер 1 = 11 очков. Остальные = по номиналу. Последний шар на столе = +10 очков. Игра идет до 71 очка',
+    title: 'Классика',
+    tag: 'До 71 очка',
     piramidName: 'classic-pyramid',
     lectureHref: '/lectures/first',
     icon: CrownIcon,
   },
   {
     id: 5,
-    title: 'Свободная с продолжением',
-    desc: 'Играют не до 8 шаров, а до лимита (например, до 50 или 100 забитых), пирамида постоянно переставляется',
+    title: 'С продолжением',
+    tag: 'Без лимита',
     piramidName: 'continuous-free-pyramid',
     lectureHref: '/lectures/first',
     icon: InfinityIcon,
@@ -83,20 +79,65 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
     SELECTED_PIRAMID_DEFAULT_ID
   );
 
-  const [p1Name, setP1Name] = useState(() => getTelegramUserName() || 'Вы');
-  const [p2Name, setP2Name] = useState('Оппонент');
-  const [initialBreaker, setInitialBreaker] = useState<'p1' | 'p2'>('p1');
-
+  const defaultP1Name = useGameStore((state) => state.defaultP1Name);
+  const storeP2Name = useGameStore((state) => state.p2.name);
+  const recentPlayers = useGameStore((state) => state.recentPlayers);
+  const savedMatches = useGameStore((state) => state.savedMatches);
+  const removeRecentPlayer = useGameStore((state) => state.removeRecentPlayer);
   const startGame = useGameStore((state) => state.startGame);
+
+  const [p1Name, setP1Name] = useState(
+    () => getTelegramUserName() || defaultP1Name || ''
+  );
+  const [p2Name, setP2Name] = useState(() =>
+    storeP2Name && storeP2Name !== 'Оппонент' ? storeP2Name : ''
+  );
 
   const isGameZenMode = useSettingsStore((state) => state.isGameZenMode);
   const { enableZenMode } = useOutletContext<ReturnType<typeof useZenMode>>();
 
+  const savedNames = useMemo(() => {
+    const set = new Set<string>();
+    const result: string[] = [];
+    const myLower = (p1Name.trim() || 'вы').toLowerCase();
+    const candidates = [
+      ...(recentPlayers ?? []),
+      ...(savedMatches ?? []).flatMap((m) => [m.p2.name, m.p1.name]),
+    ];
+
+    for (const raw of candidates) {
+      const name = raw?.trim();
+      if (!name) continue;
+      const lower = name.toLowerCase();
+      if (
+        lower === 'вы' ||
+        lower === 'оппонент' ||
+        lower === myLower ||
+        set.has(lower)
+      ) {
+        continue;
+      }
+      set.add(lower);
+      result.push(name);
+      if (result.length >= 10) break;
+    }
+    return result;
+  }, [recentPlayers, savedMatches, p1Name]);
+
   const selectedPiramid =
     GAME_DATA.find((el) => el.id === selectedPiramidId) || GAME_DATA[0];
 
+  const handleSwapNames = () => {
+    setP1Name(p2Name);
+    setP2Name(p1Name);
+  };
+
   const handleStartGame = () => {
-    startGame(selectedPiramid.piramidName, p1Name, p2Name, initialBreaker);
+    startGame(
+      selectedPiramid.piramidName,
+      p1Name.trim() || 'Вы',
+      p2Name.trim() || 'Оппонент'
+    );
     if (isGameZenMode) {
       enableZenMode();
     }
@@ -110,107 +151,145 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
         }
       }}
       content={
-        <div className="flex flex-col gap-2">
-          <p className="mb-2 text-xl">Выберите пирамиду</p>
-          {GAME_DATA.map((d) => {
-            const IconComponent = d.icon;
-            const isSelected = selectedPiramidId === d.id;
-
-            return (
-              <button
-                type="button"
-                className={cn(
-                  'flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-2.5 transition-all',
-                  isSelected
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-neutral text-neutral-foreground hover:bg-primary/60 hover:text-primary-foreground hover:translate-y-[-2px]'
-                )}
-                onClick={() =>
-                  setSelectedPiramidId((prev) => (prev === d.id ? prev : d.id))
-                }
-                key={d.id}
+        <div className="flex flex-col gap-4 py-1">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <p className="text-lg font-medium">Пирамида</p>
+              <Link
+                to={selectedPiramid.lectureHref}
+                className="flex items-center gap-1 text-xs opacity-60 transition-opacity hover:opacity-100"
               >
-                <div className="flex items-center gap-3 text-left">
-                  <div
+                <span>Правила</span>
+                <QuestionIcon className="size-4" weight="bold" />
+              </Link>
+            </div>
+
+            <div
+              data-no-tab-swipe
+              className="-mx-1 flex gap-2 overflow-x-auto px-1 py-0.5 sm:mx-0 sm:flex-col sm:overflow-visible sm:px-0 pointer-fine:mx-0 pointer-fine:flex-col pointer-fine:overflow-visible pointer-fine:px-0"
+            >
+              {GAME_DATA.map((d) => {
+                const IconComponent = d.icon;
+                const isSelected = selectedPiramidId === d.id;
+
+                return (
+                  <button
+                    type="button"
+                    key={d.id}
+                    onClick={() => setSelectedPiramidId(d.id)}
                     className={cn(
-                      'flex size-10 shrink-0 items-center justify-center transition-all',
+                      'flex min-w-[130px] shrink-0 flex-col items-start gap-1.5 rounded-2xl p-3 text-left transition-all sm:min-w-0 sm:w-full sm:flex-row sm:items-center sm:justify-between sm:px-3.5 sm:py-2.5 pointer-fine:min-w-0 pointer-fine:w-full pointer-fine:flex-row pointer-fine:items-center pointer-fine:justify-between pointer-fine:px-3.5 pointer-fine:py-2.5',
                       isSelected
-                        ? 'text-primary-foreground'
-                        : ' text-neutral-foreground/70'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-neutral text-neutral-foreground opacity-80 hover:opacity-100'
                     )}
                   >
-                    <IconComponent size={22} weight="fill" />
-                  </div>
-                  <div>
-                    <p className="text-left text-base font-medium leading-snug">
-                      {d.title}
-                    </p>
-                    <p className="mt-0.5 text-left text-xs opacity-60">
-                      {d.desc}
-                    </p>
-                  </div>
-                </div>
-                <Link
-                  to={d.lectureHref}
-                  onClick={(e) => e.stopPropagation()}
-                  className="shrink-0 p-1 opacity-60 transition-opacity hover:opacity-100"
-                >
-                  <QuestionIcon className="size-6" weight="bold" />
-                </Link>
-              </button>
-            );
-          })}
-
-          <div className="mt-2 flex flex-col gap-2">
-            <div className="mt-2 flex items-center gap-2">
-              <UsersIcon size={20} weight="fill" className="opacity-70" />
-              <p className="text-xl">Игроки</p>
+                    <div className="flex items-center gap-2.5">
+                      <IconComponent size={20} weight="fill" />
+                      <span className="text-sm leading-tight font-semibold">
+                        {d.title}
+                      </span>
+                    </div>
+                    <span className="text-[11px] opacity-65">{d.tag}</span>
+                  </button>
+                );
+              })}
             </div>
-            <input
-              className="bg-neutral text-neutral-foreground w-full rounded-2xl px-3 py-3 outline-none"
-              value={p1Name}
-              onChange={(e) => setP1Name(e.target.value)}
-              placeholder="Ваше имя"
-            />
-            <input
-              className="bg-neutral text-neutral-foreground w-full rounded-2xl px-3 py-3 outline-none"
-              value={p2Name}
-              onChange={(e) => setP2Name(e.target.value)}
-              placeholder="Имя оппонента"
-            />
           </div>
 
-          <div className="mt-2 flex flex-col gap-2">
-            <div className="flex items-center gap-1.5 opacity-70">
-              <CrosshairIcon size={16} weight="bold" />
-              <p className="text-sm">Кто разбивает первую партию?</p>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-1.5">
+              <UsersIcon size={18} weight="fill" className="opacity-70" />
+              <p className="text-lg font-medium">Игроки</p>
             </div>
-            <div className="flex gap-2">
+
+            <div className="flex items-center gap-1.5">
+              <div className="bg-neutral text-neutral-foreground relative flex flex-1 items-center rounded-2xl">
+                <input
+                  className="w-full bg-transparent py-2.5 pr-7 pl-3 text-sm outline-none placeholder:opacity-45"
+                  value={p1Name}
+                  onChange={(e) => setP1Name(e.target.value)}
+                  placeholder="Вы"
+                />
+                {p1Name && (
+                  <button
+                    type="button"
+                    onClick={() => setP1Name('')}
+                    className="absolute right-2 p-1 opacity-40 hover:opacity-80"
+                  >
+                    <XIcon className="size-3.5" />
+                  </button>
+                )}
+              </div>
+
               <button
                 type="button"
-                onClick={() => setInitialBreaker('p1')}
-                className={cn(
-                  'flex-1 rounded-2xl py-2.5 text-sm font-medium transition-all',
-                  initialBreaker === 'p1'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-neutral text-neutral-foreground opacity-70'
-                )}
+                title="Поменять местами"
+                onClick={handleSwapNames}
+                className="bg-neutral text-neutral-foreground flex size-10 shrink-0 items-center justify-center rounded-2xl opacity-75 transition-opacity hover:opacity-100"
               >
-                {p1Name || 'Вы'}
+                <ArrowsLeftRightIcon className="size-4" />
               </button>
-              <button
-                type="button"
-                onClick={() => setInitialBreaker('p2')}
-                className={cn(
-                  'flex-1 rounded-2xl py-2.5 text-sm font-medium transition-all',
-                  initialBreaker === 'p2'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-neutral text-neutral-foreground opacity-70'
+
+              <div className="bg-neutral text-neutral-foreground relative flex flex-1 items-center rounded-2xl">
+                <input
+                  className="w-full bg-transparent py-2.5 pr-7 pl-3 text-sm outline-none placeholder:opacity-45"
+                  value={p2Name}
+                  onChange={(e) => setP2Name(e.target.value)}
+                  placeholder="Оппонент"
+                />
+                {p2Name && (
+                  <button
+                    type="button"
+                    onClick={() => setP2Name('')}
+                    className="absolute right-2 p-1 opacity-40 hover:opacity-80"
+                  >
+                    <XIcon className="size-3.5" />
+                  </button>
                 )}
-              >
-                {p2Name || 'Оппонент'}
-              </button>
+              </div>
             </div>
+
+            {savedNames.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {savedNames.map((name) => {
+                  const isSelected =
+                    p2Name.trim().toLowerCase() === name.toLowerCase();
+                  return (
+                    <div
+                      key={name}
+                      className={cn(
+                        'flex items-center gap-1 rounded-full py-1 pr-2 pl-3 text-xs transition-all',
+                        isSelected
+                          ? 'bg-primary text-primary-foreground font-semibold'
+                          : 'bg-neutral text-neutral-foreground opacity-80 hover:opacity-100'
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setP2Name(isSelected ? '' : name)
+                        }
+                      >
+                        {name}
+                      </button>
+                      <button
+                        type="button"
+                        title="Удалить имя"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isSelected) setP2Name('');
+                          removeRecentPlayer(name);
+                        }}
+                        className="p-0.5 opacity-40 hover:opacity-100"
+                      >
+                        <XIcon className="size-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       }

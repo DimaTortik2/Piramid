@@ -1,16 +1,16 @@
-import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useState, useMemo, useRef, type ChangeEvent } from 'react';
+import { Link } from 'react-router-dom';
 import {
   useGameStore,
-  type GameSessionRecord,
   type GameMode,
   type MatchRecord,
+  type GameSessionRecord,
 } from '@/shared/store/gameStore';
 import { Button } from '@/shared/Button';
 import { InfoDrawer } from '@/shared/InfoDrawer';
 import {
   ShareSessionDrawer,
-  normalizeSessionWinnerLeft,
+  normalizeMatchWinnerLeft,
 } from '@/shared/ShareSessionDrawer';
 import { cn } from '@/shared/lib/utils/cn';
 import {
@@ -44,31 +44,52 @@ const MODE_LABELS: Record<GameMode, string> = {
   'continuous-free-pyramid': 'Свободная с продолжением',
 };
 
-function encodeBackup(sessions: GameSessionRecord[]): string {
-  const json = JSON.stringify({ version: 1, sessions });
+function encodeBackup(matches: MatchRecord[]): string {
+  const json = JSON.stringify({ version: 2, matches });
   return btoa(encodeURIComponent(json));
 }
 
-function decodeBackup(raw: string): GameSessionRecord[] {
+function extractMatchesFromParsed(parsed: unknown): MatchRecord[] {
+  if (Array.isArray(parsed)) {
+    const first = parsed[0] as Record<string, unknown> | undefined;
+    if (first && Array.isArray(first.matches)) {
+      return (parsed as GameSessionRecord[]).flatMap((s) => s.matches ?? []);
+    }
+    return parsed as MatchRecord[];
+  }
+  if (parsed && typeof parsed === 'object') {
+    const obj = parsed as Record<string, unknown>;
+    if (Array.isArray(obj.matches)) {
+      return obj.matches as MatchRecord[];
+    }
+    if (Array.isArray(obj.sessions)) {
+      return (obj.sessions as GameSessionRecord[]).flatMap(
+        (s) => s.matches ?? []
+      );
+    }
+  }
+  throw new Error('Invalid backup format');
+}
+
+function decodeBackup(raw: string): MatchRecord[] {
   const trimmed = raw.trim();
   try {
     const parsed = JSON.parse(trimmed);
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed && Array.isArray(parsed.sessions)) return parsed.sessions;
+    return extractMatchesFromParsed(parsed);
   } catch {
     const decodedJson = decodeURIComponent(atob(trimmed));
     const parsed = JSON.parse(decodedJson);
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed && Array.isArray(parsed.sessions)) return parsed.sessions;
+    return extractMatchesFromParsed(parsed);
   }
-  throw new Error('Invalid backup format');
 }
 
 function formatTime(ms: number | null) {
   if (ms === null || ms <= 0) return '—';
   const totalSec = Math.floor(ms / 1000);
-  const m = Math.floor(totalSec / 60);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
+  if (h > 0) return `${h}ч ${m}м`;
   return m > 0 ? `${m}м ${s}с` : `${s}с`;
 }
 
@@ -166,27 +187,21 @@ function StatComparisonRow({
   );
 }
 
-function SessionAccordionItem({
-  session: rawSession,
+function MatchAccordionItem({
+  match: rawMatch,
   defaultExpanded = false,
   onShare,
   onRequestDelete,
 }: {
-  session: GameSessionRecord;
+  match: MatchRecord;
   defaultExpanded?: boolean;
-  onShare: (session: GameSessionRecord) => void;
-  onRequestDelete: (session: GameSessionRecord) => void;
+  onShare: (match: MatchRecord) => void;
+  onRequestDelete: (match: MatchRecord) => void;
 }) {
-  const session = useMemo(
-    () => normalizeSessionWinnerLeft(rawSession),
-    [rawSession]
-  );
-
+  const match = useMemo(() => normalizeMatchWinnerLeft(rawMatch), [rawMatch]);
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const [selectedMatchIdx, setSelectedMatchIdx] = useState(0);
 
-  const activeMatch = session.matches[selectedMatchIdx] ?? session.matches[0];
-  const dateFormatted = new Date(session.endedAt).toLocaleString('ru-RU', {
+  const dateFormatted = new Date(match.endedAt).toLocaleString('ru-RU', {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',
@@ -200,34 +215,34 @@ function SessionAccordionItem({
         className="bg-neutral text-neutral-foreground sticky top-2 z-20 flex cursor-pointer flex-col gap-2 rounded-2xl px-4 py-3 shadow-md transition-all"
       >
         <div className="flex items-center justify-between gap-2 text-[11px] opacity-60">
-          <span className="truncate">{MODE_LABELS[session.mode]}</span>
+          <span className="truncate">{MODE_LABELS[match.mode]}</span>
           <span className="shrink-0">{dateFormatted}</span>
         </div>
 
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
-            {session.winnerId === 'p1' && (
+            {match.winnerId === 'p1' && (
               <CrownIcon weight="fill" className="text-gold size-4 shrink-0" />
             )}
             <span className="truncate text-sm font-bold sm:text-base">
-              {session.p1.name}
+              {match.p1.name}
             </span>
           </div>
 
           <span className="bg-background/15 shrink-0 rounded-lg px-2.5 py-0.5 text-sm font-extrabold whitespace-nowrap">
-            {session.p1.roundsWon} : {session.p2.roundsWon}
+            {match.p1.finalScore} : {match.p2.finalScore}
           </span>
 
           <div className="flex min-w-0 flex-1 items-center justify-end">
             <span className="truncate text-right text-sm font-bold opacity-85 sm:text-base">
-              {session.p2.name}
+              {match.p2.name}
             </span>
           </div>
         </div>
 
         <div className="border-neutral-foreground/10 flex items-center justify-between border-t pt-2">
           <span className="text-[11px] opacity-55">
-            Общее время: {formatTime(session.totalDurationMs)}
+            Время партии: {formatTime(match.durationMs)}
           </span>
 
           <div className="flex items-center gap-1">
@@ -236,7 +251,7 @@ function SessionAccordionItem({
               title="Поделиться"
               onClick={(e) => {
                 e.stopPropagation();
-                onShare(session);
+                onShare(match);
               }}
               className="hover:bg-background/20 flex size-8 items-center justify-center rounded-full transition-colors"
             >
@@ -245,10 +260,10 @@ function SessionAccordionItem({
 
             <button
               type="button"
-              title="Удалить сессию"
+              title="Удалить партию"
               onClick={(e) => {
                 e.stopPropagation();
-                onRequestDelete(session);
+                onRequestDelete(match);
               }}
               className="text-destructive hover:bg-destructive/20 flex size-8 items-center justify-center rounded-full transition-colors"
             >
@@ -279,105 +294,69 @@ function SessionAccordionItem({
         <div className="mt-3 flex flex-col gap-4 px-1 pt-2">
           <div className="flex flex-col gap-2.5">
             <StatComparisonRow
-              label="Забито шаров"
-              v1={session.p1.totalBallsPotted}
-              v2={session.p2.totalBallsPotted}
-            />
-            <StatComparisonRow
-              label="Общий счет (очки)"
-              v1={session.p1.totalScore}
-              v2={session.p2.totalScore}
+              label="Забито с кия"
+              v1={match.p1.ballsPotted}
+              v2={match.p2.ballsPotted}
             />
             <StatComparisonRow
               label="Макс. серия (шары)"
-              v1={session.p1.maxStreakBalls}
-              v2={session.p2.maxStreakBalls}
+              v1={match.p1.maxStreakBalls}
+              v2={match.p2.maxStreakBalls}
             />
             <StatComparisonRow
               label="Средняя серия"
-              v1={session.p1.avgStreakBalls}
-              v2={session.p2.avgStreakBalls}
+              v1={match.p1.avgStreakBalls}
+              v2={match.p2.avgStreakBalls}
             />
             <StatComparisonRow
               label="Штрафы"
-              v1={session.p1.totalPenaltiesCommitted}
-              v2={session.p2.totalPenaltiesCommitted}
+              v1={match.p1.penaltiesCommitted}
+              v2={match.p2.penaltiesCommitted}
             />
             <div className="flex justify-between pt-1 text-xs">
               <span className="font-semibold">
-                {formatTime(session.p1.avgTimePerPotMs)}
+                {formatTime(match.p1.avgTimePerPotMs)}
               </span>
               <span className="opacity-60">Среднее время на шар</span>
               <span className="font-semibold">
-                {formatTime(session.p2.avgTimePerPotMs)}
+                {formatTime(match.p2.avgTimePerPotMs)}
               </span>
             </div>
           </div>
 
-          {session.matches.length > 0 && (
-            <div className="border-foreground/10 flex flex-col gap-2 border-t pt-3">
-              <p className="text-xs font-semibold tracking-wider uppercase opacity-60">
-                Партии внутри сессии
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {session.matches.map((m, idx) => (
-                  <button
-                    type="button"
-                    key={m.id}
-                    onClick={() => setSelectedMatchIdx(idx)}
-                    className={cn(
-                      'rounded-xl px-3 py-1.5 text-xs transition-all',
-                      selectedMatchIdx === idx
-                        ? 'bg-neutral text-neutral-foreground font-semibold'
-                        : 'bg-foreground/10 text-foreground opacity-70'
-                    )}
-                  >
-                    Партия {m.roundNumber} ({m.p1.finalScore}:{m.p2.finalScore})
-                  </button>
-                ))}
-              </div>
-
-              {activeMatch && (
-                <div className="bg-foreground/5 mt-1 rounded-2xl p-3">
-                  <div className="flex items-center justify-between text-xs opacity-75">
-                    <span>
-                      Длительность: {formatTime(activeMatch.durationMs)}
-                    </span>
-                    <span>Смен лидера: {activeMatch.leadChanges}</span>
-                  </div>
-
-                  <MatchScoreChart match={activeMatch} />
-
-                  <div className="border-foreground/10 mt-2 grid grid-cols-2 gap-2 border-t pt-2 text-xs">
-                    <div>
-                      <div className="text-approve font-bold">
-                        {activeMatch.p1.name}
-                      </div>
-                      <div className="opacity-70">
-                        Серии: {activeMatch.p1.streaks.join(', ') || '0'}
-                      </div>
-                      {activeMatch.p1.pottedBallNumbers.length > 0 && (
-                        <div className="opacity-70">
-                          Шары: {activeMatch.p1.pottedBallNumbers.join(', ')}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold">{activeMatch.p2.name}</div>
-                      <div className="opacity-70">
-                        Серии: {activeMatch.p2.streaks.join(', ') || '0'}
-                      </div>
-                      {activeMatch.p2.pottedBallNumbers.length > 0 && (
-                        <div className="opacity-70">
-                          Шары: {activeMatch.p2.pottedBallNumbers.join(', ')}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+          <div className="bg-foreground/5 rounded-2xl p-3">
+            <div className="flex items-center justify-between text-xs opacity-75">
+              <span>Ход набора очков</span>
+              <span>Смен лидера: {match.leadChanges}</span>
             </div>
-          )}
+
+            <MatchScoreChart match={match} />
+
+            <div className="border-foreground/10 mt-2 grid grid-cols-2 gap-2 border-t pt-2 text-xs">
+              <div>
+                <div className="text-approve font-bold">{match.p1.name}</div>
+                <div className="opacity-70">
+                  Серии: {match.p1.streaks.join(', ') || '0'}
+                </div>
+                {match.p1.pottedBallNumbers.length > 0 && (
+                  <div className="opacity-70">
+                    Шары: {match.p1.pottedBallNumbers.join(', ')}
+                  </div>
+                )}
+              </div>
+              <div className="text-right">
+                <div className="font-bold">{match.p2.name}</div>
+                <div className="opacity-70">
+                  Серии: {match.p2.streaks.join(', ') || '0'}
+                </div>
+                {match.p2.pottedBallNumbers.length > 0 && (
+                  <div className="opacity-70">
+                    Шары: {match.p2.pottedBallNumbers.join(', ')}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -385,53 +364,32 @@ function SessionAccordionItem({
 }
 
 export function HistoryPage() {
-  const { savedSessions = [], deleteSession, importSessions } = useGameStore();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [shareSession, setShareSession] = useState<GameSessionRecord | null>(
-    null
-  );
-  const [sessionToDelete, setSessionToDelete] =
-    useState<GameSessionRecord | null>(null);
+  const { savedMatches = [], deleteMatch, importMatches } = useGameStore();
+  const [shareMatch, setShareMatch] = useState<MatchRecord | null>(null);
+  const [matchToDelete, setMatchToDelete] = useState<MatchRecord | null>(null);
   const [isBackupDrawerOpen, setIsBackupDrawerOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const highlightedSessionId = searchParams.get('session');
-  const shouldOpenShare = searchParams.get('share') === '1';
-
-  useEffect(() => {
-    if (highlightedSessionId && shouldOpenShare) {
-      const found = savedSessions.find((s) => s.id === highlightedSessionId);
-      if (found) {
-        setShareSession(found);
-        setSearchParams({ session: highlightedSessionId }, { replace: true });
-      }
-    }
-  }, [highlightedSessionId, shouldOpenShare, savedSessions, setSearchParams]);
-
-  const totalMatchesPlayed = savedSessions.reduce(
-    (acc, s) => acc + s.matchesCount,
-    0
-  );
-  const totalBallsPotted = savedSessions.reduce(
-    (acc, s) => acc + s.p1.totalBallsPotted + s.p2.totalBallsPotted,
+  const totalBallsPotted = savedMatches.reduce(
+    (acc, m) => acc + m.p1.ballsPotted + m.p2.ballsPotted,
     0
   );
 
   const handleConfirmDelete = () => {
-    if (!sessionToDelete) return;
-    deleteSession(sessionToDelete.id);
-    setSessionToDelete(null);
-    toast.success('Сессия удалена из истории');
+    if (!matchToDelete) return;
+    deleteMatch(matchToDelete.id);
+    setMatchToDelete(null);
+    toast.success('Партия удалена из истории');
   };
 
   const handleCopyBackupCode = async () => {
-    if (savedSessions.length === 0) {
+    if (savedMatches.length === 0) {
       toast.warning('История пока пуста');
       return;
     }
     try {
-      const code = encodeBackup(savedSessions);
+      const code = encodeBackup(savedMatches);
       await navigator.clipboard.writeText(code);
       toast.success('Код истории скопирован в буфер обмена');
     } catch {
@@ -440,12 +398,12 @@ export function HistoryPage() {
   };
 
   const handleExportFile = async () => {
-    if (savedSessions.length === 0) {
+    if (savedMatches.length === 0) {
       toast.warning('История пока пуста');
       return;
     }
     const json = JSON.stringify(
-      { version: 1, exportedAt: Date.now(), sessions: savedSessions },
+      { version: 2, exportedAt: Date.now(), matches: savedMatches },
       null,
       2
     );
@@ -457,7 +415,7 @@ export function HistoryPage() {
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
-          title: 'История матчей — Русский бильярд',
+          title: 'История партий — Русский бильярд',
           files: [file],
         });
         return;
@@ -477,12 +435,12 @@ export function HistoryPage() {
 
   const processImportString = (raw: string) => {
     try {
-      const parsedSessions = decodeBackup(raw);
-      const addedCount = importSessions(parsedSessions);
+      const parsedMatches = decodeBackup(raw);
+      const addedCount = importMatches(parsedMatches);
       if (addedCount > 0) {
-        toast.success(`Добавлено новых сессий: ${addedCount}`);
+        toast.success(`Добавлено новых партий: ${addedCount}`);
       } else {
-        toast.info('Все эти сессии уже есть в вашей истории');
+        toast.info('Все эти партии уже есть в вашей истории');
       }
       setImportText('');
       setIsBackupDrawerOpen(false);
@@ -529,33 +487,28 @@ export function HistoryPage() {
           </button>
         }
       >
-        История матчей
+        История партий
       </PageHeader>
 
-      {savedSessions.length > 0 && (
-        <div className="bg-background/80 grid grid-cols-3 gap-2 rounded-2xl p-3 text-center backdrop-blur-lg">
+      {savedMatches.length > 0 && (
+        <div className="bg-background/80 grid grid-cols-2 gap-2 rounded-2xl p-3 text-center backdrop-blur-lg">
           <div>
-            <div className="text-xl font-bold">{savedSessions.length}</div>
-            <div className="text-xs opacity-60">Сессий</div>
-          </div>
-          <div>
-            <div className="text-xl font-bold">{totalMatchesPlayed}</div>
+            <div className="text-xl font-bold">{savedMatches.length}</div>
             <div className="text-xs opacity-60">Партий</div>
           </div>
           <div>
             <div className="text-xl font-bold">{totalBallsPotted}</div>
-            <div className="text-xs opacity-60">Забито шаров</div>
+            <div className="text-xs opacity-60">Всего забито</div>
           </div>
         </div>
       )}
 
-      {savedSessions.length === 0 ? (
+      {savedMatches.length === 0 ? (
         <div className="bg-background/80 flex flex-col items-center justify-center gap-3 rounded-2xl p-8 text-center backdrop-blur-lg">
           <TrophyIcon className="size-12 opacity-40" />
           <p className="text-lg font-medium">История пока пуста</p>
           <p className="text-sm opacity-60">
-            Завершите хотя бы одну игровую сессию или импортируйте сохраненную
-            историю.
+            Завершите хотя бы одну партию или импортируйте сохраненную историю.
           </p>
           <div className="mt-2 flex w-full flex-col gap-2">
             <Button
@@ -574,25 +527,23 @@ export function HistoryPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {savedSessions.map((session, index) => (
-            <SessionAccordionItem
-              key={session.id}
-              session={session}
-              defaultExpanded={
-                session.id === highlightedSessionId || index === 0
-              }
-              onShare={(s) => setShareSession(s)}
-              onRequestDelete={(s) => setSessionToDelete(s)}
+          {savedMatches.map((match, index) => (
+            <MatchAccordionItem
+              key={match.id}
+              match={match}
+              defaultExpanded={index === 0}
+              onShare={(m) => setShareMatch(m)}
+              onRequestDelete={(m) => setMatchToDelete(m)}
             />
           ))}
         </div>
       )}
 
       <ShareSessionDrawer
-        session={shareSession}
-        isOpen={shareSession !== null}
+        match={shareMatch}
+        isOpen={shareMatch !== null}
         onOpenChange={(open) => {
-          if (!open) setShareSession(null);
+          if (!open) setShareMatch(null);
         }}
       />
 
@@ -613,8 +564,8 @@ export function HistoryPage() {
             <div>
               <p className="text-lg font-semibold">Экспорт истории</p>
               <p className="text-xs opacity-60">
-                Перенесите историю матчей устройствами или
-                сохраните резервную копию.
+                Перенесите историю партий между устройствами или сохраните
+                резервную копию.
               </p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <Button
@@ -623,8 +574,7 @@ export function HistoryPage() {
                   className="flex items-center justify-center gap-1.5"
                   onClick={handleCopyBackupCode}
                 >
-                  <CopyIcon className="size-4" />
-                  В буфер
+                  <CopyIcon className="size-4" />В буфер
                 </Button>
                 <Button
                   variant="primary"
@@ -641,7 +591,7 @@ export function HistoryPage() {
             <div className="border-neutral-foreground/10 border-t pt-3">
               <p className="text-lg font-semibold">Импорт истории</p>
               <p className="text-xs opacity-60">
-                Новые матчи автоматически объединятся с текущими без дублей.
+                Новые партии автоматически объединятся с текущими без дублей.
               </p>
 
               <textarea
@@ -686,28 +636,28 @@ export function HistoryPage() {
       />
 
       <InfoDrawer
-        isOpen={sessionToDelete !== null}
+        isOpen={matchToDelete !== null}
         onOpenChange={(open) => {
-          if (!open) setSessionToDelete(null);
+          if (!open) setMatchToDelete(null);
         }}
         closeBtn={
           <Button
             variant="primary"
             className="w-full"
-            onClick={() => setSessionToDelete(null)}
+            onClick={() => setMatchToDelete(null)}
           >
             Отмена
           </Button>
         }
         content={
           <div className="flex flex-col items-center gap-4 py-4 text-center">
-            <p className="text-xl font-medium">Удалить сессию из истории?</p>
+            <p className="text-xl font-medium">Удалить партию из истории?</p>
             <p className="text-neutral-foreground/70 text-sm">
-              Матч{' '}
+              Партия{' '}
               <strong>
-                {sessionToDelete?.p1.name} vs {sessionToDelete?.p2.name}
+                {matchToDelete?.p1.name} vs {matchToDelete?.p2.name}
               </strong>{' '}
-              будет удален безвозвратно.
+              будет удалена безвозвратно.
             </p>
             <Button
               variant="destructive"

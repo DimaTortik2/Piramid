@@ -1,15 +1,17 @@
 import { cn } from '@/shared/lib/utils/cn';
 import { type HTMLAttributes, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   SignOutIcon,
   ArrowArcLeftIcon,
   QuestionMarkIcon,
+  PlayIcon,
 } from '@phosphor-icons/react';
 import { Circle } from '@/shared/Circle';
 import { Button } from '@/shared/Button';
 import { useSwipe } from '@/shared/hooks/useSwipe';
 import { InfoDrawer } from '@/shared/InfoDrawer';
+import { ShareSessionDrawer } from '@/shared/ShareSessionDrawer';
 import SwipeTutorialCard from '@/shared/SwipeTutorialCard';
 import { useGameStore, type GameMode } from '@/shared/store/gameStore';
 import { Drawer } from 'vaul';
@@ -20,6 +22,14 @@ interface GamePageProps {}
 
 const BALL_R = 25;
 
+const MODE_TITLES: Record<GameMode, string> = {
+  'free-pyramid': 'Американка',
+  'combined-pyramid': 'Московка',
+  'dynamic-pyramid': 'Невская',
+  'classic-pyramid': 'Классика',
+  'continuous-free-pyramid': 'С продолжением',
+};
+
 const Ball = ({ scored }: { scored: boolean }) => {
   return (
     <div
@@ -28,7 +38,7 @@ const Ball = ({ scored }: { scored: boolean }) => {
         'rounded-full transition-colors',
         scored ? 'bg-piramid-ball-mid' : 'bg-piramid-ball-mid/30'
       )}
-    ></div>
+    />
   );
 };
 
@@ -42,7 +52,7 @@ const Shelf = ({
   maxBallsOnShelf?: number;
 } & HTMLAttributes<HTMLDivElement>) => {
   const ballsLeft = maxBallsOnShelf - ScoredBallsCount;
-  let ballsData: { scored: boolean }[] = [];
+  const ballsData: { scored: boolean }[] = [];
 
   for (let i = 0; i < ScoredBallsCount; i++) ballsData.push({ scored: true });
   for (let i = 0; i < ballsLeft; i++) ballsData.push({ scored: false });
@@ -63,107 +73,90 @@ const Shelf = ({
 };
 
 const HeaderDisplay = ({
+  mode,
   isTimerDrawerOpen = false,
   setIsTimerDrawerOpen,
-  opponentWinnedRounds = 0,
-  opponentName = 'Оппонент',
-  yourWinnedRounds = 0,
-  yourName = 'Вы',
   roundHours = 0,
   roundMinutes = 0,
   roundSeconds = 0,
-  totalHours = 0,
-  totalMinutes = 0,
-  totalSeconds = 0,
   isPaused = false,
   onTogglePause,
 }: {
+  mode: GameMode;
   isTimerDrawerOpen: boolean;
   setIsTimerDrawerOpen: (isOpen: boolean) => void;
-
-  opponentWinnedRounds?: number;
-  opponentName?: string;
-  yourWinnedRounds?: number;
-  yourName?: string;
   roundHours?: number;
   roundMinutes?: number;
   roundSeconds?: number;
-  totalHours?: number;
-  totalMinutes?: number;
-  totalSeconds?: number;
   isPaused?: boolean;
   onTogglePause?: () => void;
 } & HTMLAttributes<HTMLDivElement>) => {
   return (
-    <div className="bg-background/80 text-foreground flex items-center justify-between rounded-xl px-5 py-2 backdrop-blur-lg">
-      <div className="flex flex-col items-center text-[1rem]">
-        <span className="text-[1.2em]">{yourWinnedRounds}</span>
-        <span className="text-[0.7em]">{yourName}</span>
-      </div>
+    <div className="bg-background/80 text-foreground flex items-center justify-between rounded-xl px-4 py-2.5 backdrop-blur-lg">
+      <span className="text-sm font-medium opacity-75">
+        {MODE_TITLES[mode]}
+      </span>
 
       <InfoDrawer
         isOpen={isTimerDrawerOpen}
         onOpenChange={setIsTimerDrawerOpen}
         trigger={
           isPaused ? (
-            <Button
-              variant="ghost"
-              className="text-destructive text-[0.9rem] hover:bg-transparent"
+            <button
+              type="button"
+              className="bg-destructive/15 text-destructive flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors"
             >
-              Игра приостановлена
-            </Button>
+              <PlayIcon weight="fill" className="size-3.5" />
+              <span>На паузе</span>
+            </button>
           ) : (
-            <button className="flex h-full flex-col items-center justify-center gap-1 text-[0.9rem] opacity-80 hover:opacity-100">
-              <p className={cn(isPaused && 'text-destructive')}>
-                {roundHours > 0 ? (
-                  <>
-                    <span>{roundHours}</span>
-                    <span className="text-[0.7em]"> ч. </span>
-                    <span>{roundMinutes}</span>
-                    <span className="text-[0.7em]"> мин. </span>
-                  </>
-                ) : (
-                  <>
-                    <span>{roundMinutes}</span>
-                    <span className="text-[0.7em]"> мин. </span>
-                    <span>{roundSeconds}</span>
-                    <span className="text-[0.7em]"> сек. </span>
-                  </>
-                )}
-              </p>
+            <button
+              type="button"
+              className="flex items-center justify-center text-sm opacity-80 transition-opacity hover:opacity-100"
+            >
+              {roundHours > 0 ? (
+                <p>
+                  <span>{roundHours}</span>
+                  <span className="text-[0.75em]"> ч. </span>
+                  <span>{roundMinutes}</span>
+                  <span className="text-[0.75em]"> мин.</span>
+                </p>
+              ) : (
+                <p>
+                  <span>{roundMinutes}</span>
+                  <span className="text-[0.75em]"> мин. </span>
+                  <span>{roundSeconds}</span>
+                  <span className="text-[0.75em]"> сек.</span>
+                </p>
+              )}
             </button>
           )
         }
         content={
-          <div className="flex flex-col items-center gap-2 py-4">
+          <div className="flex flex-col items-center gap-2 py-4 text-center">
             {isPaused ? (
               <p>
-                Игра была приостановлена, вы можете ее продолжить нажав на
-                кнопку ниже
+                Партия на паузе. Нажмите кнопку ниже, чтобы продолжить отсчет
+                времени.
               </p>
             ) : (
               <p>
-                Общее время: {totalHours > 0 && `${totalHours} ч. `}
-                {totalMinutes} мин. {totalHours === 0 && `${totalSeconds} сек.`}
+                Время партии: {roundHours > 0 && `${roundHours} ч. `}
+                {roundMinutes} мин. {roundHours === 0 && `${roundSeconds} сек.`}
               </p>
             )}
             <Drawer.Close asChild>
               <Button
                 variant={isPaused ? 'approve' : 'primary'}
                 onClick={onTogglePause}
-                className="mt-4"
+                className="mt-4 w-full"
               >
-                {isPaused ? 'Возобновить игру' : 'Поставить на паузу'}
+                {isPaused ? 'Возобновить партию' : 'Поставить на паузу'}
               </Button>
             </Drawer.Close>
           </div>
         }
       />
-
-      <div className="flex flex-col items-center text-[1rem]">
-        <span className="text-[1.2em]">{opponentWinnedRounds}</span>
-        <span className="text-[0.7em]">{opponentName}</span>
-      </div>
     </div>
   );
 };
@@ -175,7 +168,6 @@ const UserGameBoard = ({
   onRemove,
   onPenalty,
   showNumberOnly = false,
-  isBreaker = false,
 }: {
   name?: string;
   score?: number;
@@ -183,7 +175,6 @@ const UserGameBoard = ({
   onRemove: () => void;
   onPenalty?: () => void;
   showNumberOnly?: boolean;
-  isBreaker?: boolean;
 } & HTMLAttributes<HTMLDivElement>) => {
   let firstShelfScore = 0;
   let secondShelfScore = 0;
@@ -191,7 +182,7 @@ const UserGameBoard = ({
   if (score <= 4) {
     firstShelfScore = score;
     secondShelfScore = 0;
-  } else if (score > 4) {
+  } else {
     firstShelfScore = 4;
     secondShelfScore = score - 4;
   }
@@ -221,14 +212,7 @@ const UserGameBoard = ({
 
       <div className="relative z-10 flex flex-1 flex-col justify-center">
         <div className="flex w-full items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span>{name}</span>
-            {isBreaker && (
-              <span className="bg-approve/20 text-approve rounded-full px-2 py-0.5 text-[0.7rem] font-semibold">
-                Разбой
-              </span>
-            )}
-          </div>
+          <span className="font-medium">{name}</span>
           <Button
             onClick={onPenalty}
             variant="destructive"
@@ -273,24 +257,32 @@ const UserGameBoard = ({
 
 const BottomActions = ({
   onUndo,
-  onExitConfirm,
+  onPauseAndExit,
   onFinishRound,
-  onFinishSession,
-  canFinishRound = false,
+  onEmptyExit,
+  hasEvents = false,
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement> & {
   onUndo: () => void;
-  onExitConfirm: () => void;
+  onPauseAndExit: () => void;
   onFinishRound: () => void;
-  onFinishSession: () => void;
-  canFinishRound?: boolean;
+  onEmptyExit: () => void;
+  hasEvents?: boolean;
 }) => {
   const [isExitDrawerOpen, setIsExitDrawerOpen] = useState(false);
 
+  const handleExitButtonClick = () => {
+    if (!hasEvents) {
+      onEmptyExit();
+      return;
+    }
+    setIsExitDrawerOpen(true);
+  };
+
   return (
     <div className={cn('flex w-full gap-2 p-2', className)} {...props}>
-      <button onClick={() => setIsExitDrawerOpen(true)}>
+      <button type="button" onClick={handleExitButtonClick}>
         <Circle className="text-foreground hover:bg-foreground/20 size-9 bg-transparent">
           <SignOutIcon />
         </Circle>
@@ -299,49 +291,29 @@ const BottomActions = ({
       <InfoDrawer
         isOpen={isExitDrawerOpen}
         onOpenChange={setIsExitDrawerOpen}
-        closeBtn={
-          <Button
-            variant="primary"
-            className="w-full"
-            onClick={() => setIsExitDrawerOpen(false)}
-          >
-            Отмена
-          </Button>
-        }
         content={
-          <div className="flex flex-col items-center gap-4 py-4 text-center">
-            <p className="text-xl font-medium">Управление игрой</p>
-            <p className="text-neutral-foreground/70 text-sm">
-              Вы можете временно выйти (прогресс сохранится) или полностью
-              завершить сессию с сохранением статистики.
-            </p>
-            <div className="mt-4 flex w-full flex-col gap-2">
-              {canFinishRound && (
-                <Button
-                  variant="approve"
-                  className="w-full"
-                  onClick={() => {
-                    onFinishRound();
-                    setIsExitDrawerOpen(false);
-                  }}
-                >
-                  Завершить текущую партию
-                </Button>
-              )}
-              <Link to="/" onClick={onExitConfirm} className="w-full">
-                <Button variant="primary" className="w-full">
-                  Сохранить и выйти на главную
-                </Button>
-              </Link>
+          <div className="flex flex-col items-center gap-3 py-2 text-center">
+            <p className="text-lg font-medium">Партия не доиграна</p>
+            <div className="mt-1 flex w-full flex-col gap-2">
               <Button
-                variant="destructive"
+                variant="approve"
                 className="w-full"
                 onClick={() => {
                   setIsExitDrawerOpen(false);
-                  onFinishSession();
+                  onFinishRound();
                 }}
               >
-                Завершить сессию
+                Завершить и сохранить счет
+              </Button>
+              <Button
+                variant="primary"
+                className="w-full"
+                onClick={() => {
+                  setIsExitDrawerOpen(false);
+                  onPauseAndExit();
+                }}
+              >
+                В меню
               </Button>
             </div>
           </div>
@@ -356,43 +328,32 @@ const BottomActions = ({
         content={
           <div>
             <p>
-              <strong>В самом верху</strong> находится{' '}
-              <strong className="text-reader-accent-foreground">
-                общий счет
-              </strong>{' '}
-              сыгранных партий между вами. Там же видно сколько времени идет эта
-              партия.
+              <strong>В самом верху</strong> находится таймер партии. Нажмите на
+              него, чтобы поставить игру на паузу.
               <br />
               <br />
-              <strong>Далее полки игроков:</strong>
+              <strong>Полки игроков:</strong>
               <br />
               Когда кто-то забил,{' '}
               <strong className="text-reader-accent-foreground">
-                свайпните
+                свайпните вверх
               </strong>{' '}
-              по его полке чтобы начислить ему очко!
+              по его полке, чтобы начислить шар!
               <br />
-              <strong className="text-destructive">
-                Ошиблись?
-              </strong> Нестрашно,{' '}
+              <strong className="text-destructive">Ошиблись?</strong>{' '}
               <strong className="text-reader-accent-foreground">
-                свайпните вниз или нажмите "Отмена действия"
+                Свайпните вниз или нажмите «Отмена действия»
               </strong>{' '}
               в самом низу экрана.
             </p>
             <br />
             <SwipeTutorialCard />
-            Кнопка <strong className="text-destructive">"штраф"</strong>{' '}
-            накладывает штраф, ну тут все понятно. Отменить его также можно
-            кнопкой{' '}
-            <strong className="text-reader-accent-foreground">
-              отмены действия
-            </strong>
-            .
+            Кнопка <strong className="text-destructive">«Штраф»</strong>{' '}
+            начисляет штрафной шар сопернику.
           </div>
         }
         trigger={
-          <button>
+          <button type="button">
             <Circle className="text-foreground hover:bg-foreground/20 size-9 bg-transparent">
               <QuestionMarkIcon />
             </Circle>
@@ -406,36 +367,32 @@ const BottomActions = ({
 export function GamePage({}: GamePageProps) {
   const { mode } = useParams<{ mode: string }>();
   const navigate = useNavigate();
-  const isFinishingRef = useRef(false);
+  const isLeavingRef = useRef(false);
+  const isUndoingRef = useRef(false);
 
   const {
     p1,
     p2,
     mode: storeMode,
-    initialBreaker,
-    completedMatches,
     lastCompletedRound,
     dismissRoundModal,
     startGame,
+    tickTimer,
     addScore,
     removeScore,
     applyPenalty,
     finishCurrentRound,
-    finishSession,
+    endGame,
     undo,
     isPaused,
     togglePause,
     setPause,
-    startTime,
-    totalPausedTime,
+    roundElapsedMs,
     pottedBalls,
     isActiveGame,
-    previousRoundsTime,
     currentRoundEvents,
   } = useGameStore();
 
-  const [totalElapsed, setTotalElapsed] = useState(0);
-  const [roundElapsed, setRoundElapsed] = useState(0);
   const [classicDrawerOpen, setClassicDrawerOpen] = useState(false);
   const [activePlayerForClassic, setActivePlayerForClassic] = useState<
     'p1' | 'p2'
@@ -452,61 +409,52 @@ export function GamePage({}: GamePageProps) {
   };
 
   useEffect(() => {
-    if (isFinishingRef.current) return;
+    if (isLeavingRef.current || lastCompletedRound) return;
     if (storeMode !== mode || !isActiveGame) {
-      startGame(
-        (mode as GameMode) || 'free-pyramid',
-        p1.name,
-        p2.name,
-        initialBreaker ?? 'p1'
-      );
+      startGame((mode as GameMode) || 'free-pyramid', p1.name, p2.name);
+    } else if (!isPaused) {
+      setPause(false);
     }
   }, [mode]);
 
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (!isFinishingRef.current) {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
         setPause(true);
       }
     };
+    const handleBeforeUnload = () => {
+      setPause(true);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      if (!isLeavingRef.current) {
+        setPause(true);
+      }
+    };
   }, [setPause]);
 
   useEffect(() => {
-    if (!startTime) return;
+    if (isPaused || !isActiveGame || lastCompletedRound) return;
     const interval = setInterval(() => {
-      if (!isPaused) {
-        const currentTotal = Date.now() - startTime - totalPausedTime;
-        setTotalElapsed(currentTotal);
-        setRoundElapsed(Math.max(0, currentTotal - previousRoundsTime));
-      }
-    }, 200);
+      tickTimer();
+    }, 250);
     return () => clearInterval(interval);
-  }, [startTime, totalPausedTime, previousRoundsTime, isPaused]);
+  }, [isPaused, isActiveGame, lastCompletedRound, tickTimer]);
 
-  const roundHours = Math.floor(roundElapsed / (1000 * 60 * 60));
+  const roundHours = Math.floor(roundElapsedMs / (1000 * 60 * 60));
   const roundMinutes = Math.floor(
-    (roundElapsed % (1000 * 60 * 60)) / (1000 * 60)
+    (roundElapsedMs % (1000 * 60 * 60)) / (1000 * 60)
   );
-  const roundSeconds = Math.floor((roundElapsed % (1000 * 60)) / 1000);
-
-  const totalHours = Math.floor(totalElapsed / (1000 * 60 * 60));
-  const totalMinutes = Math.floor(
-    (totalElapsed % (1000 * 60 * 60)) / (1000 * 60)
-  );
-  const totalSeconds = Math.floor((totalElapsed % (1000 * 60)) / 1000);
+  const roundSeconds = Math.floor((roundElapsedMs % (1000 * 60)) / 1000);
 
   const isClassic = storeMode === 'classic-pyramid';
   const showNumberOnly = isClassic || storeMode === 'continuous-free-pyramid';
-
-  const currentRoundIndex = completedMatches?.length ?? 0;
-  const currentBreaker: 'p1' | 'p2' =
-    currentRoundIndex % 2 === 0
-      ? (initialBreaker ?? 'p1')
-      : (initialBreaker ?? 'p1') === 'p1'
-        ? 'p2'
-        : 'p1';
 
   const checkSeventhBallWarning = (
     playerId: 'p1' | 'p2',
@@ -560,14 +508,36 @@ export function GamePage({}: GamePageProps) {
     triggerHaptic('pot');
   };
 
-  const handleFinishSessionAndGoHistory = () => {
-    isFinishingRef.current = true;
-    const record = finishSession();
-    if (record) {
-      navigate(`/history?session=${record.id}&share=1`, { replace: true });
-    } else {
-      navigate('/', { replace: true });
+  const handleUndoCompletedMatch = () => {
+    isUndoingRef.current = true;
+    undo();
+    triggerHaptic('undo');
+    setTimeout(() => {
+      isUndoingRef.current = false;
+    }, 100);
+  };
+
+  const handleCloseCompletedMatchDrawer = () => {
+    if (isUndoingRef.current || useGameStore.getState().isActiveGame) {
+      isUndoingRef.current = false;
+      return;
     }
+    isLeavingRef.current = true;
+    dismissRoundModal();
+    endGame();
+    navigate('/', { replace: true });
+  };
+
+  const handlePauseAndExit = () => {
+    isLeavingRef.current = true;
+    setPause(true);
+    navigate('/', { replace: true });
+  };
+
+  const handleEmptyExit = () => {
+    isLeavingRef.current = true;
+    endGame();
+    navigate('/', { replace: true });
   };
 
   const balls1to15 = Array.from({ length: 15 }, (_, i) => i + 1);
@@ -577,25 +547,18 @@ export function GamePage({}: GamePageProps) {
   return (
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-125 flex-col gap-4 p-3">
       <HeaderDisplay
+        mode={storeMode}
         isTimerDrawerOpen={isTimerDrawerOpen}
         setIsTimerDrawerOpen={setIsTimerDrawerOpen}
-        yourWinnedRounds={p1.roundsWon}
-        yourName={p1.name}
-        opponentWinnedRounds={p2.roundsWon}
-        opponentName={p2.name}
         roundHours={roundHours}
         roundMinutes={roundMinutes}
         roundSeconds={roundSeconds}
-        totalHours={totalHours}
-        totalMinutes={totalMinutes}
-        totalSeconds={totalSeconds}
         isPaused={isPaused}
         onTogglePause={togglePause}
       />
       <UserGameBoard
         name={p1.name}
         score={p1.score}
-        isBreaker={currentBreaker === 'p1'}
         onAdd={() => withPauseCheck(() => handleAddScore('p1'))}
         onRemove={() => {
           withPauseCheck(() => removeScore('p1'));
@@ -607,7 +570,6 @@ export function GamePage({}: GamePageProps) {
       <UserGameBoard
         name={p2.name}
         score={p2.score}
-        isBreaker={currentBreaker === 'p2'}
         onAdd={() => withPauseCheck(() => handleAddScore('p2'))}
         onRemove={() => {
           withPauseCheck(() => removeScore('p2'));
@@ -621,12 +583,10 @@ export function GamePage({}: GamePageProps) {
           withPauseCheck(undo);
           triggerHaptic('undo');
         }}
-        onExitConfirm={() => setPause(true)}
-        onFinishRound={() => withPauseCheck(finishCurrentRound)}
-        onFinishSession={handleFinishSessionAndGoHistory}
-        canFinishRound={
-          (currentRoundEvents?.length ?? 0) > 0 && p1.score !== p2.score
-        }
+        onPauseAndExit={handlePauseAndExit}
+        onFinishRound={() => withPauseCheck(() => finishCurrentRound())}
+        onEmptyExit={handleEmptyExit}
+        hasEvents={(currentRoundEvents?.length ?? 0) > 0}
       />
 
       <InfoDrawer
@@ -709,68 +669,16 @@ export function GamePage({}: GamePageProps) {
         }
       />
 
-      <InfoDrawer
+      <ShareSessionDrawer
+        match={lastCompletedRound}
         isOpen={lastCompletedRound !== null}
+        closeLabel="На главную"
+        onUndo={handleUndoCompletedMatch}
         onOpenChange={(open) => {
-          if (!open) dismissRoundModal();
+          if (!open) {
+            handleCloseCompletedMatchDrawer();
+          }
         }}
-        closeBtn={
-          <Button
-            variant="approve"
-            className="w-full"
-            onClick={dismissRoundModal}
-          >
-            Начать следующую партию
-          </Button>
-        }
-        content={
-          lastCompletedRound && (
-            <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <p className="text-xl font-medium">
-                Партия №{lastCompletedRound.roundNumber} завершена!
-              </p>
-              <p className="text-4xl font-bold">
-                {lastCompletedRound.p1.finalScore} :{' '}
-                {lastCompletedRound.p2.finalScore}
-              </p>
-              <p className="text-neutral-foreground/70 text-sm">
-                Победитель партии:{' '}
-                <strong>
-                  {lastCompletedRound.winnerId === 'p1'
-                    ? lastCompletedRound.p1.name
-                    : lastCompletedRound.p2.name}
-                </strong>
-                <br />
-                Общий счет по партиям:{' '}
-                <strong>
-                  {p1.roundsWon} : {p2.roundsWon}
-                </strong>
-              </p>
-              <div className="mt-3 flex w-full flex-col gap-2">
-                <Button
-                  variant="ghost"
-                  className="w-full"
-                  onClick={() => {
-                    undo();
-                    dismissRoundModal();
-                  }}
-                >
-                  Отменить последний шар
-                </Button>
-                <Button
-                  variant="destructive"
-                  className="w-full"
-                  onClick={() => {
-                    dismissRoundModal();
-                    handleFinishSessionAndGoHistory();
-                  }}
-                >
-                  Завершить сессию и открыть итоги
-                </Button>
-              </div>
-            </div>
-          )
-        }
       />
     </div>
   );

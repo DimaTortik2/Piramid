@@ -59,11 +59,11 @@ export function InfoDrawer({
           </div>
 
           {/* Кнопка закрытия */}
-          <div className="pb-safe-or-4 shrink-0 px-6 pt-4">
-            <Drawer.Close asChild>
-              {closeBtn ? closeBtn : <Button variant="neutral">Закрыть</Button>}
-            </Drawer.Close>
-          </div>
+          {closeBtn && (
+            <div className="pb-safe-or-4 shrink-0 px-6 pt-4">
+              <Drawer.Close asChild>{closeBtn}</Drawer.Close>
+            </div>
+          )}
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>
