@@ -124,7 +124,7 @@ export function MainPage() {
       <div className="flex justify-end pr-1">
         <Link
           to="/history"
-          className="bg-background/90 text-foreground hover:bg-background flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium shadow-lg backdrop-blur-lg transition-transform active:scale-95"
+          className="bg-background/37 text-foreground hover:bg-background/60 flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium shadow-lg backdrop-blur-lg transition-transform active:scale-95"
         >
           <ClockCounterClockwiseIcon className="size-5" />
           <span>История</span>

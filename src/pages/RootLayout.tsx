@@ -84,7 +84,7 @@ export const NavBar = ({ className }: { className?: string }) => {
           className
         )}
       >
-        <nav className="bg-background/90 pointer-events-auto mx-auto grid max-w-125 grid-cols-3 items-center rounded-full px-7 py-3.5 shadow-2xl backdrop-blur-lg">
+        <nav className="bg-background/35 pointer-events-auto mx-auto grid max-w-125 grid-cols-3 items-center rounded-full px-7 py-3.5 shadow-2xl backdrop-blur-lg">
           <NavLink
             to="/lectures"
             onClick={ensurePyramidMode}
