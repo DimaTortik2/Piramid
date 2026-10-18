@@ -1,0 +1,184 @@
+import {
+  BilliardSimulator,
+  createPyramidRack,
+} from '@/shared/BilliardSimulator/BilliardSimulator';
+import { TableOfContents } from '@/pages/Lectures/ui/TableOfContents';
+import { LectureSection } from '@/pages/Lectures/ui/LectureSection';
+
+# Справочник по Русскому бильярду
+
+Полное руководство по правилам, технике ударов и тактике игры в пирамиду. Нажмите на нужный пункт в оглавлении для быстрого перехода или поделитесь прямой ссылкой на любую тему.
+
+<TableOfContents title="Содержание руководства" />
+
+<LectureSection
+  id="break-shot"
+  title="Расстановка и начальный разбой"
+  description="Как собирается пирамида и выполняется первый удар"
+>
+В начале партии 15 прицельных шаров плотно выставляются в форме треугольника. Вершина пирамиды устанавливается на заднюю отметку стола, а первый удар наносится битком из зоны «дома».
+
+<BilliardSimulator
+  title="Разбой пирамиды из дома"
+  description="Пример плотного начального удара в лоб вершинному шару с оттяжкой."
+  balls={[
+    { id: 'cue', x: 190, y: 210, isCue: true },
+    ...createPyramidRack({
+      apexX: 520,
+      apexY: 210,
+      rows: 5,
+      ballRadius: 14,
+      direction: 'right',
+    }),
+  ]}
+  shots={[
+    {
+      ballId: 'cue',
+      aimAt: { ballId: 'rack-1', pocket: 'top-right' },
+      power: 11,
+      spin: { top: -0.6 },
+    },
+  ]}
+/>
+</LectureSection>
+
+<LectureSection
+  id="chukhoi-and-svoyak"
+  title="Чужой и свой шар (Свояк)"
+  description="Главное отличие русского бильярда — игра любым шаром"
+>
+В большинстве дисциплин русского бильярда засчитывается как прицельный шар (**чужой**), так и сам биток (**свояк**), если он падает в лузу после соударения с прицельным шаром.
+
+<BilliardSimulator
+  slides={[
+    {
+      label: 'Чужой в угол',
+      title: 'Классический чужой шар',
+      description: 'Прямой удар с остановкой битка на месте соударения (клапштос).',
+      balls: [
+        { id: 'cue', x: 260, y: 260, isCue: true },
+        { id: 'obj-1', x: 520, y: 150, number: 1 },
+      ],
+      shots: [
+        {
+          ballId: 'cue',
+          aimAt: { ballId: 'obj-1', pocket: 'top-right' },
+          power: 7.5,
+          spin: { top: 0 },
+        },
+      ],
+      verdict: {
+        type: 'valid',
+        title: 'Шар засчитан',
+        subtitle: '+1 очко, серия продолжается',
+      },
+    },
+    {
+      label: 'Свояк в угол',
+      title: 'Скат битка (Свояк)',
+      description: 'Тонкая резка под естественным углом ската битка в угловую лузу.',
+      balls: [
+        { id: 'cue', x: 420, y: 260, isCue: true },
+        { id: 'obj-2', x: 590, y: 155, number: 8 },
+      ],
+      shots: [
+        {
+          ballId: 'cue',
+          aimAt: { ballId: 'obj-2', pocket: 'bottom-right', cutOffset: -0.42 },
+          power: 6.2,
+          spin: { top: 0.25 },
+        },
+      ],
+      verdict: {
+        type: 'valid',
+        title: 'Свояк засчитан',
+        subtitle: 'Биток забит от прицельного шара',
+      },
+    },
+  ]}
+/>
+</LectureSection>
+
+<LectureSection
+  id="spin-control"
+  title="Винты: Накат, Оттяжка и Клапштос"
+  description="Управление траекторией битка после соударения"
+>
+Точка соприкосновения наклейки кия с битком определяет его вращение и поведение после контакта с прицельным шаром:
+
+- **Накат** — удар выше центра, биток продолжает движение вперёд за прицельным шаром.
+- **Клапштос** — удар в центр, биток отдаёт всю энергию и останавливается.
+- **Оттяжка** — удар ниже центра, биток возвращается назад после соударения.
+
+<BilliardSimulator
+  slides={[
+    {
+      label: 'Накат',
+      title: 'Верхнее вращение (Накат)',
+      description: 'После удара биток катится вперёд по линии удара.',
+      balls: [
+        { id: 'cue', x: 240, y: 210, isCue: true },
+        { id: 'target', x: 520, y: 210, number: 5 },
+      ],
+      shots: [
+        {
+          ballId: 'cue',
+          aimAt: { ballId: 'target', pocket: 'top-right' },
+          power: 7,
+          spin: { top: 0.85 },
+        },
+      ],
+    },
+    {
+      label: 'Оттяжка',
+      title: 'Нижнее вращение (Оттяжка)',
+      description: 'После удара обратное вращение тянет биток назад.',
+      balls: [
+        { id: 'cue', x: 240, y: 210, isCue: true },
+        { id: 'target', x: 520, y: 210, number: 5 },
+      ],
+      shots: [
+        {
+          ballId: 'cue',
+          aimAt: { ballId: 'target', pocket: 'top-right' },
+          power: 8.2,
+          spin: { top: -0.9 },
+        },
+      ],
+    },
+  ]}
+/>
+</LectureSection>
+
+<LectureSection
+  id="fouls-and-penalties"
+  title="Штрафы и нарушения правил"
+  description="Промах по шару, вылет за борт и отыгрыш"
+>
+Любое нарушение правил приводит к переходу хода и снятию одного шара с полки нарушителя на полку соперника (либо записи штрафного очка):
+
+1. **Промах по всем шарам** — биток не коснулся ни одного прицельного шара.
+2. **Вылет шара за борт** — шар покинул игровую поверхность стола.
+3. **Неправильный отыгрыш** — ни один шар не коснулся борта и не пересёк центральную линию (в зависимости от регламента).
+
+<BilliardSimulator
+  title="Штраф: удар мимо шара"
+  description="Биток проходит мимо прицельного шара, не задев его."
+  balls={[
+    { id: 'cue', x: 220, y: 260, isCue: true },
+    { id: 'target', x: 460, y: 180, number: 12 },
+  ]}
+  shots={[
+    {
+      ballId: 'cue',
+      angle: -8,
+      power: 7,
+    },
+  ]}
+  verdict={{
+    type: 'foul',
+    title: 'Штраф!',
+    subtitle: 'Биток не коснулся ни одного прицельного шара',
+  }}
+/>
+</LectureSection>

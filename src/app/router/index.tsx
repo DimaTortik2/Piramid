@@ -20,32 +20,19 @@ export const router = createBrowserRouter([
       },
       {
         path: 'lectures',
-        children: [
-          {
-            index: true,
-            lazy: async () => {
-              const { LecturesListPage } =
-                await import('@/pages/Lectures/List/LecturesListPage');
-              return { Component: LecturesListPage };
-            },
-          },
-          {
-            path: ':slug',
-            loader: async (args) => {
-              const { lectureLoader } =
-                await import('@/pages/Lectures/Lecture/loader/lectureLoader');
-              return lectureLoader(args);
-            },
-            lazy: async () => {
-              const { LecturePage } =
-                await import('@/pages/Lectures/Lecture/LecturePage');
-              return {
-                Component: LecturePage,
-              };
-            },
-            handle: { hideNavBar: true, pauseBackground: true },
-          },
-        ],
+        loader: async (args) => {
+          const { lectureLoader } =
+            await import('@/pages/Lectures/loader/lectureLoader');
+          return lectureLoader(args);
+        },
+        lazy: async () => {
+          const { LecturePage } =
+            await import('@/pages/Lectures/LecturePage');
+          return {
+            Component: LecturePage,
+          };
+        },
+        handle: { hideNavBar: true, pauseBackground: true },
       },
       {
         path: 'training',
@@ -54,7 +41,6 @@ export const router = createBrowserRouter([
           return { Component: TrainingPage };
         },
       },
-
       {
         path: 'spectator',
         lazy: async () => {

@@ -87,12 +87,12 @@ export const NavBar = ({ className }: { className?: string }) => {
         <nav className="bg-background/35 pointer-events-auto mx-auto grid max-w-125 grid-cols-3 items-center rounded-full px-7 py-3.5 shadow-2xl backdrop-blur-lg">
           <NavLink
             to="/lectures"
-            onClick={ensurePyramidMode}
+            onClick={() => triggerHaptic('tab')}
             className={({ isActive }) =>
               cn(
                 'flex items-center justify-self-start transition-colors',
                 'text-muted-foreground/60 hover:text-foreground',
-                isActive && discipline === 'pyramid' && 'text-foreground'
+                isActive && 'text-foreground'
               )
             }
           >
@@ -241,10 +241,10 @@ export function RootLayout() {
 
   useEffect(() => {
     const isGamePage = location.pathname.match(/^\/game\/.+/);
-    const isLectureSpecificPage = location.pathname.match(/^\/lectures\/.+/);
+    const isLecturePage = location.pathname.startsWith('/lectures');
     const isSpectatorPage = location.pathname.startsWith('/spectator');
 
-    if (!isLectureSpecificPage && !isSpectatorPage && !isGamePage) {
+    if (!isLecturePage && !isSpectatorPage && !isGamePage) {
       zenMode.disableZenMode();
     }
   }, [location.pathname, zenMode.disableZenMode]);
@@ -376,7 +376,7 @@ export function RootLayout() {
       {isMainPage && <DisciplineIndicator />}
 
       <main
-        className="relative z-10 flex flex-1 flex-col overflow-x-hidden"
+        className="relative z-10 flex flex-1 flex-col overflow-x-clip"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
