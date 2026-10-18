@@ -4,7 +4,7 @@ import {
   useOutletContext,
   useSearchParams,
 } from 'react-router-dom';
-import { ArrowUpIcon } from '@phosphor-icons/react';
+import { ArrowFatUpIcon } from '@phosphor-icons/react';
 import { BackButton } from '@/shared/BackButton';
 import type { useZenMode } from '@/shared/hooks/useZenMode';
 import { getMdxContent } from '@/shared/lib/getMdxContent';
@@ -97,18 +97,42 @@ export function LecturePage() {
       <ScrollProgressBar />
 
       <main className="relative mx-auto w-full max-w-125">
-        <div className="sticky top-3 z-40 mb-3 flex items-center justify-between gap-2">
-          <BackButton collapsed={isScrollingDown} title="Назад" />
+        {/* Мобильные элементы управления сверху */}
+        <div className="sticky top-3 z-40 mb-3 flex items-center justify-between gap-2 lg:hidden">
+          <BackButton collapsed title="Назад" />
 
           <button
             type="button"
             onClick={scrollToToc}
-            className="bg-background/20 text-foreground hover:bg-background/30 flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium backdrop-blur-xl transition-transform active:scale-95"
+            aria-label="К оглавлению"
+            className="group inline-flex size-9 items-center justify-center rounded-full bg-foreground/5 text-foreground/85 transition-all duration-300 hover:bg-foreground/10 hover:text-foreground active:scale-95"
           >
-            <ArrowUpIcon size={14} weight="bold" />
-            <span>К оглавлению</span>
+            <ArrowFatUpIcon
+              weight="fill"
+              className="size-4 shrink-0 transition-transform duration-300 group-hover:-translate-y-0.5"
+            />
           </button>
         </div>
+
+        {/* Десктопный сайдбар слева от контента */}
+        <aside className="absolute top-0 right-[calc(100%+2rem)] bottom-0 hidden h-full lg:block">
+          <div className="sticky top-6 z-40 flex flex-col items-end gap-3">
+            <BackButton collapsed title="Назад" />
+
+            <button
+              type="button"
+              onClick={scrollToToc}
+              aria-label="К оглавлению"
+              title="К оглавлению"
+              className="group inline-flex size-9 items-center justify-center rounded-full bg-foreground/5 text-foreground/85 transition-all duration-300 hover:bg-foreground/10 hover:text-foreground active:scale-95"
+            >
+              <ArrowFatUpIcon
+                weight="fill"
+                className="size-4 shrink-0 transition-transform duration-300 group-hover:-translate-y-0.5"
+              />
+            </button>
+          </div>
+        </aside>
 
         <div className="mb-4 px-1">
           <span className="text-reader-accent-foreground text-xs font-semibold tracking-wider uppercase">

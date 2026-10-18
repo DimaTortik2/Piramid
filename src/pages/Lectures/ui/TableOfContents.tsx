@@ -33,12 +33,12 @@ export function TableOfContents({
     <nav
       id="lecture-toc"
       aria-label="Оглавление лекции"
-      className="not-prose bg-background/20 my-4 rounded-3xl p-5 backdrop-blur-xl"
+      className="not-prose my-6 flex flex-col gap-3"
     >
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <div className="text-reader-foreground flex items-center gap-2.5 text-base font-semibold">
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="text-reader-foreground flex items-center gap-2 text-sm font-semibold tracking-wider uppercase">
           <ListNumbersIcon
-            size={22}
+            size={18}
             className="text-reader-accent-foreground"
           />
           <span>{title}</span>
@@ -47,23 +47,13 @@ export function TableOfContents({
         <button
           type="button"
           onClick={allExpanded ? collapseAll : expandAll}
-          className="text-reader-muted-foreground hover:text-reader-foreground flex items-center gap-1.5 rounded-xl bg-white/5 px-3 py-1.5 text-xs font-medium transition-colors"
+          className="text-reader-muted-foreground hover:text-reader-foreground text-xs font-medium transition-colors"
         >
-          {allExpanded ? (
-            <>
-              <ArrowsInLineVerticalIcon size={14} weight="bold" />
-              <span>Свернуть все</span>
-            </>
-          ) : (
-            <>
-              <ArrowsOutLineVerticalIcon size={14} weight="bold" />
-              <span>Развернуть все</span>
-            </>
-          )}
+          {allExpanded ? 'Свернуть все' : 'Развернуть все'}
         </button>
       </div>
 
-      <ol className="flex flex-col gap-1.5">
+      <ol className="flex flex-col gap-1">
         {topics.map((topic, index) => (
           <li key={topic.id}>
             <a
@@ -72,10 +62,10 @@ export function TableOfContents({
                 e.preventDefault();
                 navigateToTopic(topic.id);
               }}
-              className="group flex items-center justify-between gap-3 rounded-2xl px-3 py-3 transition-all hover:bg-white/5"
+              className="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/5"
             >
               <div className="flex min-w-0 items-baseline gap-3">
-                <span className="text-reader-accent-foreground shrink-0 font-mono text-xs font-semibold opacity-80">
+                <span className="text-reader-accent-foreground shrink-0 font-mono text-xs font-semibold opacity-70">
                   {String(index + 1).padStart(2, '0')}.
                 </span>
                 <div className="min-w-0">
@@ -91,7 +81,7 @@ export function TableOfContents({
               </div>
 
               <CaretRightIcon
-                size={15}
+                size={14}
                 weight="bold"
                 className="text-reader-muted-foreground group-hover:text-reader-accent-foreground shrink-0 transition-transform group-hover:translate-x-0.5"
               />

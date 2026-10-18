@@ -30,20 +30,20 @@ export function LectureSection({
       data-section-title={title}
       data-section-desc={description ?? ''}
       className={cn(
-        'bg-background/10 scroll-mt-20 rounded-3xl backdrop-blur-xl transition-all duration-300',
-        isHighlighted && 'ring-reader-accent-foreground/60 ring-2'
+        'scroll-mt-20 transition-all duration-300',
+        isHighlighted && 'bg-white/5 rounded-2xl p-2'
       )}
     >
-      <div className="not-prose flex items-center justify-between gap-3 p-5">
+      <div className="not-prose flex items-center justify-between gap-3 py-3">
         <button
           type="button"
           onClick={() => toggleSection(id)}
           aria-expanded={isOpen}
-          className="flex min-w-0 flex-1 items-center gap-3.5 text-left"
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
           <span
             className={cn(
-              'text-reader-accent-foreground flex size-8 shrink-0 items-center justify-center rounded-xl bg-white/5 transition-transform duration-200',
+              'text-reader-accent-foreground flex size-6 shrink-0 items-center justify-center transition-transform duration-200',
               isOpen && 'rotate-180'
             )}
           >
@@ -67,7 +67,7 @@ export function LectureSection({
           onClick={() => copyTopicLink(id)}
           title="Скопировать ссылку на тему"
           aria-label="Скопировать ссылку на тему"
-          className="text-reader-muted-foreground hover:text-reader-accent-foreground flex size-9 shrink-0 items-center justify-center rounded-2xl bg-white/5 transition-colors hover:bg-white/10"
+          className="text-reader-muted-foreground hover:text-reader-accent-foreground flex size-8 shrink-0 items-center justify-center transition-colors"
         >
           <LinkSimpleIcon size={16} weight="bold" />
         </button>
@@ -80,7 +80,7 @@ export function LectureSection({
         )}
       >
         <div className="overflow-hidden">
-          <div className="px-5 pt-1 pb-6">{children}</div>
+          <div className="pt-2 pb-6">{children}</div>
         </div>
       </div>
     </section>

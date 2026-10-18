@@ -41,7 +41,7 @@ const scrollToElement = (
   }
   highlightTimer = window.setTimeout(() => {
     setHighlighted(null);
-  }, 1800);
+  }, 700);
 };
 
 export const useLectureStore = create<LectureStoreState>((set, get) => ({
