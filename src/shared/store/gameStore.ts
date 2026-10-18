@@ -152,7 +152,7 @@ interface GameStore extends GameStateData {
   ) => void;
   removeScore: (playerId: 'p1' | 'p2') => void;
   applyPenalty: (penalizedPlayerId: 'p1' | 'p2') => void;
-  decrementCurrentStreak: (playerId: 'p1' | 'p2') => void;
+  endCurrentVisit: (playerId: 'p1' | 'p2') => void;
   finishCurrentRound: () => MatchRecord | null;
   dismissRoundModal: () => void;
   deleteMatch: (matchId: string) => void;
@@ -680,26 +680,27 @@ export const useGameStore = create<GameStore>()(
         return validNew.length;
       },
 
-      decrementCurrentStreak: (playerId) =>
+      endCurrentVisit: (playerId) =>
         set((state) => {
           if (state.isPaused) return state;
           const currentEvents = state.currentRoundEvents ?? [];
           const activeStreak = getActivePlayerStreak(currentEvents, playerId);
-          if (activeStreak < 2) return state;
+          if (activeStreak < 1) return state;
 
-          const activeIndices: number[] = [];
+          let lastPotIdx = -1;
           for (let i = currentEvents.length - 1; i >= 0; i--) {
             const ev = currentEvents[i];
-            if (ev.type === 'pot' && ev.playerId === playerId) {
-              if (ev.visitEnded) break;
-              activeIndices.unshift(i);
-            } else {
+            if (
+              ev.type === 'pot' &&
+              ev.playerId === playerId &&
+              !ev.visitEnded
+            ) {
+              lastPotIdx = i;
               break;
             }
           }
 
-          if (activeIndices.length < 2) return state;
-          const targetIdx = activeIndices[0];
+          if (lastPotIdx === -1) return state;
 
           const now = Date.now();
           const roundElapsedMs = computeActiveElapsedMs(state, now);
@@ -717,7 +718,7 @@ export const useGameStore = create<GameStore>()(
           };
 
           const nextRawEvents = currentEvents.map((ev, idx) =>
-            idx === targetIdx ? { ...ev, visitEnded: true } : ev
+            idx === lastPotIdx ? { ...ev, visitEnded: true } : ev
           );
 
           return {

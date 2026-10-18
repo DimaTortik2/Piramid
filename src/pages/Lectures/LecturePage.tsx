@@ -9,7 +9,6 @@ import { BackButton } from '@/shared/BackButton';
 import type { useZenMode } from '@/shared/hooks/useZenMode';
 import { getMdxContent } from '@/shared/lib/getMdxContent';
 import { triggerHaptic } from '@/shared/lib/telegram';
-import { useScroll } from '@/shared/lib/useScroll';
 import { ScrollProgressBar } from '@/shared/ScrollProgressBar';
 import {
   DISCIPLINES,
@@ -34,7 +33,6 @@ export function LecturePage() {
   );
   const [isLoading, setIsLoading] = useState(!loaderData?.MdxComponent);
 
-  const { isScrollingDown } = useScroll();
   const isLecturesZenMode = useSettingsStore(
     (state) => state.isLecturesZenMode
   );

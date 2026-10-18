@@ -36,7 +36,7 @@ const GAME_DATA: {
     title: 'Американка',
     tag: 'Любой шар',
     piramidName: 'free-pyramid',
-    lectureHref: '/lectures/first',
+    lectureHref: '/lectures?discipline=pyramid#chukhoi-and-svoyak',
     icon: CirclesThreePlusIcon,
   },
   {
@@ -60,7 +60,7 @@ const GAME_DATA: {
     title: 'Классика',
     tag: 'До 71 очка',
     piramidName: 'classic-pyramid',
-    lectureHref: '/lectures/first',
+    lectureHref: '/lectures?discipline=pyramid#fouls-and-penalties',
     icon: CrownIcon,
   },
   {
@@ -150,6 +150,7 @@ function PlayerInputPopover({
       </div>
 
       <div
+        data-vaul-no-drag
         className={cn(
           'bg-neutral text-neutral-foreground absolute bottom-full z-50 mb-2 w-full min-w-44 rounded-2xl p-1.5 shadow-[0_12px_36px_rgba(0,0,0,0.55)] transition-all duration-150',
           align === 'left'
@@ -160,7 +161,10 @@ function PlayerInputPopover({
             : 'pointer-events-none translate-y-1.5 scale-95 opacity-0'
         )}
       >
-        <div className="flex max-h-40 flex-col gap-1 overflow-y-auto">
+        <div
+          data-vaul-no-drag
+          className="flex max-h-40 touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain pr-0.5"
+        >
           {savedNames.map((name) => {
             const isSelected =
               value.trim().toLowerCase() === name.toLowerCase();
@@ -168,7 +172,7 @@ function PlayerInputPopover({
               <div
                 key={name}
                 className={cn(
-                  'flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs transition-colors',
+                  'flex shrink-0 items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs transition-colors',
                   isSelected
                     ? 'bg-primary text-primary-foreground font-semibold'
                     : 'hover:bg-neutral-foreground/10'
@@ -176,8 +180,7 @@ function PlayerInputPopover({
               >
                 <button
                   type="button"
-                  onPointerDown={(e) => {
-                    e.preventDefault();
+                  onClick={(e) => {
                     e.stopPropagation();
                     onSelectName(name);
                     setIsOpen(false);
@@ -189,8 +192,7 @@ function PlayerInputPopover({
                 <button
                   type="button"
                   title="Удалить"
-                  onPointerDown={(e) => {
-                    e.preventDefault();
+                  onClick={(e) => {
                     e.stopPropagation();
                     onDeleteName(name);
                   }}
@@ -201,7 +203,7 @@ function PlayerInputPopover({
                       : 'text-destructive hover:opacity-80'
                   )}
                 >
-                  <XIcon weight='bold' className="size-3.5" />
+                  <XIcon weight="bold" className="size-3.5" />
                 </button>
               </div>
             );
@@ -324,7 +326,7 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
 
             <div
               data-no-tab-swipe
-              className="-mx-1 flex gap-2 overflow-x-auto px-1 py-0.5 sm:mx-0 sm:flex-col sm:overflow-visible sm:px-0 pointer-fine:mx-0 pointer-fine:flex-col pointer-fine:overflow-visible pointer-fine:px-0"
+              className="-mx-1 flex snap-x snap-mandatory [scrollbar-width:none] gap-2 overflow-x-auto px-1 py-0.5 [-ms-overflow-style:none] sm:mx-0 sm:flex-col sm:overflow-visible sm:px-0 pointer-fine:mx-0 pointer-fine:flex-col pointer-fine:overflow-visible pointer-fine:px-0 [&::-webkit-scrollbar]:hidden"
             >
               {GAME_DATA.map((d) => {
                 const IconComponent = d.icon;
@@ -336,14 +338,29 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
                     key={d.id}
                     onClick={() => setSelectedPiramidId(d.id)}
                     className={cn(
-                      'flex min-w-[130px] shrink-0 flex-col items-start gap-1.5 rounded-2xl p-3 text-left transition-all sm:min-w-0 sm:w-full sm:flex-row sm:items-center sm:justify-between sm:px-3.5 sm:py-2.5 pointer-fine:min-w-0 pointer-fine:w-full pointer-fine:flex-row pointer-fine:items-center pointer-fine:justify-between pointer-fine:px-3.5 pointer-fine:py-2.5',
+                      // Базовые стили для мобильного вида
+                      'flex shrink-0 snap-start flex-col items-start gap-1.5 rounded-2xl p-3 text-left transition-all',
+
+                      // 🪄 ТА САМАЯ АДАПТИВНОСТЬ:
+                      // По умолчанию (до 400px) ширина 62% (1.5 карточки)
+                      // На экранах от 400px ширина 42% (2.5 карточки)
+                      'w-[62%] min-[400px]:w-[42%]',
+
+                      // Стили для планшетов и десктопов (перестроение в вертикальный список на всю ширину)
+                      'sm:w-full sm:min-w-0 sm:flex-row sm:items-center sm:justify-between sm:px-3.5 sm:py-2.5',
+                      'pointer-fine:w-full pointer-fine:min-w-0 pointer-fine:flex-row pointer-fine:items-center pointer-fine:justify-between pointer-fine:px-3.5 pointer-fine:py-2.5',
+
                       isSelected
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'bg-neutral text-neutral-foreground opacity-80 hover:opacity-100'
                     )}
                   >
                     <div className="flex items-center gap-2.5">
-                      <IconComponent size={20} weight="fill" />
+                      <IconComponent
+                        size={20}
+                        weight="fill"
+                        className="shrink-0"
+                      />
                       <span className="text-sm leading-tight font-semibold">
                         {d.title}
                       </span>

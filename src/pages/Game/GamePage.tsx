@@ -1,5 +1,5 @@
 import { cn } from '@/shared/lib/utils/cn';
-import { type HTMLAttributes, useEffect, useRef, useState } from 'react';
+import { type HTMLAttributes, type SyntheticEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   SignOutIcon,
@@ -7,7 +7,7 @@ import {
   QuestionMarkIcon,
   PlayIcon,
   FireIcon,
-  MinusIcon,
+  CheckIcon,
 } from '@phosphor-icons/react';
 import { Circle } from '@/shared/Circle';
 import { Button } from '@/shared/Button';
@@ -34,6 +34,22 @@ const MODE_TITLES: Record<GameMode, string> = {
   'dynamic-pyramid': 'Невская',
   'classic-pyramid': 'Классика',
   'continuous-free-pyramid': 'С продолжением',
+};
+
+const stopSwipePropagation = (e: SyntheticEvent) => {
+  e.stopPropagation();
+};
+
+const swipeIgnoreProps = {
+  onPointerDown: stopSwipePropagation,
+  onPointerMove: stopSwipePropagation,
+  onPointerUp: stopSwipePropagation,
+  onPointerCancel: stopSwipePropagation,
+  onTouchStart: stopSwipePropagation,
+  onTouchMove: stopSwipePropagation,
+  onTouchEnd: stopSwipePropagation,
+  onMouseDown: stopSwipePropagation,
+  onMouseUp: stopSwipePropagation,
 };
 
 const Ball = ({ scored }: { scored: boolean }) => {
@@ -174,7 +190,7 @@ const UserGameBoard = ({
   onAdd,
   onRemove,
   onPenalty,
-  onDecrementStreak,
+  onEndVisit,
   showNumberOnly = false,
 }: {
   name?: string;
@@ -183,7 +199,7 @@ const UserGameBoard = ({
   onAdd: () => void;
   onRemove: () => void;
   onPenalty?: () => void;
-  onDecrementStreak?: () => void;
+  onEndVisit?: () => void;
   showNumberOnly?: boolean;
 } & HTMLAttributes<HTMLDivElement>) => {
   let firstShelfScore = 0;
@@ -224,32 +240,35 @@ const UserGameBoard = ({
         <div className="flex w-full items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate font-medium">{name}</span>
-            {activeStreak >= 2 && (
+            {activeStreak >= 1 && (
               <button
                 type="button"
-                title="Уменьшить текущую серию"
-                onPointerDown={(e) => e.stopPropagation()}
-                onTouchStart={(e) => e.stopPropagation()}
+                title="Завершить подход (прервать серию)"
+                {...swipeIgnoreProps}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDecrementStreak?.();
+                  onEndVisit?.();
                 }}
-                className="bg-approve/20 text-approve hover:bg-approve/30 flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold transition-all active:scale-95"
+                className="bg-approve/20 text-approve hover:bg-approve/30 flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all active:scale-95"
               >
                 <FireIcon weight="fill" className="size-3.5" />
                 <span>Серия {activeStreak}</span>
-                <MinusIcon weight="bold" className="size-3 opacity-75" />
+                <span className="bg-approve/25 flex size-4 items-center justify-center rounded-full">
+                  <CheckIcon weight="bold" className="size-2.5" />
+                </span>
               </button>
             )}
           </div>
-          <Button
-            onClick={onPenalty}
-            variant="destructive"
-            size="sm"
-            className="w-fit shrink-0"
-          >
-            Штраф
-          </Button>
+          <div {...swipeIgnoreProps} className="shrink-0">
+            <Button
+              onClick={onPenalty}
+              variant="destructive"
+              size="sm"
+              className="w-fit"
+            >
+              Штраф
+            </Button>
+          </div>
         </div>
         <div className="flex flex-1 flex-col justify-center gap-2">
           <Button
@@ -332,7 +351,7 @@ const BottomActions = ({
                   onFinishRound();
                 }}
               >
-                Завершить и сохранить счет
+                Закончить партию
               </Button>
               <Button
                 variant="primary"
@@ -369,11 +388,11 @@ const BottomActions = ({
               </strong>{' '}
               по его полке, чтобы начислить шар!
               <br />
-              Если шары забиты в разных подходах, нажмите на плашку{' '}
+              Когда подход игрока завершился (промах или отыгрыш), нажмите на плашку{' '}
               <strong className="text-reader-accent-foreground">
                 «Серия»
               </strong>
-              , чтобы уменьшить текущую серию.
+              , чтобы зафиксировать и сбросить текущую серию.
               <br />
               <strong className="text-destructive">Ошиблись?</strong>{' '}
               <strong className="text-reader-accent-foreground">
@@ -416,7 +435,7 @@ export function GamePage({}: GamePageProps) {
     addScore,
     removeScore,
     applyPenalty,
-    decrementCurrentStreak,
+    endCurrentVisit,
     finishCurrentRound,
     endGame,
     undo,
@@ -523,9 +542,9 @@ export function GamePage({}: GamePageProps) {
     triggerHaptic('pot');
   };
 
-  const handleDecrementStreak = (playerId: 'p1' | 'p2') => {
+  const handleEndVisit = (playerId: 'p1' | 'p2') => {
     withPauseCheck(() => {
-      decrementCurrentStreak(playerId);
+      endCurrentVisit(playerId);
       triggerHaptic('tab');
     });
   };
@@ -613,7 +632,7 @@ export function GamePage({}: GamePageProps) {
           triggerHaptic('undo');
         }}
         onPenalty={() => withPauseCheck(() => handlePenalty('p1'))}
-        onDecrementStreak={() => handleDecrementStreak('p1')}
+        onEndVisit={() => handleEndVisit('p1')}
         showNumberOnly={showNumberOnly}
       />
       <UserGameBoard
@@ -626,7 +645,7 @@ export function GamePage({}: GamePageProps) {
           triggerHaptic('undo');
         }}
         onPenalty={() => withPauseCheck(() => handlePenalty('p2'))}
-        onDecrementStreak={() => handleDecrementStreak('p2')}
+        onEndVisit={() => handleEndVisit('p2')}
         showNumberOnly={showNumberOnly}
       />
       <BottomActions

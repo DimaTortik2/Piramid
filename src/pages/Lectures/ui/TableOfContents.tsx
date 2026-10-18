@@ -1,7 +1,5 @@
 import { useLayoutEffect } from 'react';
 import {
-  ArrowsInLineVerticalIcon,
-  ArrowsOutLineVerticalIcon,
   CaretRightIcon,
   ListNumbersIcon,
 } from '@phosphor-icons/react';
