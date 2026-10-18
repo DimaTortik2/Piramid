@@ -19,25 +19,16 @@ import { toast } from 'sonner';
 function PlayBallGraphic({ isPressed }: { isPressed: boolean }) {
   return (
     <svg
-      viewBox="0 0 264 218"
+      viewBox="86 3 176 176"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn(
-        'size-56 select-none drop-shadow-2xl transition-transform duration-150 ease-out',
+        'size-[150px] select-none drop-shadow-2xl transition-transform duration-150 ease-out',
         isPressed
           ? 'scale-90'
           : 'group-hover:scale-105 group-active:scale-90'
       )}
     >
-      <ellipse
-        cx="125"
-        cy="142"
-        rx="116"
-        ry="68"
-        transform="rotate(7 125 142)"
-        fill="#07110b"
-        fillOpacity="0.6"
-      />
       <circle cx="174" cy="91" r="88" fill="url(#playBallGrad)" />
       <ellipse cx="192" cy="36" rx="29" ry="16" fill="#FFFFFF" />
       <path
