@@ -1,17 +1,28 @@
 import { ActionCard } from '@/shared/ActionCard';
 import { cn } from '@/shared/lib/utils/cn';
-import { useSettingsStore } from '@/shared/store/useSettingsStore';
+import { adjustHex, isLightColor } from '@/shared/lib/utils/color';
+import {
+  useSettingsStore,
+  resolveSlotColor,
+} from '@/shared/store/useSettingsStore';
 
 interface WelcomeBannerProps {
-  className?: string; // Классы всего блока
-  pyramidClassName?: string; // Классы ТОЛЬКО размера пирамиды (w-40 || w-[200px])
+  className?: string;
+  pyramidClassName?: string;
 }
 
 export function WelcomeBanner({
   className,
   pyramidClassName,
 }: WelcomeBannerProps) {
-   const isDarkBalls = useSettingsStore(state => state.isDarkBalls)
+  const disciplineThemes = useSettingsStore((state) => state.disciplineThemes);
+  const ballColor = resolveSlotColor(disciplineThemes, 'pyramid', 'pyramidBalls');
+  const isLight = isLightColor(ballColor);
+
+  const stopHighlight = adjustHex(ballColor, isLight ? 16 : 32);
+  const stopMid = adjustHex(ballColor, isLight ? -20 : -8);
+  const stopShadow = adjustHex(ballColor, isLight ? -58 : -24);
+
   return (
     <section
       className={cn('relative flex w-full flex-col items-center', className)}
@@ -37,66 +48,44 @@ export function WelcomeBanner({
           />
 
           <defs>
-            {/* 1. Светлый градиент (кремовые шары) */}
             <radialGradient
-              id="ball-volume-light"
+              id="pyramid-ball-volume"
               cx="35%"
               cy="35%"
               r="65%"
               fx="35%"
               fy="35%"
             >
-              <stop offset="40%" stopColor="var(--piramid-ball-main)" />
-              <stop offset="85%" stopColor="var(--piramid-ball-mid)" />
-              <stop offset="100%" stopColor="var(--piramid-ball-shadow)" />
-            </radialGradient>
-
-            {/* 2. Темный градиент (черные полированные шары) */}
-            <radialGradient
-              id="ball-volume-dark"
-              cx="35%"
-              cy="35%"
-              r="65%"
-              fx="35%"
-              fy="35%"
-            >
-              <stop offset="0%" stopColor="#2c2e33" />
-              <stop offset="40%" stopColor="var(--piramid-ball-main-dark)" />
-              <stop offset="70%" stopColor="var(--piramid-ball-mid-dark)" />
-              <stop offset="100%" stopColor="var(--piramid-ball-shadow-dark)" />
+              <stop offset="0%" stopColor={stopHighlight} />
+              <stop offset="45%" stopColor={ballColor} />
+              <stop offset="80%" stopColor={stopMid} />
+              <stop offset="100%" stopColor={stopShadow} />
             </radialGradient>
           </defs>
 
           <g
-            fill={
-              isDarkBalls ? 'url(#ball-volume-dark)' : 'url(#ball-volume-light)'
-            }
-            stroke={isDarkBalls ? 'rgba(255, 255, 255, 0.08)' : undefined}
-            strokeWidth={isDarkBalls ? 0.5 : undefined}
+            fill="url(#pyramid-ball-volume)"
+            stroke={!isLight ? 'rgba(255, 255, 255, 0.08)' : undefined}
+            strokeWidth={!isLight ? 0.5 : undefined}
           >
-            {/* Ряд 5 (нижний — 5 шаров) */}
             <circle cx="66.5" cy="188.5" r="19.5" />
             <circle cx="105.5" cy="188.5" r="19.5" />
             <circle cx="144.5" cy="188.5" r="19.5" />
             <circle cx="183.5" cy="188.5" r="19.5" />
             <circle cx="222.5" cy="188.5" r="19.5" />
 
-            {/* Ряд 4 (4 шара) */}
             <circle cx="83.4854" cy="156.484" r="19.5" />
             <circle cx="122.485" cy="156.484" r="19.5" />
             <circle cx="162.485" cy="156.484" r="19.5" />
             <circle cx="203.485" cy="156.484" r="19.5" />
 
-            {/* Ряд 3 (3 шара) */}
             <circle cx="104.271" cy="123.485" r="19.5" />
             <circle cx="143.271" cy="123.485" r="19.5" />
             <circle cx="183.271" cy="123.485" r="19.5" />
 
-            {/* Ряд 2 (2 шара) */}
             <circle cx="125.056" cy="90.485" r="19.5" />
             <circle cx="164.056" cy="90.485" r="19.5" />
 
-            {/* Ряд 1 (1 шар) */}
             <circle cx="145.841" cy="57.4854" r="19.5" />
           </g>
         </svg>

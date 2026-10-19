@@ -7,8 +7,12 @@ import type { useZenMode } from '@/shared/hooks/useZenMode';
 import { InfoDrawer } from '@/shared/InfoDrawer';
 import { triggerHaptic } from '@/shared/lib/telegram';
 import { cn } from '@/shared/lib/utils/cn';
+import { adjustHex, isLightColor } from '@/shared/lib/utils/color';
 import { useGameStore } from '@/shared/store/gameStore';
-import { useSettingsStore } from '@/shared/store/useSettingsStore';
+import {
+  useSettingsStore,
+  resolveSlotColor,
+} from '@/shared/store/useSettingsStore';
 import {
   ClockCounterClockwiseIcon,
   TrashIcon,
@@ -19,11 +23,17 @@ import { toast } from 'sonner';
 
 function PlayBallGraphic({
   isPressed,
-  isDark,
+  ballColor,
 }: {
   isPressed: boolean;
-  isDark: boolean;
+  ballColor: string;
 }) {
+  const isLight = isLightColor(ballColor);
+  const stopHighlight = adjustHex(ballColor, isLight ? 14 : 28);
+  const stopMid = adjustHex(ballColor, isLight ? -24 : -10);
+  const stopShadow = adjustHex(ballColor, isLight ? -72 : -26);
+  const playTriangleColor = isLight ? '#561C18' : '#F0EBD8';
+
   return (
     <svg
       viewBox="86 3 176 176"
@@ -36,48 +46,32 @@ function PlayBallGraphic({
           : 'group-hover:scale-105 group-active:scale-90'
       )}
     >
-      <circle
-        cx="174"
-        cy="91"
-        r="88"
-        fill={isDark ? 'url(#playBallGradDark)' : 'url(#playBallGradLight)'}
-      />
+      <circle cx="174" cy="91" r="88" fill="url(#playBallGradDynamic)" />
       <ellipse
         cx="192"
         cy="36"
         rx="29"
         ry="16"
         fill="#FFFFFF"
-        fillOpacity={isDark ? 0.22 : 1}
+        fillOpacity={isLight ? 0.85 : 0.22}
       />
       <path
         d="M169 68.5C169 64.8 173.1 62.5 176.2 64.5L209.5 85.8C212.5 87.7 212.5 92.1 209.5 94L176.2 115.3C173.1 117.3 169 115 169 111.3V68.5Z"
-        fill={isDark ? '#F0EBD8' : '#561C18'}
+        fill={playTriangleColor}
       />
       <defs>
         <radialGradient
-          id="playBallGradLight"
+          id="playBallGradDynamic"
           cx="0"
           cy="0"
           r="1"
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(195 65) rotate(135) scale(140)"
         >
-          <stop offset="0.35" stopColor="#F0EBD8" />
-          <stop offset="0.78" stopColor="#D6CFB7" />
-          <stop offset="1" stopColor="#8E8976" />
-        </radialGradient>
-        <radialGradient
-          id="playBallGradDark"
-          cx="0"
-          cy="0"
-          r="1"
-          gradientUnits="userSpaceOnUse"
-          gradientTransform="translate(195 65) rotate(135) scale(140)"
-        >
-          <stop offset="0" stopColor="#2c2e33" />
-          <stop offset="0.5" stopColor="#111215" />
-          <stop offset="1" stopColor="#000000" />
+          <stop offset="0" stopColor={stopHighlight} />
+          <stop offset="0.38" stopColor={ballColor} />
+          <stop offset="0.78" stopColor={stopMid} />
+          <stop offset="1" stopColor={stopShadow} />
         </radialGradient>
       </defs>
     </svg>
@@ -90,8 +84,14 @@ export function MainPage() {
   const [isBallPressed, setIsBallPressed] = useState(false);
 
   const isGameZenMode = useSettingsStore((state) => state.isGameZenMode);
-  const isDarkPlayBall = useSettingsStore((state) => state.isDarkPlayBall);
   const mainPageStyle = useSettingsStore((state) => state.mainPageStyle);
+  const disciplineThemes = useSettingsStore((state) => state.disciplineThemes);
+
+  const playBallColor = resolveSlotColor(
+    disciplineThemes,
+    'pyramid',
+    'playBall'
+  );
 
   const { enableZenMode } = useOutletContext<ReturnType<typeof useZenMode>>();
 
@@ -202,7 +202,7 @@ export function MainPage() {
                 >
                   <PlayBallGraphic
                     isPressed={isBallPressed}
-                    isDark={isDarkPlayBall}
+                    ballColor={playBallColor}
                   />
                 </button>
               }

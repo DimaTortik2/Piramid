@@ -2,7 +2,11 @@ import { useEffect, useRef, type RefObject } from 'react';
 import { useLocation } from 'react-router-dom';
 import Matter from 'matter-js';
 import { cn } from '@/shared/lib/utils/cn';
-import { useSettingsStore } from '@/shared/store/useSettingsStore';
+import { adjustHex, hexToRgba, isLightColor } from '@/shared/lib/utils/color';
+import {
+  useSettingsStore,
+  resolveSlotColor,
+} from '@/shared/store/useSettingsStore';
 import { useDisciplineStore } from '@/shared/store/useDisciplineStore';
 
 const NOISE_SVG = `data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E`;
@@ -27,22 +31,38 @@ const CONFIG = {
   },
 };
 
-const fetchColorFromCSS = (isDark: boolean) => {
-  if (typeof window === 'undefined') return isDark ? '#111215' : '#f0ebd8';
-
-  const varName = isDark ? '--piramid-ball-main-dark' : '--piramid-ball-main';
-  const color = getComputedStyle(document.documentElement)
-    .getPropertyValue(varName)
-    .trim();
-
-  return color || (isDark ? '#111215' : '#f0ebd8');
-};
-
 function TableSideRails({
   railMeasureRef,
+  railColor,
 }: {
   railMeasureRef: RefObject<HTMLDivElement | null>;
+  railColor: string;
 }) {
+  const dotColor = isLightColor(railColor)
+    ? 'rgba(17, 18, 21, 0.35)'
+    : 'rgba(240, 235, 216, 0.32)';
+
+  const pocketColor = isLightColor(railColor)
+    ? 'rgba(10, 12, 10, 0.55)'
+    : '#060706';
+
+  const renderDots = () => (
+    <>
+      <span
+        className="size-1 rounded-full sm:size-1.5"
+        style={{ backgroundColor: dotColor }}
+      />
+      <span
+        className="size-1 rounded-full sm:size-1.5"
+        style={{ backgroundColor: dotColor }}
+      />
+      <span
+        className="size-1 rounded-full sm:size-1.5"
+        style={{ backgroundColor: dotColor }}
+      />
+    </>
+  );
+
   return (
     <div
       aria-hidden="true"
@@ -50,31 +70,67 @@ function TableSideRails({
     >
       <div
         ref={railMeasureRef}
-        className="absolute inset-y-3 left-0 flex w-2.5 flex-col gap-5 sm:inset-y-4 sm:w-3.5 sm:gap-7 lg:w-5"
+        className="absolute inset-y-0 left-0 flex w-2.5 flex-col items-start justify-between sm:w-3.5 lg:w-4.5"
       >
-        <div className="flex flex-1 flex-col items-center justify-evenly rounded-r-xl bg-[#141210] py-8">
-          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
-          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
-          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+        <div
+          style={{ backgroundColor: pocketColor }}
+          className="h-5 w-3.5 shrink-0 rounded-br-full sm:h-6 sm:w-4.5 lg:w-5.5"
+        />
+
+        <div
+          style={{ backgroundColor: railColor }}
+          className="my-1.5 flex w-full flex-1 flex-col items-center justify-evenly rounded-r-xl py-8 transition-colors duration-300"
+        >
+          {renderDots()}
         </div>
-        <div className="flex flex-1 flex-col items-center justify-evenly rounded-r-xl bg-[#141210] py-8">
-          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
-          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
-          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+
+        <div
+          style={{ backgroundColor: pocketColor }}
+          className="h-7 w-3.5 shrink-0 rounded-r-full sm:h-8 sm:w-4.5 lg:w-5.5"
+        />
+
+        <div
+          style={{ backgroundColor: railColor }}
+          className="my-1.5 flex w-full flex-1 flex-col items-center justify-evenly rounded-r-xl py-8 transition-colors duration-300"
+        >
+          {renderDots()}
         </div>
+
+        <div
+          style={{ backgroundColor: pocketColor }}
+          className="h-5 w-3.5 shrink-0 rounded-tr-full sm:h-6 sm:w-4.5 lg:w-5.5"
+        />
       </div>
 
-      <div className="absolute inset-y-3 right-0 flex w-2.5 flex-col gap-5 sm:inset-y-4 sm:w-3.5 sm:gap-7 lg:w-5">
-        <div className="flex flex-1 flex-col items-center justify-evenly rounded-l-xl bg-[#141210] py-8">
-          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
-          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
-          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+      <div className="absolute inset-y-0 right-0 flex w-2.5 flex-col items-end justify-between sm:w-3.5 lg:w-4.5">
+        <div
+          style={{ backgroundColor: pocketColor }}
+          className="h-5 w-3.5 shrink-0 rounded-bl-full sm:h-6 sm:w-4.5 lg:w-5.5"
+        />
+
+        <div
+          style={{ backgroundColor: railColor }}
+          className="my-1.5 flex w-full flex-1 flex-col items-center justify-evenly rounded-l-xl py-8 transition-colors duration-300"
+        >
+          {renderDots()}
         </div>
-        <div className="flex flex-1 flex-col items-center justify-evenly rounded-l-xl bg-[#141210] py-8">
-          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
-          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
-          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+
+        <div
+          style={{ backgroundColor: pocketColor }}
+          className="h-7 w-3.5 shrink-0 rounded-l-full sm:h-8 sm:w-4.5 lg:w-5.5"
+        />
+
+        <div
+          style={{ backgroundColor: railColor }}
+          className="my-1.5 flex w-full flex-1 flex-col items-center justify-evenly rounded-l-xl py-8 transition-colors duration-300"
+        >
+          {renderDots()}
         </div>
+
+        <div
+          style={{ backgroundColor: pocketColor }}
+          className="h-5 w-3.5 shrink-0 rounded-tl-full sm:h-6 sm:w-4.5 lg:w-5.5"
+        />
       </div>
     </div>
   );
@@ -284,23 +340,22 @@ function useBallsSpawner(
   engineRef: RefObject<Matter.Engine | null>,
   isPausedRef: RefObject<boolean | null>,
   railWidthRef: RefObject<number>,
-  isDarkBgBalls: boolean,
+  ballColor: string,
   isBallsDisabled: boolean
 ) {
-  const activeColorRef = useRef(fetchColorFromCSS(isDarkBgBalls));
+  const activeColorRef = useRef(ballColor);
 
   useEffect(() => {
-    const newColor = fetchColorFromCSS(isDarkBgBalls);
-    activeColorRef.current = newColor;
+    activeColorRef.current = ballColor;
 
     if (engineRef.current) {
       engineRef.current.world.bodies.forEach((body) => {
         if (!body.isStatic) {
-          body.render.fillStyle = newColor;
+          body.render.fillStyle = ballColor;
         }
       });
     }
-  }, [isDarkBgBalls, engineRef]);
+  }, [ballColor, engineRef]);
 
   useEffect(() => {
     if (isBallsDisabled || !engineRef.current) return;
@@ -442,15 +497,34 @@ export function BilliardsBackground({
   const railMeasureRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
 
-  const isDarkBgBalls = useSettingsStore((state) => state.isDarkBgBalls);
   const backgroundMode = useSettingsStore((state) => state.backgroundMode);
   const showTableBorders = useSettingsStore((state) => state.showTableBorders);
+  const disciplineThemes = useSettingsStore((state) => state.disciplineThemes);
   const discipline = useDisciplineStore((state) => state.discipline);
+
+  const activeDiscipline = location.pathname === '/' ? discipline : 'pyramid';
+
+  const clothColor = resolveSlotColor(
+    disciplineThemes,
+    activeDiscipline,
+    'cloth'
+  );
+  const railColor = resolveSlotColor(
+    disciplineThemes,
+    activeDiscipline,
+    'rails'
+  );
+  const bgBallColor = resolveSlotColor(
+    disciplineThemes,
+    activeDiscipline,
+    'bgBalls'
+  );
+
+  const clothGlow = hexToRgba(adjustHex(clothColor, 65), 0.05);
+  const bottomVignette = '#070b08';
 
   const isStaticCloth = backgroundMode === 'static';
   const isBallsDisabled = backgroundMode !== 'full';
-
-  const isBlueFelt = location.pathname === '/' && discipline !== 'pyramid';
 
   const { isPausedRef, engineRef, railWidthRef } = useInit(
     sceneRef,
@@ -463,7 +537,7 @@ export function BilliardsBackground({
     engineRef,
     isPausedRef,
     railWidthRef,
-    isDarkBgBalls,
+    bgBallColor,
     isBallsDisabled
   );
 
@@ -493,9 +567,9 @@ export function BilliardsBackground({
       </style>
 
       <div
+        style={{ backgroundColor: clothColor }}
         className={cn(
           'fixed inset-0 -z-10 overflow-hidden transition-colors duration-700 ease-in-out',
-          isBlueFelt ? 'bg-[#0f2d4a]' : 'bg-[#11311c]',
           isPaused && 'invisible opacity-0',
           className
         )}
@@ -523,22 +597,25 @@ export function BilliardsBackground({
         )}
 
         <div
-          className={cn(
-            'pointer-events-none absolute inset-0 transition-opacity duration-700',
-            isBlueFelt
-              ? 'bg-[radial-gradient(ellipse_at_50%_50%,rgba(140,210,255,0.05)_0%,transparent_50%)]'
-              : 'bg-[radial-gradient(ellipse_at_50%_50%,rgba(164,255,188,0.03)_0%,transparent_50%)]'
-          )}
+          style={{
+            background: `radial-gradient(ellipse at 50% 50%, ${clothGlow} 0%, transparent 55%)`,
+          }}
+          className="pointer-events-none absolute inset-0 transition-opacity duration-700"
         />
 
         <div
-          className={cn(
-            'pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-black/45 transition-colors duration-700',
-            isBlueFelt ? 'to-[#07111c]' : 'to-[#0a120c]'
-          )}
+          style={{
+            background: `linear-gradient(to bottom, rgba(0,0,0,0.12), rgba(0,0,0,0.45), ${bottomVignette})`,
+          }}
+          className="pointer-events-none absolute inset-0 transition-colors duration-700"
         />
 
-        {showTableBorders && <TableSideRails railMeasureRef={railMeasureRef} />}
+        {showTableBorders && (
+          <TableSideRails
+            railMeasureRef={railMeasureRef}
+            railColor={railColor}
+          />
+        )}
       </div>
     </>
   );
