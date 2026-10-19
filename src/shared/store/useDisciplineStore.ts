@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export const DISCIPLINES = [
   { id: 'pyramid', label: 'Русский бильярд' },
-  { id: 'upcoming', label: 'Будущий режим' },
+  { id: 'upcoming', label: 'Здесь может быть ваша реклама' },
 ] as const;
 
 export type DisciplineId = (typeof DISCIPLINES)[number]['id'];
