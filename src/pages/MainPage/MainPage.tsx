@@ -110,7 +110,7 @@ export function MainPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-125 flex-1 flex-col justify-between px-3 pt-2 pb-2">
+    <div className="mx-auto flex w-full max-w-125 flex-1 flex-col justify-between px-5 pt-2 pb-2">
       {mainPageStyle === 'classic' ? (
         <div className="flex flex-col gap-3">
           <OldWelcomeBanner pyramidClassName="w-[17.5rem]" />

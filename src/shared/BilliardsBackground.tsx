@@ -43,8 +43,8 @@ function TableSideRails({
     : 'rgba(240, 235, 216, 0.32)';
 
   const pocketColor = isLightColor(railColor)
-    ? 'rgba(10, 12, 10, 0.55)'
-    : '#060706';
+    ? 'rgba(0, 0, 0, 0.82)'
+    : '#050505';
 
   const renderDots = () => (
     <>
@@ -68,69 +68,60 @@ function TableSideRails({
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 z-10"
     >
+      {/* Левый борт */}
       <div
         ref={railMeasureRef}
-        className="absolute inset-y-0 left-0 flex w-2.5 flex-col items-start justify-between sm:w-3.5 lg:w-4.5"
+        className="absolute inset-y-0 left-0 w-2.5 transition-colors duration-300 sm:w-3.5 lg:w-4.5"
+        style={{ backgroundColor: railColor }}
+      >
+        {/* Угловая верхняя (1:1 пропорция) */}
+        <div
+          style={{ backgroundColor: pocketColor }}
+          className="absolute top-0 left-0 h-3.5 w-3.5 rounded-br-full transition-colors duration-300 sm:h-5 sm:w-5 lg:h-6 lg:w-6"
+        />
+        {/* Центральная (2:1 пропорция) */}
+        <div
+          style={{ backgroundColor: pocketColor }}
+          className="absolute top-1/2 left-0 h-7 w-3.5 -translate-y-1/2 rounded-r-full transition-colors duration-300 sm:h-10 sm:w-5 lg:h-12 lg:w-6"
+        />
+        {/* Угловая нижняя (1:1 пропорция) */}
+        <div
+          style={{ backgroundColor: pocketColor }}
+          className="absolute bottom-0 left-0 h-3.5 w-3.5 rounded-tr-full transition-colors duration-300 sm:h-5 sm:w-5 lg:h-6 lg:w-6"
+        />
+
+        <div className="absolute top-[10%] bottom-[55%] left-0 right-0 flex flex-col items-center justify-evenly">
+          {renderDots()}
+        </div>
+        <div className="absolute top-[55%] bottom-[10%] left-0 right-0 flex flex-col items-center justify-evenly">
+          {renderDots()}
+        </div>
+      </div>
+
+      {/* Правый борт */}
+      <div
+        className="absolute inset-y-0 right-0 w-2.5 transition-colors duration-300 sm:w-3.5 lg:w-4.5"
+        style={{ backgroundColor: railColor }}
       >
         <div
           style={{ backgroundColor: pocketColor }}
-          className="h-5 w-3.5 shrink-0 rounded-br-full sm:h-6 sm:w-4.5 lg:w-5.5"
+          className="absolute top-0 right-0 h-3.5 w-3.5 rounded-bl-full transition-colors duration-300 sm:h-5 sm:w-5 lg:h-6 lg:w-6"
+        />
+        <div
+          style={{ backgroundColor: pocketColor }}
+          className="absolute top-1/2 right-0 h-7 w-3.5 -translate-y-1/2 rounded-l-full transition-colors duration-300 sm:h-10 sm:w-5 lg:h-12 lg:w-6"
+        />
+        <div
+          style={{ backgroundColor: pocketColor }}
+          className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-tl-full transition-colors duration-300 sm:h-5 sm:w-5 lg:h-6 lg:w-6"
         />
 
-        <div
-          style={{ backgroundColor: railColor }}
-          className="my-1.5 flex w-full flex-1 flex-col items-center justify-evenly rounded-r-xl py-8 transition-colors duration-300"
-        >
+        <div className="absolute top-[10%] bottom-[55%] left-0 right-0 flex flex-col items-center justify-evenly">
           {renderDots()}
         </div>
-
-        <div
-          style={{ backgroundColor: pocketColor }}
-          className="h-7 w-3.5 shrink-0 rounded-r-full sm:h-8 sm:w-4.5 lg:w-5.5"
-        />
-
-        <div
-          style={{ backgroundColor: railColor }}
-          className="my-1.5 flex w-full flex-1 flex-col items-center justify-evenly rounded-r-xl py-8 transition-colors duration-300"
-        >
+        <div className="absolute top-[55%] bottom-[10%] left-0 right-0 flex flex-col items-center justify-evenly">
           {renderDots()}
         </div>
-
-        <div
-          style={{ backgroundColor: pocketColor }}
-          className="h-5 w-3.5 shrink-0 rounded-tr-full sm:h-6 sm:w-4.5 lg:w-5.5"
-        />
-      </div>
-
-      <div className="absolute inset-y-0 right-0 flex w-2.5 flex-col items-end justify-between sm:w-3.5 lg:w-4.5">
-        <div
-          style={{ backgroundColor: pocketColor }}
-          className="h-5 w-3.5 shrink-0 rounded-bl-full sm:h-6 sm:w-4.5 lg:w-5.5"
-        />
-
-        <div
-          style={{ backgroundColor: railColor }}
-          className="my-1.5 flex w-full flex-1 flex-col items-center justify-evenly rounded-l-xl py-8 transition-colors duration-300"
-        >
-          {renderDots()}
-        </div>
-
-        <div
-          style={{ backgroundColor: pocketColor }}
-          className="h-7 w-3.5 shrink-0 rounded-l-full sm:h-8 sm:w-4.5 lg:w-5.5"
-        />
-
-        <div
-          style={{ backgroundColor: railColor }}
-          className="my-1.5 flex w-full flex-1 flex-col items-center justify-evenly rounded-l-xl py-8 transition-colors duration-300"
-        >
-          {renderDots()}
-        </div>
-
-        <div
-          style={{ backgroundColor: pocketColor }}
-          className="h-5 w-3.5 shrink-0 rounded-tl-full sm:h-6 sm:w-4.5 lg:w-5.5"
-        />
       </div>
     </div>
   );
