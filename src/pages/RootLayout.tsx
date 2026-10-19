@@ -55,7 +55,7 @@ function DisciplineIndicator() {
             className={cn(
               'h-4 rounded-full transition-all duration-300',
               isActive
-                ? 'w-12 bg-white shadow-sm'
+                ? 'w-12 bg-white'
                 : 'w-4 bg-white/40 hover:bg-white/60'
             )}
           />
@@ -84,7 +84,7 @@ export const NavBar = ({ className }: { className?: string }) => {
           className
         )}
       >
-        <nav className="bg-background/35 pointer-events-auto mx-auto grid max-w-125 grid-cols-3 items-center rounded-full px-7 py-3.5 shadow-2xl backdrop-blur-lg">
+        <nav className="bg-background/35 pointer-events-auto mx-auto grid max-w-125 grid-cols-3 items-center rounded-full px-7 py-3.5 backdrop-blur-lg">
           <NavLink
             to="/lectures"
             onClick={() => triggerHaptic('tab')}

@@ -1,4 +1,5 @@
 import { WelcomeBanner } from '@/pages/MainPage/ui/WelcomeBanner';
+import { WelcomeBanner as OldWelcomeBanner } from '@/pages/MainPage/ui/OldWelcomeBanner';
 import { ActionCard } from '@/shared/ActionCard';
 import { Button } from '@/shared/Button';
 import { ChooseGameDrawer } from '@/shared/ChooseGameDrawer';
@@ -16,28 +17,46 @@ import { useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { toast } from 'sonner';
 
-function PlayBallGraphic({ isPressed }: { isPressed: boolean }) {
+function PlayBallGraphic({
+  isPressed,
+  isDark,
+}: {
+  isPressed: boolean;
+  isDark: boolean;
+}) {
   return (
     <svg
       viewBox="86 3 176 176"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn(
-        'size-[150px] select-none drop-shadow-2xl transition-transform duration-150 ease-out',
+        'size-[150px] select-none transition-transform duration-150 ease-out',
         isPressed
           ? 'scale-90'
           : 'group-hover:scale-105 group-active:scale-90'
       )}
     >
-      <circle cx="174" cy="91" r="88" fill="url(#playBallGrad)" />
-      <ellipse cx="192" cy="36" rx="29" ry="16" fill="#FFFFFF" />
+      <circle
+        cx="174"
+        cy="91"
+        r="88"
+        fill={isDark ? 'url(#playBallGradDark)' : 'url(#playBallGradLight)'}
+      />
+      <ellipse
+        cx="192"
+        cy="36"
+        rx="29"
+        ry="16"
+        fill="#FFFFFF"
+        fillOpacity={isDark ? 0.22 : 1}
+      />
       <path
         d="M169 68.5C169 64.8 173.1 62.5 176.2 64.5L209.5 85.8C212.5 87.7 212.5 92.1 209.5 94L176.2 115.3C173.1 117.3 169 115 169 111.3V68.5Z"
-        fill="#561C18"
+        fill={isDark ? '#F0EBD8' : '#561C18'}
       />
       <defs>
         <radialGradient
-          id="playBallGrad"
+          id="playBallGradLight"
           cx="0"
           cy="0"
           r="1"
@@ -47,6 +66,18 @@ function PlayBallGraphic({ isPressed }: { isPressed: boolean }) {
           <stop offset="0.35" stopColor="#F0EBD8" />
           <stop offset="0.78" stopColor="#D6CFB7" />
           <stop offset="1" stopColor="#8E8976" />
+        </radialGradient>
+        <radialGradient
+          id="playBallGradDark"
+          cx="0"
+          cy="0"
+          r="1"
+          gradientUnits="userSpaceOnUse"
+          gradientTransform="translate(195 65) rotate(135) scale(140)"
+        >
+          <stop offset="0" stopColor="#2c2e33" />
+          <stop offset="0.5" stopColor="#111215" />
+          <stop offset="1" stopColor="#000000" />
         </radialGradient>
       </defs>
     </svg>
@@ -59,6 +90,9 @@ export function MainPage() {
   const [isBallPressed, setIsBallPressed] = useState(false);
 
   const isGameZenMode = useSettingsStore((state) => state.isGameZenMode);
+  const isDarkPlayBall = useSettingsStore((state) => state.isDarkPlayBall);
+  const mainPageStyle = useSettingsStore((state) => state.mainPageStyle);
+
   const { enableZenMode } = useOutletContext<ReturnType<typeof useZenMode>>();
 
   const handleGameStart = () => {
@@ -76,60 +110,116 @@ export function MainPage() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-125 flex-1 flex-col justify-between px-2 pt-2 pb-2">
-      <div className="flex flex-col gap-3">
-        <WelcomeBanner />
+    <div className="mx-auto flex w-full max-w-125 flex-1 flex-col justify-between px-3 pt-2 pb-2">
+      {mainPageStyle === 'classic' ? (
+        <div className="flex flex-col gap-3">
+          <OldWelcomeBanner pyramidClassName="w-[17.5rem]" />
 
-        {isActiveGame && (
-          <ActionCard
-            title="Текущая партия"
-            desc="Вы не закончили матч."
-            actions={
-              <Link className="w-full" to={`/game/${mode}`}>
-                <Button
-                  onClick={handleGameStart}
-                  className="flex w-full items-center justify-center gap-2"
+          {isActiveGame && (
+            <ActionCard
+              title="Текущая партия"
+              desc="Вы не закончили матч."
+              actions={
+                <Link className="w-full" to={`/game/${mode}`}>
+                  <Button
+                    onClick={handleGameStart}
+                    className="flex w-full items-center justify-center gap-2"
+                  >
+                    Вернуться в игру
+                  </Button>
+                </Link>
+              }
+              headerAddon={
+                <button
+                  onClick={() => setIsDeleteDrawerOpen(true)}
+                  className="text-destructive transition-opacity hover:opacity-70"
                 >
-                  Вернуться в игру
-                </Button>
-              </Link>
-            }
-            headerAddon={
-              <button
-                onClick={() => setIsDeleteDrawerOpen(true)}
-                className="text-destructive transition-opacity hover:opacity-70"
-              >
-                <TrashIcon className="size-6" />
-              </button>
+                  <TrashIcon className="size-6" />
+                </button>
+              }
+            />
+          )}
+
+          <ActionCard
+            title="Дисплей для матча"
+            desc="Вы можете сыграть, а мы будем вам помогать"
+            actions={
+              <ChooseGameDrawer
+                trigger={<Button className="w-full">Играть</Button>}
+              />
             }
           />
-        )}
-      </div>
 
-      <div className="my-auto flex items-center justify-center py-4">
-        <ChooseGameDrawer
-          trigger={
-            <button
-              type="button"
-              aria-label="Новая игра"
-              onPointerDown={triggerBallPress}
-              className="group relative flex items-center justify-center rounded-full focus:outline-none"
+          <div className="flex justify-start">
+            <Link
+              to="/history"
+              className="bg-background/80 text-foreground hover:bg-background flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium backdrop-blur-lg transition-transform active:scale-95"
             >
-              <PlayBallGraphic isPressed={isBallPressed} />
-            </button>
-          }
-        />
-      </div>
+              <ClockCounterClockwiseIcon className="size-5" />
+              <span>История</span>
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-3">
+            <WelcomeBanner />
 
-      <div className="flex justify-end pr-1">
-        <Link
-          to="/history"
-          className="bg-background/37 text-foreground hover:bg-background/60 flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium shadow-lg backdrop-blur-lg transition-transform active:scale-95"
-        >
-          <ClockCounterClockwiseIcon className="size-5" />
-          <span>История</span>
-        </Link>
-      </div>
+            {isActiveGame && (
+              <ActionCard
+                title="Текущая партия"
+                desc="Вы не закончили матч."
+                actions={
+                  <Link className="w-full" to={`/game/${mode}`}>
+                    <Button
+                      onClick={handleGameStart}
+                      className="flex w-full items-center justify-center gap-2"
+                    >
+                      Вернуться в игру
+                    </Button>
+                  </Link>
+                }
+                headerAddon={
+                  <button
+                    onClick={() => setIsDeleteDrawerOpen(true)}
+                    className="text-destructive transition-opacity hover:opacity-70"
+                  >
+                    <TrashIcon className="size-6" />
+                  </button>
+                }
+              />
+            )}
+          </div>
+
+          <div className="flex flex-1 items-center justify-center py-4">
+            <ChooseGameDrawer
+              trigger={
+                <button
+                  type="button"
+                  aria-label="Новая игра"
+                  onPointerDown={triggerBallPress}
+                  className="group relative flex items-center justify-center rounded-full focus:outline-none"
+                >
+                  <PlayBallGraphic
+                    isPressed={isBallPressed}
+                    isDark={isDarkPlayBall}
+                  />
+                </button>
+              }
+            />
+          </div>
+
+          <div className="flex justify-end pr-1">
+            <Link
+              to="/history"
+              className="bg-background/37 text-foreground hover:bg-background/60 flex items-center gap-2 rounded-full px-5 py-3 text-sm font-medium backdrop-blur-lg transition-transform active:scale-95"
+            >
+              <ClockCounterClockwiseIcon className="size-5" />
+              <span>История</span>
+            </Link>
+          </div>
+        </>
+      )}
 
       <InfoDrawer
         isOpen={isDeleteDrawerOpen}

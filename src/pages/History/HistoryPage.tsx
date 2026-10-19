@@ -18,6 +18,7 @@ import {
   ArrowsLeftRightIcon,
   ArrowUpIcon,
   CaretDownIcon,
+  ClockIcon,
   CopyIcon,
   CrownIcon,
   DownloadSimpleIcon,
@@ -211,43 +212,26 @@ function MatchAccordionItem({
   });
 
   return (
-    <div className="bg-background/80 text-foreground relative rounded-2xl p-3 backdrop-blur-lg">
+    <div className="bg-background/80 text-foreground relative rounded-2xl px-4 py-3 backdrop-blur-lg">
       <div
         onClick={() => setExpanded((prev) => !prev)}
-        className="bg-foreground/5 text-foreground hover:bg-foreground/10 flex cursor-pointer flex-col gap-2 rounded-2xl px-4 py-3 transition-colors"
+        className="flex cursor-pointer flex-col gap-2"
       >
-        <div className="flex items-center justify-between gap-2 text-[11px] opacity-60">
-          <span className="truncate">{MODE_LABELS[match.mode]}</span>
-          <span className="shrink-0">{dateFormatted}</span>
-        </div>
-
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-1.5">
-            {match.winnerId === 'p1' && (
-              <CrownIcon weight="fill" className="text-gold size-4 shrink-0" />
-            )}
-            <span className="truncate text-sm font-bold sm:text-base">
-              {match.p1.name}
+        <div className="flex items-center justify-between gap-2 text-[11px]">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 opacity-60">
+            <span className="truncate font-medium">
+              {MODE_LABELS[match.mode]}
+            </span>
+            <span>•</span>
+            <span className="shrink-0">{dateFormatted}</span>
+            <span>•</span>
+            <span className="inline-flex shrink-0 items-center gap-1">
+              <ClockIcon className="size-3" />
+              {formatTime(match.durationMs)}
             </span>
           </div>
 
-          <span className="shrink-0 px-2.5 py-0.5 text-sm font-extrabold whitespace-nowrap">
-            {match.p1.finalScore} : {match.p2.finalScore}
-          </span>
-
-          <div className="flex min-w-0 flex-1 items-center justify-end">
-            <span className="truncate text-right text-sm font-bold opacity-85 sm:text-base">
-              {match.p2.name}
-            </span>
-          </div>
-        </div>
-
-        <div className="border-foreground/10 flex items-center justify-between border-t pt-2">
-          <span className="text-[11px] opacity-60">
-            Время партии: {formatTime(match.durationMs)}
-          </span>
-
-          <div className="flex items-center gap-1">
+          <div className="-mr-1.5 flex shrink-0 items-center gap-0.5">
             <button
               type="button"
               title="Поделиться"
@@ -255,9 +239,9 @@ function MatchAccordionItem({
                 e.stopPropagation();
                 onShare(match);
               }}
-              className="hover:bg-foreground/10 flex size-8 items-center justify-center rounded-full transition-colors"
+              className="hover:bg-foreground/10 flex size-7 items-center justify-center rounded-full transition-colors"
             >
-              <ShareNetworkIcon className="size-4" />
+              <ShareNetworkIcon className="size-4 opacity-75" />
             </button>
 
             <button
@@ -267,7 +251,7 @@ function MatchAccordionItem({
                 e.stopPropagation();
                 onRequestDelete(match);
               }}
-              className="text-destructive hover:bg-destructive/15 flex size-8 items-center justify-center rounded-full transition-colors"
+              className="text-destructive hover:bg-destructive/15 flex size-7 items-center justify-center rounded-full transition-colors"
             >
               <TrashIcon className="size-4" />
             </button>
@@ -279,21 +263,42 @@ function MatchAccordionItem({
                 e.stopPropagation();
                 setExpanded((prev) => !prev);
               }}
-              className="hover:bg-foreground/10 flex size-8 items-center justify-center rounded-full transition-colors"
+              className="hover:bg-foreground/10 flex size-7 items-center justify-center rounded-full transition-colors"
             >
               <CaretDownIcon
                 className={cn(
-                  'size-4 transition-transform duration-200',
+                  'size-4 opacity-75 transition-transform duration-200',
                   expanded && 'rotate-180'
                 )}
               />
             </button>
           </div>
         </div>
+
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            {match.winnerId === 'p1' && (
+              <CrownIcon weight="fill" className="text-gold size-4 shrink-0" />
+            )}
+            <span className="truncate text-sm font-bold sm:text-base">
+              {match.p1.name}
+            </span>
+          </div>
+
+          <span className="bg-foreground/8 shrink-0 rounded-full px-3 py-0.5 text-sm font-extrabold whitespace-nowrap">
+            {match.p1.finalScore} : {match.p2.finalScore}
+          </span>
+
+          <div className="flex min-w-0 flex-1 items-center justify-end">
+            <span className="truncate text-right text-sm font-bold opacity-85 sm:text-base">
+              {match.p2.name}
+            </span>
+          </div>
+        </div>
       </div>
 
       {expanded && (
-        <div className="mt-3 flex flex-col gap-4 px-1 pt-2">
+        <div className="border-foreground/10 mt-3 flex flex-col gap-4 border-t pt-3">
           <div className="flex flex-col gap-2.5">
             <StatComparisonRow
               label="Забито с кия"

@@ -13,7 +13,7 @@ const CONFIG = {
   DRIFT_MS: 4000,
   BALL_RADIUS: 20,
   PYRAMID_CHANCE: 0.03,
-  WALL_THICKNESS: 50,
+  WALL_THICKNESS: 60,
   WALL_HEIGHT: 10000,
   PYRAMID_START_Y: -160,
   CUE_BALL_START_Y: -50,
@@ -38,35 +38,94 @@ const fetchColorFromCSS = (isDark: boolean) => {
   return color || (isDark ? '#111215' : '#f0ebd8');
 };
 
+function TableSideRails({
+  railMeasureRef,
+}: {
+  railMeasureRef: RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 z-10"
+    >
+      <div
+        ref={railMeasureRef}
+        className="absolute inset-y-3 left-0 flex w-2.5 flex-col gap-5 sm:inset-y-4 sm:w-3.5 sm:gap-7 lg:w-5"
+      >
+        <div className="flex flex-1 flex-col items-center justify-evenly rounded-r-xl bg-[#141210] py-8">
+          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-evenly rounded-r-xl bg-[#141210] py-8">
+          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+        </div>
+      </div>
+
+      <div className="absolute inset-y-3 right-0 flex w-2.5 flex-col gap-5 sm:inset-y-4 sm:w-3.5 sm:gap-7 lg:w-5">
+        <div className="flex flex-1 flex-col items-center justify-evenly rounded-l-xl bg-[#141210] py-8">
+          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-evenly rounded-l-xl bg-[#141210] py-8">
+          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+          <span className="size-1 rounded-full bg-[#f0ebd8]/35 sm:size-1.5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function useInit<T extends HTMLElement = HTMLElement>(
   sceneRef: RefObject<T | null>,
+  railMeasureRef: RefObject<HTMLDivElement | null>,
   isPaused: boolean,
-  isDisabled: boolean
+  isBallsDisabled: boolean,
+  showTableBorders: boolean
 ): {
   isPausedRef: RefObject<boolean | null>;
   engineRef: RefObject<Matter.Engine | null>;
+  railWidthRef: RefObject<number>;
 } {
   const isPausedRef = useRef(isPaused);
   isPausedRef.current = isPaused;
   const engineRef = useRef<Matter.Engine | null>(null);
   const runnerRef = useRef<Matter.Runner | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
+  const railWidthRef = useRef(0);
 
   useEffect(() => {
-    if (!sceneRef.current || isDisabled) return;
+    if (!sceneRef.current || isBallsDisabled) return;
 
     const { Engine, Render, Runner, Bodies, World, Body, Events } = Matter;
+
+    const container = sceneRef.current;
+    const getBounds = () => ({
+      width: container.clientWidth || window.innerWidth,
+      height: container.clientHeight || window.innerHeight,
+      rail:
+        showTableBorders && railMeasureRef.current
+          ? railMeasureRef.current.getBoundingClientRect().width
+          : 0,
+    });
+
+    const initial = getBounds();
+    railWidthRef.current = initial.rail;
 
     const engine = Engine.create();
     engineRef.current = engine;
     engine.gravity.y = 0;
 
     const render = Render.create({
-      element: sceneRef.current,
+      element: container,
       engine: engine,
       options: {
-        width: window.innerWidth,
-        height: window.innerHeight,
+        width: initial.width,
+        height: initial.height,
         wireframes: false,
         background: 'transparent',
         pixelRatio: Math.min(window.devicePixelRatio || 1, 1.75),
@@ -79,21 +138,23 @@ function useInit<T extends HTMLElement = HTMLElement>(
     }
 
     const leftWall = Bodies.rectangle(
-      -CONFIG.WALL_THICKNESS / 2,
-      window.innerHeight / 2,
+      initial.rail - CONFIG.WALL_THICKNESS / 2,
+      initial.height / 2,
       CONFIG.WALL_THICKNESS,
       CONFIG.WALL_HEIGHT,
       {
         isStatic: true,
+        render: { visible: false },
       }
     );
     const rightWall = Bodies.rectangle(
-      window.innerWidth + CONFIG.WALL_THICKNESS / 2,
-      window.innerHeight / 2,
+      initial.width - initial.rail + CONFIG.WALL_THICKNESS / 2,
+      initial.height / 2,
       CONFIG.WALL_THICKNESS,
       CONFIG.WALL_HEIGHT,
       {
         isStatic: true,
+        render: { visible: false },
       }
     );
 
@@ -120,13 +181,14 @@ function useInit<T extends HTMLElement = HTMLElement>(
 
       const safeDelta = Math.min(delta, 100);
       const driftY = (CONFIG.DRIFT_PX / CONFIG.DRIFT_MS) * safeDelta;
+      const maxY = (container.clientHeight || window.innerHeight) + 100;
 
       const bodies = engine.world.bodies;
       for (let i = bodies.length - 1; i >= 0; i--) {
         const body = bodies[i];
         if (!body.isStatic) {
           Body.translate(body, { x: 0, y: driftY });
-          if (body.position.y > window.innerHeight + 100) {
+          if (body.position.y > maxY) {
             World.remove(engine.world, body);
           }
         }
@@ -135,26 +197,52 @@ function useInit<T extends HTMLElement = HTMLElement>(
 
     Events.on(engine, 'beforeUpdate', handleBeforeUpdate);
 
-    const handleResize = () => {
-      const newWidth = window.innerWidth;
-      const newHeight = window.innerHeight;
+    const syncSizeAndWalls = () => {
+      const { width, height, rail } = getBounds();
+      railWidthRef.current = rail;
 
-      Render.setSize(render, newWidth, newHeight);
-
-      Body.setPosition(rightWall, {
-        x: newWidth + CONFIG.WALL_THICKNESS / 2,
-        y: newHeight / 2,
-      });
+      Render.setSize(render, width, height);
+      if (render.canvas) {
+        render.canvas.style.width = '100%';
+        render.canvas.style.height = '100%';
+      }
 
       Body.setPosition(leftWall, {
-        x: -CONFIG.WALL_THICKNESS / 2,
-        y: newHeight / 2,
+        x: rail - CONFIG.WALL_THICKNESS / 2,
+        y: height / 2,
       });
+
+      Body.setPosition(rightWall, {
+        x: width - rail + CONFIG.WALL_THICKNESS / 2,
+        y: height / 2,
+      });
+
+      const minX = rail + CONFIG.BALL_RADIUS;
+      const maxX = width - rail - CONFIG.BALL_RADIUS;
+      if (maxX > minX) {
+        engine.world.bodies.forEach((body) => {
+          if (!body.isStatic) {
+            if (body.position.x < minX) {
+              Body.setPosition(body, { x: minX, y: body.position.y });
+            } else if (body.position.x > maxX) {
+              Body.setPosition(body, { x: maxX, y: body.position.y });
+            }
+          }
+        });
+      }
     };
 
-    window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(syncSizeAndWalls);
+    resizeObserver.observe(container);
+    if (railMeasureRef.current) {
+      resizeObserver.observe(railMeasureRef.current);
+    }
+
+    window.addEventListener('resize', syncSizeAndWalls);
 
     return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', syncSizeAndWalls);
       Events.off(engine, 'beforeUpdate', handleBeforeUpdate);
       Render.stop(render);
       Runner.stop(runner);
@@ -162,16 +250,15 @@ function useInit<T extends HTMLElement = HTMLElement>(
         render.canvas.remove();
       }
       Engine.clear(engine);
-      window.removeEventListener('resize', handleResize);
       engineRef.current = null;
       renderRef.current = null;
       runnerRef.current = null;
     };
-  }, [isDisabled, sceneRef]);
+  }, [isBallsDisabled, showTableBorders, sceneRef, railMeasureRef]);
 
   useEffect(() => {
     if (
-      isDisabled ||
+      isBallsDisabled ||
       !runnerRef.current ||
       !renderRef.current ||
       !engineRef.current
@@ -188,21 +275,22 @@ function useInit<T extends HTMLElement = HTMLElement>(
       Matter.Runner.run(runnerRef.current, engineRef.current);
       Matter.Render.run(renderRef.current);
     }
-  }, [isPaused, isDisabled]);
+  }, [isPaused, isBallsDisabled]);
 
-  return { isPausedRef, engineRef };
+  return { isPausedRef, engineRef, railWidthRef };
 }
 
 function useBallsSpawner(
   engineRef: RefObject<Matter.Engine | null>,
   isPausedRef: RefObject<boolean | null>,
-  isDarkBalls: boolean,
-  isDisabled: boolean
+  railWidthRef: RefObject<number>,
+  isDarkBgBalls: boolean,
+  isBallsDisabled: boolean
 ) {
-  const activeColorRef = useRef(fetchColorFromCSS(isDarkBalls));
+  const activeColorRef = useRef(fetchColorFromCSS(isDarkBgBalls));
 
   useEffect(() => {
-    const newColor = fetchColorFromCSS(isDarkBalls);
+    const newColor = fetchColorFromCSS(isDarkBgBalls);
     activeColorRef.current = newColor;
 
     if (engineRef.current) {
@@ -212,10 +300,10 @@ function useBallsSpawner(
         }
       });
     }
-  }, [isDarkBalls, engineRef]);
+  }, [isDarkBgBalls, engineRef]);
 
   useEffect(() => {
-    if (isDisabled || !engineRef.current) return;
+    if (isBallsDisabled || !engineRef.current) return;
 
     const activeTimeouts = new Set<ReturnType<typeof setTimeout>>();
     const runWithTimeout = (callback: () => void, delay: number) => {
@@ -239,9 +327,9 @@ function useBallsSpawner(
           const r = CONFIG.BALL_RADIUS;
           const d = r * 2.05;
 
-          const margin = 150;
-          const startX =
-            Math.random() * (window.innerWidth - margin * 2) + margin;
+          const margin = Math.max(120, railWidthRef.current + 110);
+          const availWidth = Math.max(40, window.innerWidth - margin * 2);
+          const startX = Math.random() * availWidth + margin;
           const startY = CONFIG.PYRAMID_START_Y;
 
           const angle = (Math.random() - 0.5) * (Math.PI / 6);
@@ -306,8 +394,15 @@ function useBallsSpawner(
           return;
         }
 
-        const randomX = Math.random() * (window.innerWidth - 100) + 50;
-        const newBall = Bodies.circle(randomX, -50, 20, currentBallOptions);
+        const railPad = railWidthRef.current + CONFIG.BALL_RADIUS + 6;
+        const spawnSpan = Math.max(20, window.innerWidth - railPad * 2);
+        const randomX = Math.random() * spawnSpan + railPad;
+        const newBall = Bodies.circle(
+          randomX,
+          -50,
+          CONFIG.BALL_RADIUS,
+          currentBallOptions
+        );
 
         World.add(engineRef.current.world, newBall);
 
@@ -333,7 +428,7 @@ function useBallsSpawner(
     return () => {
       activeTimeouts.forEach(clearTimeout);
     };
-  }, [isDisabled, engineRef, isPausedRef]);
+  }, [isBallsDisabled, engineRef, isPausedRef, railWidthRef]);
 }
 
 export function BilliardsBackground({
@@ -344,26 +439,32 @@ export function BilliardsBackground({
   isPaused: boolean;
 }) {
   const sceneRef = useRef<HTMLDivElement>(null);
+  const railMeasureRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
 
-  const isDarkBalls = useSettingsStore((state) => state.isDarkBalls);
-  const disableDynamicBackground = useSettingsStore(
-    (state) => state.disableDynamicBackground
-  );
+  const isDarkBgBalls = useSettingsStore((state) => state.isDarkBgBalls);
+  const backgroundMode = useSettingsStore((state) => state.backgroundMode);
+  const showTableBorders = useSettingsStore((state) => state.showTableBorders);
   const discipline = useDisciplineStore((state) => state.discipline);
+
+  const isStaticCloth = backgroundMode === 'static';
+  const isBallsDisabled = backgroundMode !== 'full';
 
   const isBlueFelt = location.pathname === '/' && discipline !== 'pyramid';
 
-  const { isPausedRef, engineRef } = useInit(
+  const { isPausedRef, engineRef, railWidthRef } = useInit(
     sceneRef,
+    railMeasureRef,
     isPaused,
-    disableDynamicBackground
+    isBallsDisabled,
+    showTableBorders
   );
   useBallsSpawner(
     engineRef,
     isPausedRef,
-    isDarkBalls,
-    disableDynamicBackground
+    railWidthRef,
+    isDarkBgBalls,
+    isBallsDisabled
   );
 
   return (
@@ -401,7 +502,7 @@ export function BilliardsBackground({
       >
         <div
           style={
-            disableDynamicBackground
+            isStaticCloth
               ? undefined
               : {
                   top: -CONFIG.DRIFT_PX,
@@ -410,14 +511,14 @@ export function BilliardsBackground({
           }
           className={cn(
             'cloth-texture pointer-events-none absolute inset-0 w-full opacity-80',
-            !disableDynamicBackground && 'cloth-texture-animated',
+            !isStaticCloth && 'cloth-texture-animated',
             isPaused && '[animation-play-state:paused]'
           )}
         />
 
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,230,0.08)_0%,transparent_60%)]" />
 
-        {!disableDynamicBackground && (
+        {!isBallsDisabled && (
           <div ref={sceneRef} className="absolute inset-0" />
         )}
 
@@ -436,6 +537,8 @@ export function BilliardsBackground({
             isBlueFelt ? 'to-[#07111c]' : 'to-[#0a120c]'
           )}
         />
+
+        {showTableBorders && <TableSideRails railMeasureRef={railMeasureRef} />}
       </div>
     </>
   );
