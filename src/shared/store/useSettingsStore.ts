@@ -48,7 +48,7 @@ export const useSettingsStore = create<SettingsState>()(
       disableBlur: false,
       backgroundMode: 'full',
       autoRotateSimulator: true,
-      showTableBorders: true,
+      showTableBorders: false,
       mainPageStyle: 'modern',
 
       toggleLecturesZenMode: () =>
