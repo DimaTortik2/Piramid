@@ -46,7 +46,9 @@ export function LecturePage() {
   }, [isLecturesZenMode, outletContext]);
 
   useEffect(() => {
-    const paramDiscipline = searchParams.get('discipline') as DisciplineId | null;
+    const paramDiscipline = searchParams.get(
+      'discipline'
+    ) as DisciplineId | null;
     if (
       paramDiscipline &&
       DISCIPLINES.some((d) => d.id === paramDiscipline) &&
@@ -77,33 +79,27 @@ export function LecturePage() {
     };
   }, [discipline, loaderData]);
 
-  const scrollToToc = () => {
+  const scrollToTop = () => {
     triggerHaptic('light');
-    const toc = document.getElementById('lecture-toc');
-    if (toc) {
-      toc.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const currentDisciplineLabel =
     DISCIPLINES.find((d) => d.id === discipline)?.label ?? 'Теория';
 
   return (
-    <div className="bg-reader-background relative min-h-screen w-full px-3 pt-3 pb-20">
+    <div className="bg-reader-background relative min-h-screen w-full px-3 pt-3 pb-[40dvh]">
       <ScrollProgressBar />
 
       <main className="relative mx-auto w-full max-w-125">
-        {/* Мобильные элементы управления сверху */}
         <div className="sticky top-3 z-40 mb-3 flex items-center justify-between gap-2 lg:hidden">
-          <BackButton collapsed title="Назад" />
+          <BackButton />
 
           <button
             type="button"
-            onClick={scrollToToc}
-            aria-label="К оглавлению"
-            className="group inline-flex size-9 items-center justify-center rounded-full bg-foreground/5 text-foreground/85 transition-all duration-300 hover:bg-foreground/10 hover:text-foreground active:scale-95"
+            onClick={scrollToTop}
+            aria-label="Наверх"
+            className="bg-foreground/5 hover:bg-foreground/10 active:bg-foreground/15 text-foreground/80 hover:text-foreground group inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-all duration-300 select-none active:scale-95"
           >
             <ArrowFatUpIcon
               weight="fill"
@@ -112,17 +108,20 @@ export function LecturePage() {
           </button>
         </div>
 
-        {/* Десктопный сайдбар слева от контента */}
-        <aside className="absolute top-0 right-[calc(100%+2rem)] bottom-0 hidden h-full lg:block">
-          <div className="sticky top-6 z-40 flex flex-col items-end gap-3">
-            <BackButton collapsed title="Назад" />
+        <aside className="absolute top-0 right-[calc(100%+1.5rem)] bottom-0 hidden h-full lg:block">
+          <div className="sticky top-3 z-40">
+            <BackButton />
+          </div>
+        </aside>
 
+        <aside className="absolute top-0 bottom-0 left-[calc(100%+1.5rem)] hidden h-full lg:block">
+          <div className="sticky top-3 z-40">
             <button
               type="button"
-              onClick={scrollToToc}
-              aria-label="К оглавлению"
-              title="К оглавлению"
-              className="group inline-flex size-9 items-center justify-center rounded-full bg-foreground/5 text-foreground/85 transition-all duration-300 hover:bg-foreground/10 hover:text-foreground active:scale-95"
+              onClick={scrollToTop}
+              aria-label="Наверх"
+              title="Наверх"
+              className="bg-foreground/5 hover:bg-foreground/10 active:bg-foreground/15 text-foreground/80 hover:text-foreground group inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-all duration-300 select-none active:scale-95"
             >
               <ArrowFatUpIcon
                 weight="fill"

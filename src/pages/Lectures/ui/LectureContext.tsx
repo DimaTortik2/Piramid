@@ -14,7 +14,6 @@ export interface LectureTopicMeta {
 interface LectureStoreState {
   topics: LectureTopicMeta[];
   openMap: Record<string, boolean>;
-  highlightedId: string | null;
   scanSections: () => void;
   isSectionOpen: (id: string) => boolean;
   toggleSection: (id: string) => void;
@@ -24,30 +23,26 @@ interface LectureStoreState {
   copyTopicLink: (id: string) => void;
 }
 
-let highlightTimer: number | undefined;
+export const scrollWithOffset = (element: HTMLElement) => {
+  const isDesktop = window.innerWidth >= 1024;
+  const topOffset = isDesktop ? 32 : 64;
+  const elementTop = element.getBoundingClientRect().top + window.scrollY;
 
-const scrollToElement = (
-  id: string,
-  setHighlighted: (id: string | null) => void
-) => {
+  window.scrollTo({
+    top: Math.max(0, elementTop - topOffset),
+    behavior: 'smooth',
+  });
+};
+
+const scrollToTopicById = (id: string) => {
   const target = document.getElementById(id);
   if (!target) return;
-
-  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  setHighlighted(id);
-
-  if (highlightTimer) {
-    window.clearTimeout(highlightTimer);
-  }
-  highlightTimer = window.setTimeout(() => {
-    setHighlighted(null);
-  }, 700);
+  scrollWithOffset(target);
 };
 
 export const useLectureStore = create<LectureStoreState>((set, get) => ({
   topics: [],
   openMap: {},
-  highlightedId: null,
 
   scanSections: () => {
     if (typeof document === 'undefined') return;
@@ -113,6 +108,7 @@ export const useLectureStore = create<LectureStoreState>((set, get) => ({
   navigateToTopic: (id: string) => {
     triggerHaptic('light');
     const discipline = useDisciplineStore.getState().discipline;
+    const wasClosed = !(get().openMap[id] ?? true);
 
     set((state) => ({
       openMap: { ...state.openMap, [id]: true },
@@ -123,11 +119,12 @@ export const useLectureStore = create<LectureStoreState>((set, get) => ({
     url.hash = id;
     window.history.replaceState(null, '', url.toString());
 
-    requestAnimationFrame(() => {
-      window.setTimeout(() => {
-        scrollToElement(id, (hl) => set({ highlightedId: hl }));
-      }, 60);
-    });
+    window.setTimeout(
+      () => {
+        scrollToTopicById(id);
+      },
+      wasClosed ? 320 : 20
+    );
   },
 
   copyTopicLink: async (id: string) => {
@@ -181,13 +178,11 @@ export function LectureProvider({
     }));
 
     const timer = window.setTimeout(() => {
-      scrollToElement(rawId, (hl) =>
-        useLectureStore.setState({ highlightedId: hl })
-      );
-    }, 120);
+      scrollToTopicById(rawId);
+    }, 150);
 
     return () => window.clearTimeout(timer);
   }, [location.hash, topics]);
 
-  return <div className="flex flex-col gap-4">{children}</div>;
+  return <div className="flex flex-col">{children}</div>;
 }

@@ -16,11 +16,9 @@ export function LectureSection({
   description,
   children,
 }: LectureSectionProps) {
-  const { isSectionOpen, toggleSection, copyTopicLink, highlightedId } =
-    useLectureContext();
+  const { isSectionOpen, toggleSection, copyTopicLink } = useLectureContext();
 
   const isOpen = isSectionOpen(id);
-  const isHighlighted = highlightedId === id;
 
   return (
     <section
@@ -29,33 +27,31 @@ export function LectureSection({
       data-section-id={id}
       data-section-title={title}
       data-section-desc={description ?? ''}
-      className={cn(
-        'scroll-mt-20 transition-all duration-300',
-        isHighlighted && 'bg-white/5 rounded-2xl p-2'
-      )}
     >
-      <div className="not-prose flex items-center justify-between gap-3 py-3">
+      <div className="bg-reader-accent-foreground h-px w-full" />
+
+      <div className="not-prose flex items-start justify-between gap-3 py-5">
         <button
           type="button"
           onClick={() => toggleSection(id)}
           aria-expanded={isOpen}
-          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          className="flex flex-1 items-start gap-3 text-left"
         >
           <span
             className={cn(
-              'text-reader-accent-foreground flex size-6 shrink-0 items-center justify-center transition-transform duration-200',
+              'text-reader-accent-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center transition-transform duration-200',
               isOpen && 'rotate-180'
             )}
           >
             <CaretDownIcon size={16} weight="bold" />
           </span>
 
-          <div className="min-w-0 flex-1">
+          <div className="flex-1">
             <h2 className="text-reader-foreground text-base font-semibold leading-snug sm:text-lg">
               {title}
             </h2>
             {description && (
-              <p className="text-reader-muted-foreground mt-0.5 truncate text-xs">
+              <p className="text-reader-muted-foreground mt-1 text-xs leading-relaxed">
                 {description}
               </p>
             )}
@@ -80,7 +76,7 @@ export function LectureSection({
         )}
       >
         <div className="overflow-hidden">
-          <div className="pt-2 pb-6">{children}</div>
+          <div className="pb-6">{children}</div>
         </div>
       </div>
     </section>

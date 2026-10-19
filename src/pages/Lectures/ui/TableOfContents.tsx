@@ -1,8 +1,5 @@
 import { useLayoutEffect } from 'react';
-import {
-  CaretRightIcon,
-  ListNumbersIcon,
-} from '@phosphor-icons/react';
+import { CaretRightIcon, ListNumbersIcon } from '@phosphor-icons/react';
 import { useLectureContext } from './LectureContext';
 
 export function TableOfContents({
@@ -31,7 +28,7 @@ export function TableOfContents({
     <nav
       id="lecture-toc"
       aria-label="Оглавление лекции"
-      className="not-prose my-6 flex flex-col gap-3"
+      className="not-prose mt-4 mb-6 flex flex-col gap-3"
     >
       <div className="flex items-center justify-between gap-2 px-1">
         <div className="text-reader-foreground flex items-center gap-2 text-sm font-semibold tracking-wider uppercase">
@@ -60,18 +57,18 @@ export function TableOfContents({
                 e.preventDefault();
                 navigateToTopic(topic.id);
               }}
-              className="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-white/5"
+              className="group flex items-center justify-between gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-white/5"
             >
-              <div className="flex min-w-0 items-baseline gap-3">
-                <span className="text-reader-accent-foreground shrink-0 font-mono text-xs font-semibold opacity-70">
+              <div className="flex items-baseline gap-3">
+                <span className="text-reader-accent-foreground shrink-0 font-mono text-xs font-semibold opacity-80">
                   {String(index + 1).padStart(2, '0')}.
                 </span>
-                <div className="min-w-0">
-                  <p className="text-reader-foreground group-hover:text-reader-accent-foreground truncate text-sm font-medium transition-colors">
+                <div>
+                  <p className="text-reader-foreground group-hover:text-reader-accent-foreground text-sm font-medium leading-snug transition-colors">
                     {topic.title}
                   </p>
                   {topic.description && (
-                    <p className="text-reader-muted-foreground truncate text-xs">
+                    <p className="text-reader-muted-foreground mt-0.5 text-xs leading-relaxed">
                       {topic.description}
                     </p>
                   )}
