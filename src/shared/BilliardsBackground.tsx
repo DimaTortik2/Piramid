@@ -30,34 +30,29 @@ const CONFIG = {
     render: { fillStyle: '#F0EBD8' },
   },
 };
-
-function TableSideRails({
+export function TableSideRails({
   railMeasureRef,
   railColor,
 }: {
   railMeasureRef: RefObject<HTMLDivElement | null>;
   railColor: string;
 }) {
-  const dotColor = isLightColor(railColor)
-    ? 'rgba(17, 18, 21, 0.35)'
-    : 'rgba(240, 235, 216, 0.32)';
-
-  const pocketColor = isLightColor(railColor)
-    ? 'rgba(0, 0, 0, 0.82)'
-    : '#050505';
+  const isLight = isLightColor(railColor);
+  const dotColor = isLight ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.15)';
+  const pocketColor = '#060608';
 
   const renderDots = () => (
     <>
       <span
-        className="size-1 rounded-full sm:size-1.5"
+        className="size-[3px] rounded-full sm:size-1"
         style={{ backgroundColor: dotColor }}
       />
       <span
-        className="size-1 rounded-full sm:size-1.5"
+        className="size-[3px] rounded-full sm:size-1"
         style={{ backgroundColor: dotColor }}
       />
       <span
-        className="size-1 rounded-full sm:size-1.5"
+        className="size-[3px] rounded-full sm:size-1"
         style={{ backgroundColor: dotColor }}
       />
     </>
@@ -66,66 +61,90 @@ function TableSideRails({
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-10"
+      className="pointer-events-none absolute inset-0 z-10 overflow-hidden"
     >
-      {/* Левый борт */}
       <div
         ref={railMeasureRef}
-        className="absolute inset-y-0 left-0 w-2.5 transition-colors duration-300 sm:w-3.5 lg:w-4.5"
-        style={{ backgroundColor: railColor }}
+        className="absolute inset-y-0 left-0 w-2.5 sm:w-3.5 lg:w-4 transition-colors duration-300"
+        style={{
+          backgroundColor: railColor,
+          boxShadow: '2px 0 8px rgba(0, 0, 0, 0.15)',
+        }}
       >
-        {/* Угловая верхняя (1:1 пропорция) */}
-        <div
-          style={{ backgroundColor: pocketColor }}
-          className="absolute top-0 left-0 h-3.5 w-3.5 rounded-br-full transition-colors duration-300 sm:h-5 sm:w-5 lg:h-6 lg:w-6"
-        />
-        {/* Центральная (2:1 пропорция) */}
-        <div
-          style={{ backgroundColor: pocketColor }}
-          className="absolute top-1/2 left-0 h-7 w-3.5 -translate-y-1/2 rounded-r-full transition-colors duration-300 sm:h-10 sm:w-5 lg:h-12 lg:w-6"
-        />
-        {/* Угловая нижняя (1:1 пропорция) */}
-        <div
-          style={{ backgroundColor: pocketColor }}
-          className="absolute bottom-0 left-0 h-3.5 w-3.5 rounded-tr-full transition-colors duration-300 sm:h-5 sm:w-5 lg:h-6 lg:w-6"
-        />
-
-        <div className="absolute top-[10%] bottom-[55%] left-0 right-0 flex flex-col items-center justify-evenly">
+        <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent" />
+        
+        <div className="absolute top-[12%] bottom-[55%] left-0 right-0 z-10 flex flex-col items-center justify-evenly">
           {renderDots()}
         </div>
-        <div className="absolute top-[55%] bottom-[10%] left-0 right-0 flex flex-col items-center justify-evenly">
+        <div className="absolute top-[55%] bottom-[12%] left-0 right-0 z-10 flex flex-col items-center justify-evenly">
           {renderDots()}
         </div>
       </div>
 
-      {/* Правый борт */}
       <div
-        className="absolute inset-y-0 right-0 w-2.5 transition-colors duration-300 sm:w-3.5 lg:w-4.5"
-        style={{ backgroundColor: railColor }}
-      >
-        <div
-          style={{ backgroundColor: pocketColor }}
-          className="absolute top-0 right-0 h-3.5 w-3.5 rounded-bl-full transition-colors duration-300 sm:h-5 sm:w-5 lg:h-6 lg:w-6"
-        />
-        <div
-          style={{ backgroundColor: pocketColor }}
-          className="absolute top-1/2 right-0 h-7 w-3.5 -translate-y-1/2 rounded-l-full transition-colors duration-300 sm:h-10 sm:w-5 lg:h-12 lg:w-6"
-        />
-        <div
-          style={{ backgroundColor: pocketColor }}
-          className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-tl-full transition-colors duration-300 sm:h-5 sm:w-5 lg:h-6 lg:w-6"
-        />
+        className="absolute top-0 left-0 h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 rounded-br-full"
+        style={{
+          backgroundColor: pocketColor,
+          boxShadow: 'inset 1px 1px 2px rgba(0,0,0,0.5)',
+        }}
+      />
+      <div
+        className="absolute top-1/2 left-0 h-6 w-3 -translate-y-1/2 rounded-r-full sm:h-8 sm:w-4 lg:h-10 lg:w-5"
+        style={{
+          backgroundColor: pocketColor,
+          boxShadow: 'inset 1px 0 2px rgba(0,0,0,0.5)',
+        }}
+      />
+      <div
+        className="absolute bottom-0 left-0 h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 rounded-tr-full"
+        style={{
+          backgroundColor: pocketColor,
+          boxShadow: 'inset 1px -1px 2px rgba(0,0,0,0.5)',
+        }}
+      />
 
-        <div className="absolute top-[10%] bottom-[55%] left-0 right-0 flex flex-col items-center justify-evenly">
+      <div
+        className="absolute inset-y-0 right-0 w-2.5 sm:w-3.5 lg:w-4 transition-colors duration-300"
+        style={{
+          backgroundColor: railColor,
+          boxShadow: '-2px 0 8px rgba(0, 0, 0, 0.15)',
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-l from-black/10 to-transparent" />
+
+        <div className="absolute top-[12%] bottom-[55%] left-0 right-0 z-10 flex flex-col items-center justify-evenly">
           {renderDots()}
         </div>
-        <div className="absolute top-[55%] bottom-[10%] left-0 right-0 flex flex-col items-center justify-evenly">
+        <div className="absolute top-[55%] bottom-[12%] left-0 right-0 z-10 flex flex-col items-center justify-evenly">
           {renderDots()}
         </div>
       </div>
+
+      <div
+        className="absolute top-0 right-0 h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 rounded-bl-full"
+        style={{
+          backgroundColor: pocketColor,
+          boxShadow: 'inset -1px 1px 2px rgba(0,0,0,0.5)',
+        }}
+      />
+      <div
+        className="absolute top-1/2 right-0 h-6 w-3 -translate-y-1/2 rounded-l-full sm:h-8 sm:w-4 lg:h-10 lg:w-5"
+        style={{
+          backgroundColor: pocketColor,
+          boxShadow: 'inset -1px 0 2px rgba(0,0,0,0.5)',
+        }}
+      />
+      <div
+        className="absolute bottom-0 right-0 h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 rounded-tl-full"
+        style={{
+          backgroundColor: pocketColor,
+          boxShadow: 'inset -1px -1px 2px rgba(0,0,0,0.5)',
+        }}
+      />
     </div>
   );
 }
+
 
 function useInit<T extends HTMLElement = HTMLElement>(
   sceneRef: RefObject<T | null>,
