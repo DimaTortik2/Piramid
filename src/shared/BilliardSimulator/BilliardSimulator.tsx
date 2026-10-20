@@ -22,6 +22,8 @@ import {
 } from '@phosphor-icons/react';
 import { cn } from '@/shared/lib/utils/cn';
 import { useSettingsStore } from '@/shared/store/useSettingsStore';
+import { isLightColor } from '@/shared/lib/utils/color';
+import { resolveSlotColor } from '@/shared/store/useSettingsStore';
 
 export type PocketPresetName =
   | 'top-left'
@@ -463,7 +465,9 @@ export function BilliardSimulator({
     null
   );
 
-  const isDarkBalls = useSettingsStore((state) => state.isDarkBalls);
+const disciplineThemes = useSettingsStore((state) => state.disciplineThemes);
+const ballColor = resolveSlotColor(disciplineThemes, 'pyramid', 'pyramidBalls');
+const isDarkBalls = !isLightColor(ballColor);
   const autoRotateSimulator = useSettingsStore(
     (state) => state.autoRotateSimulator
   );
