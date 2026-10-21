@@ -5,11 +5,7 @@ import type { DisciplineId } from './useDisciplineStore';
 export type MainPageStyle = 'modern' | 'classic';
 export type BackgroundMode = 'full' | 'cloth-only' | 'static';
 export type ThemeColorSlot =
-  | 'cloth'
-  | 'rails'
-  | 'playBall'
-  | 'pyramidBalls'
-  | 'bgBalls';
+  'cloth' | 'rails' | 'playBall' | 'pyramidBalls' | 'bgBalls';
 
 export type ThemeColors = Record<ThemeColorSlot, string>;
 
@@ -34,7 +30,7 @@ export const BUILTIN_THEMES: Record<DisciplineId, AppTheme[]> = {
         bgBalls: '#f0ebd8',
       },
     },
-  
+
     {
       id: 'white',
       name: 'Белый',
@@ -43,7 +39,7 @@ export const BUILTIN_THEMES: Record<DisciplineId, AppTheme[]> = {
         cloth: '#ded8c7',
         rails: '#211d1a',
         playBall: '#121316',
-        pyramidBalls: '#121316',
+        pyramidBalls: '#f0ebd8',
         bgBalls: '#121316',
       },
     },
@@ -59,7 +55,7 @@ export const BUILTIN_THEMES: Record<DisciplineId, AppTheme[]> = {
         bgBalls: '#f0ebd8',
       },
     },
-   
+
     {
       id: 'sapphire',
       name: 'Сапфир',
@@ -144,9 +140,7 @@ export function resolveSlotColor(
   slot: ThemeColorSlot
 ): string {
   const theme = getActiveTheme(state, discipline);
-  return (
-    theme.colors[slot] ?? BUILTIN_THEMES.pyramid[0].colors[slot]
-  );
+  return theme.colors[slot] ?? BUILTIN_THEMES.pyramid[0].colors[slot];
 }
 
 export function encodeThemeShareCode(theme: AppTheme): string {
