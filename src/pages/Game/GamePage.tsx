@@ -1,5 +1,11 @@
 import { cn } from '@/shared/lib/utils/cn';
-import { type HTMLAttributes, type SyntheticEvent, useEffect, useRef, useState } from 'react';
+import {
+  type HTMLAttributes,
+  type SyntheticEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   SignOutIcon,
@@ -14,12 +20,13 @@ import { Button } from '@/shared/Button';
 import { useSwipe } from '@/shared/hooks/useSwipe';
 import { InfoDrawer } from '@/shared/InfoDrawer';
 import { ShareSessionDrawer } from '@/shared/ShareSessionDrawer';
-import SwipeTutorialCard from '@/shared/SwipeTutorialCard';
 import {
   useGameStore,
   getActivePlayerStreak,
   type GameMode,
 } from '@/shared/store/gameStore';
+import { useSettingsStore } from '@/shared/store/useSettingsStore';
+import { startGameModeOnboardingTour } from '@/shared/lib/onboarding';
 import { Drawer } from 'vaul';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/shared/lib/telegram';
@@ -114,7 +121,10 @@ const HeaderDisplay = ({
   onTogglePause?: () => void;
 } & HTMLAttributes<HTMLDivElement>) => {
   return (
-    <div className="bg-background/80 text-foreground flex items-center justify-between rounded-xl px-4 py-2.5 backdrop-blur-lg">
+    <div
+      id="tour-game-header"
+      className="bg-background/80 text-foreground flex items-center justify-between rounded-xl px-4 py-2.5 backdrop-blur-lg"
+    >
       <span className="text-sm font-medium opacity-75">
         {MODE_TITLES[mode]}
       </span>
@@ -125,6 +135,7 @@ const HeaderDisplay = ({
         trigger={
           isPaused ? (
             <button
+              id="tour-game-timer"
               type="button"
               className="bg-destructive/15 text-destructive flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors"
             >
@@ -133,6 +144,7 @@ const HeaderDisplay = ({
             </button>
           ) : (
             <button
+              id="tour-game-timer"
               type="button"
               className="flex items-center justify-center text-sm opacity-80 transition-opacity hover:opacity-100"
             >
@@ -184,6 +196,9 @@ const HeaderDisplay = ({
 };
 
 const UserGameBoard = ({
+  boardId,
+  nameRowId,
+  penaltyBtnId,
   name,
   score = 0,
   activeStreak = 0,
@@ -193,6 +208,8 @@ const UserGameBoard = ({
   onEndVisit,
   showNumberOnly = false,
 }: {
+  boardId?: string;
+  penaltyBtnId?: string;
   name?: string;
   score?: number;
   activeStreak?: number;
@@ -201,6 +218,7 @@ const UserGameBoard = ({
   onPenalty?: () => void;
   onEndVisit?: () => void;
   showNumberOnly?: boolean;
+  nameRowId?: string
 } & HTMLAttributes<HTMLDivElement>) => {
   let firstShelfScore = 0;
   let secondShelfScore = 0;
@@ -224,6 +242,7 @@ const UserGameBoard = ({
 
   return (
     <div
+      id={boardId}
       {...handlers}
       className="bg-background/80 text-foreground relative flex flex-1 touch-none flex-col overflow-hidden rounded-xl p-4 backdrop-blur-lg select-none"
     >
@@ -238,7 +257,7 @@ const UserGameBoard = ({
 
       <div className="relative z-10 flex flex-1 flex-col justify-center">
         <div className="flex w-full items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
+          <div id={nameRowId} className="flex min-w-0 items-center gap-2">
             <span className="truncate font-medium">{name}</span>
             {activeStreak >= 1 && (
               <button
@@ -259,7 +278,7 @@ const UserGameBoard = ({
               </button>
             )}
           </div>
-          <div {...swipeIgnoreProps} className="shrink-0">
+          <div id={penaltyBtnId} {...swipeIgnoreProps} className="shrink-0">
             <Button
               onClick={onPenalty}
               variant="destructive"
@@ -308,6 +327,7 @@ const BottomActions = ({
   onPauseAndExit,
   onFinishRound,
   onEmptyExit,
+  onStartTour,
   hasEvents = false,
   className,
   ...props
@@ -316,6 +336,7 @@ const BottomActions = ({
   onPauseAndExit: () => void;
   onFinishRound: () => void;
   onEmptyExit: () => void;
+  onStartTour: () => void;
   hasEvents?: boolean;
 }) => {
   const [isExitDrawerOpen, setIsExitDrawerOpen] = useState(false);
@@ -329,7 +350,11 @@ const BottomActions = ({
   };
 
   return (
-    <div className={cn('flex w-full gap-2 p-2', className)} {...props}>
+    <div
+      id="tour-bottom-actions"
+      className={cn('flex w-full gap-2 p-2', className)}
+      {...props}
+    >
       <button type="button" onClick={handleExitButtonClick}>
         <Circle className="text-foreground hover:bg-foreground/20 size-9 bg-transparent">
           <SignOutIcon />
@@ -372,48 +397,18 @@ const BottomActions = ({
         <ArrowArcLeftIcon /> {'Отмена действия'}
       </Button>
 
-      <InfoDrawer
-        content={
-          <div>
-            <p>
-              <strong>В самом верху</strong> находится таймер партии. Нажмите на
-              него, чтобы поставить игру на паузу.
-              <br />
-              <br />
-              <strong>Полки игроков:</strong>
-              <br />
-              Когда кто-то забил,{' '}
-              <strong className="text-reader-accent-foreground">
-                свайпните вверх
-              </strong>{' '}
-              по его полке, чтобы начислить шар!
-              <br />
-              Когда подход игрока завершился (промах или отыгрыш), нажмите на плашку{' '}
-              <strong className="text-reader-accent-foreground">
-                «Серия»
-              </strong>
-              , чтобы зафиксировать и сбросить текущую серию.
-              <br />
-              <strong className="text-destructive">Ошиблись?</strong>{' '}
-              <strong className="text-reader-accent-foreground">
-                Свайпните вниз или нажмите «Отмена действия»
-              </strong>{' '}
-              в самом низу экрана.
-            </p>
-            <br />
-            <SwipeTutorialCard />
-            Кнопка <strong className="text-destructive">«Штраф»</strong>{' '}
-            начисляет штрафной шар сопернику.
-          </div>
-        }
-        trigger={
-          <button type="button">
-            <Circle className="text-foreground hover:bg-foreground/20 size-9 bg-transparent">
-              <QuestionMarkIcon />
-            </Circle>
-          </button>
-        }
-      />
+      <button
+        type="button"
+        aria-label="Обучение и правила режима"
+        onClick={() => {
+          triggerHaptic('light');
+          onStartTour();
+        }}
+      >
+        <Circle className="text-foreground hover:bg-foreground/20 size-9 bg-transparent">
+          <QuestionMarkIcon />
+        </Circle>
+      </button>
     </div>
   );
 };
@@ -448,6 +443,13 @@ export function GamePage({}: GamePageProps) {
     currentRoundEvents,
   } = useGameStore();
 
+  const seenGameModeTours = useSettingsStore(
+    (state) => state.seenGameModeTours
+  );
+  const completeGameModeTour = useSettingsStore(
+    (state) => state.completeGameModeTour
+  );
+
   const [classicDrawerOpen, setClassicDrawerOpen] = useState(false);
   const [activePlayerForClassic, setActivePlayerForClassic] = useState<
     'p1' | 'p2'
@@ -471,6 +473,20 @@ export function GamePage({}: GamePageProps) {
       setPause(false);
     }
   }, [mode]);
+
+  useEffect(() => {
+    const activeMode = (mode as GameMode) || storeMode || 'free-pyramid';
+    if (seenGameModeTours?.[activeMode] || lastCompletedRound) return;
+
+    const timer = setTimeout(() => {
+      const driverInstance = startGameModeOnboardingTour(activeMode, () => {
+        completeGameModeTour(activeMode);
+      });
+      return () => driverInstance.destroy();
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [mode, storeMode, seenGameModeTours, lastCompletedRound, completeGameModeTour]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -606,6 +622,12 @@ export function GamePage({}: GamePageProps) {
     navigate('/', { replace: true });
   };
 
+  const handleReplayTour = () => {
+    startGameModeOnboardingTour(storeMode, () => {
+      completeGameModeTour(storeMode);
+    });
+  };
+
   const balls1to15 = Array.from({ length: 15 }, (_, i) => i + 1);
   const penalizedName = penaltyTarget === 'p1' ? p1.name : p2.name;
   const beneficiaryName = penaltyTarget === 'p1' ? p2.name : p1.name;
@@ -623,6 +645,9 @@ export function GamePage({}: GamePageProps) {
         onTogglePause={togglePause}
       />
       <UserGameBoard
+        boardId="tour-player-board"
+        nameRowId="tour-player-name-row"
+        penaltyBtnId="tour-penalty-btn"
         name={p1.name}
         score={p1.score}
         activeStreak={p1ActiveStreak}
@@ -656,6 +681,7 @@ export function GamePage({}: GamePageProps) {
         onPauseAndExit={handlePauseAndExit}
         onFinishRound={() => finishCurrentRound()}
         onEmptyExit={handleEmptyExit}
+        onStartTour={handleReplayTour}
         hasEvents={eventsList.length > 0}
       />
 

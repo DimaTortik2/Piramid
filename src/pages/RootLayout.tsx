@@ -13,6 +13,7 @@ import {
   GearSixIcon,
   EyeIcon,
   QuestionIcon,
+  GraduationCapIcon,
 } from '@phosphor-icons/react';
 import { cn } from '@/shared/lib/utils/cn';
 import { NavigationLoader } from '@/shared/Loaders/NavigationLoader';
@@ -35,12 +36,16 @@ import {
   initTelegramMiniApp,
   triggerHaptic,
 } from '@/shared/lib/telegram';
+import { startMainOnboardingTour } from '@/shared/lib/onboarding';
 
 function DisciplineIndicator() {
   const { discipline, setDiscipline } = useDisciplineStore();
 
   return (
-    <div className="mx-auto flex w-full max-w-125 items-center gap-2.5 px-4 pt-3 pb-1">
+    <div
+      id="tour-discipline-switcher"
+      className="mx-auto flex w-full max-w-125 items-center gap-2.5 px-4 pt-3 pb-1"
+    >
       {DISCIPLINES.map((item) => {
         const isActive = item.id === discipline;
         return (
@@ -68,6 +73,7 @@ function DisciplineIndicator() {
 export const NavBar = ({ className }: { className?: string }) => {
   const navigate = useNavigate();
   const { discipline, setDiscipline } = useDisciplineStore();
+  const completeMainTour = useSettingsStore((state) => state.completeMainTour);
   const [isFaqOpen, setIsFaqOpen] = useState(false);
 
   const ensurePyramidMode = () => {
@@ -86,6 +92,7 @@ export const NavBar = ({ className }: { className?: string }) => {
       >
         <nav className="bg-background/35 pointer-events-auto mx-auto grid max-w-125 grid-cols-3 items-center rounded-full px-7 py-3.5 backdrop-blur-lg">
           <NavLink
+            id="tour-nav-lectures"
             to="/lectures"
             onClick={() => triggerHaptic('tab')}
             className={({ isActive }) =>
@@ -100,6 +107,7 @@ export const NavBar = ({ className }: { className?: string }) => {
           </NavLink>
 
           <NavLink
+            id="tour-nav-home"
             to="/"
             onClick={ensurePyramidMode}
             className={({ isActive }) =>
@@ -113,7 +121,7 @@ export const NavBar = ({ className }: { className?: string }) => {
             <HouseIcon className="size-7" />
           </NavLink>
 
-          <div className="justify-self-end">
+          <div id="tour-nav-menu" className="justify-self-end">
             <Popover
               trigger={({ isOpen, toggle }) => (
                 <button
@@ -159,6 +167,21 @@ export const NavBar = ({ className }: { className?: string }) => {
                   >
                     <EyeIcon className="size-5 shrink-0" />
                     <span>Созерцать</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      close();
+                      ensurePyramidMode();
+                      setTimeout(() => {
+                        startMainOnboardingTour(completeMainTour);
+                      }, 150);
+                    }}
+                    className="hover:bg-foreground/10 flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition-colors"
+                  >
+                    <GraduationCapIcon className="size-5 shrink-0" />
+                    <span>Обучение</span>
                   </button>
 
                   <button
@@ -214,6 +237,9 @@ export function RootLayout() {
   const { discipline, setDiscipline, nextDiscipline, prevDiscipline } =
     useDisciplineStore();
 
+  const hasSeenMainTour = useSettingsStore((state) => state.hasSeenMainTour);
+  const completeMainTour = useSettingsStore((state) => state.completeMainTour);
+
   const activeDisciplineIndex = Math.max(
     0,
     DISCIPLINES.findIndex((d) => d.id === discipline)
@@ -238,6 +264,19 @@ export function RootLayout() {
     lockedAxis: null,
     ignored: false,
   });
+
+  useEffect(() => {
+    if (!isMainPage || hasSeenMainTour || discipline !== 'pyramid') return;
+
+    const timer = setTimeout(() => {
+      const driverInstance = startMainOnboardingTour(() => {
+        completeMainTour();
+      });
+      return () => driverInstance.destroy();
+    }, 650);
+
+    return () => clearTimeout(timer);
+  }, [isMainPage, hasSeenMainTour, discipline, completeMainTour]);
 
   useEffect(() => {
     const isGamePage = location.pathname.match(/^\/game\/.+/);
@@ -391,7 +430,10 @@ export function RootLayout() {
               transform: `translate3d(-${activeDisciplineIndex * 100}%, 0, 0)`,
             }}
           >
-            <div className="flex w-full shrink-0 flex-col">
+            <div
+              id="tour-main-play-area"
+              className="flex w-full shrink-0 flex-col"
+            >
               <Outlet context={zenMode} />
             </div>
 

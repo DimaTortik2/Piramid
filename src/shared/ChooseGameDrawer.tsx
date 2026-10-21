@@ -338,15 +338,8 @@ export function ChooseGameDrawer({ ...props }: ChooseGameDrawerProps) {
                     key={d.id}
                     onClick={() => setSelectedPiramidId(d.id)}
                     className={cn(
-                      // Базовые стили для мобильного вида
                       'flex shrink-0 snap-start flex-col items-start gap-1.5 rounded-2xl p-3 text-left transition-all',
-
-                      // 🪄 ТА САМАЯ АДАПТИВНОСТЬ:
-                      // По умолчанию (до 400px) ширина 62% (1.5 карточки)
-                      // На экранах от 400px ширина 42% (2.5 карточки)
                       'w-[62%] min-[400px]:w-[42%]',
-
-                      // Стили для планшетов и десктопов (перестроение в вертикальный список на всю ширину)
                       'sm:w-full sm:min-w-0 sm:flex-row sm:items-center sm:justify-between sm:px-3.5 sm:py-2.5',
                       'pointer-fine:w-full pointer-fine:min-w-0 pointer-fine:flex-row pointer-fine:items-center pointer-fine:justify-between pointer-fine:px-3.5 pointer-fine:py-2.5',
 

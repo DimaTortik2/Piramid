@@ -1,11 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { DisciplineId } from './useDisciplineStore';
+import type { GameMode } from './gameStore';
 
 export type MainPageStyle = 'modern' | 'classic';
 export type BackgroundMode = 'full' | 'cloth-only' | 'static';
 export type ThemeColorSlot =
-  'cloth' | 'rails' | 'playBall' | 'pyramidBalls' | 'bgBalls';
+  | 'cloth'
+  | 'rails'
+  | 'playBall'
+  | 'pyramidBalls'
+  | 'bgBalls';
 
 export type ThemeColors = Record<ThemeColorSlot, string>;
 
@@ -30,7 +35,6 @@ export const BUILTIN_THEMES: Record<DisciplineId, AppTheme[]> = {
         bgBalls: '#f0ebd8',
       },
     },
-
     {
       id: 'white',
       name: 'Белый',
@@ -55,7 +59,6 @@ export const BUILTIN_THEMES: Record<DisciplineId, AppTheme[]> = {
         bgBalls: '#f0ebd8',
       },
     },
-
     {
       id: 'sapphire',
       name: 'Сапфир',
@@ -207,6 +210,12 @@ interface SettingsState {
   setActiveTheme: (discipline: DisciplineId, themeId: string) => void;
   saveTheme: (discipline: DisciplineId, theme: AppTheme) => void;
   deleteCustomTheme: (discipline: DisciplineId, themeId: string) => void;
+
+  hasSeenMainTour: boolean;
+  seenGameModeTours: Partial<Record<GameMode, boolean>>;
+  completeMainTour: () => void;
+  completeGameModeTour: (mode: GameMode) => void;
+  resetOnboarding: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -220,6 +229,8 @@ export const useSettingsStore = create<SettingsState>()(
       showTableBorders: false,
       mainPageStyle: 'modern',
       disciplineThemes: createInitialDisciplineThemes(),
+      hasSeenMainTour: false,
+      seenGameModeTours: {},
 
       toggleLecturesZenMode: () =>
         set((state) => ({ isLecturesZenMode: !state.isLecturesZenMode })),
@@ -298,6 +309,20 @@ export const useSettingsStore = create<SettingsState>()(
             },
           };
         }),
+
+      completeMainTour: () => set({ hasSeenMainTour: true }),
+      completeGameModeTour: (mode) =>
+        set((state) => ({
+          seenGameModeTours: {
+            ...state.seenGameModeTours,
+            [mode]: true,
+          },
+        })),
+      resetOnboarding: () =>
+        set({
+          hasSeenMainTour: false,
+          seenGameModeTours: {},
+        }),
     }),
     {
       name: 'app-settings',
@@ -327,6 +352,8 @@ export const useSettingsStore = create<SettingsState>()(
             pyramid: sanitizeDiscipline('pyramid'),
             upcoming: sanitizeDiscipline('upcoming'),
           },
+          seenGameModeTours: persisted?.seenGameModeTours ?? {},
+          hasSeenMainTour: Boolean(persisted?.hasSeenMainTour),
         };
       },
     }
