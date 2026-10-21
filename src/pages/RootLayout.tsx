@@ -460,7 +460,7 @@ export function RootLayout() {
                           setDiscipline('pyramid');
                         }}
                       >
-                        Вернуться в Пирамиду
+                        Вернуться
                       </Button>
                     }
                     className="w-full"

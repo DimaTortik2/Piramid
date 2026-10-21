@@ -177,3 +177,192 @@ html.no-blur * {
 html.no-blur [class*="backdrop-blur"] {
   background-color: var(--background) !important;
 }
+
+@keyframes tour-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+.driver-overlay {
+  z-index: 99998 !important;
+}
+
+.driver-overlay path {
+  fill: #000000 !important;
+  fill-opacity: 1 !important; 
+}
+
+
+.driver-popover.billiard-tour-popover {
+  position: fixed !important;
+  z-index: 100000 !important;
+  box-sizing: border-box !important;
+  width: calc(100vw - 32px) !important;
+  max-width: 328px !important;
+  left: max(16px, min(var(--driver-popover-left, 16px), calc(100vw - 344px))) !important;
+  padding: 1.25rem !important;
+  border-radius: 1.5rem !important;
+  background-color: #171513 !important;
+  color: #f0ebd8 !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  animation: tour-popover-in 0.2s ease-out forwards !important;
+}
+
+@media (max-width: 480px) {
+  .driver-popover.billiard-tour-popover {
+    left: 16px !important;
+    right: 16px !important;
+    width: auto !important;
+    max-width: calc(100vw - 32px) !important;
+    margin-inline: auto !important;
+  }
+}
+
+.driver-popover.billiard-tour-popover .driver-popover-title {
+  display: block !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  color: #f0ebd8 !important;
+  margin: 0 0 0.55rem 0 !important;
+  padding-right: 1.75rem !important;
+}
+
+.driver-popover.billiard-tour-popover .driver-popover-description {
+  display: block !important;
+  font-size: 0.84rem !important;
+  line-height: 1.5 !important;
+  color: rgba(240, 235, 216, 0.82) !important;
+  margin: 0 !important;
+}
+
+.driver-popover.billiard-tour-popover .driver-popover-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 0.75rem !important;
+  margin-top: 1.1rem !important;
+  padding-top: 0 !important;
+  border: none !important;
+}
+
+.driver-popover.billiard-tour-popover .driver-popover-progress-text {
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  color: rgba(240, 235, 216, 0.45) !important;
+}
+
+.driver-popover.billiard-tour-popover .driver-popover-navigation-btns {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.45rem !important;
+  margin-left: auto !important;
+}
+
+.driver-popover.billiard-tour-popover .driver-popover-navigation-btns button {
+  all: unset !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 9999px !important;
+  padding: 0.52rem 1rem !important;
+  font-size: 0.78rem !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  background-color: #f0ebd8 !important;
+  color: #141210 !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: transform 0.15s ease, opacity 0.15s ease !important;
+}
+
+.driver-popover.billiard-tour-popover
+  .driver-popover-navigation-btns
+  button:hover {
+  opacity: 0.9 !important;
+}
+
+.driver-popover.billiard-tour-popover
+  .driver-popover-navigation-btns
+  button:active {
+  transform: scale(0.95) !important;
+}
+
+.driver-popover.billiard-tour-popover
+  .driver-popover-navigation-btns
+  button.driver-popover-prev-btn {
+  background-color: rgba(240, 235, 216, 0.1) !important;
+  color: #f0ebd8 !important;
+  font-weight: 600 !important;
+}
+
+.driver-popover.billiard-tour-popover .driver-popover-close-btn {
+ display: none !important;
+}
+
+.driver-popover.billiard-tour-popover .driver-popover-close-btn:hover {
+  color: #f0ebd8 !important;
+}
+
+.driver-popover.billiard-tour-popover .driver-popover-arrow {
+  display: none !important;
+}
+
+.tour-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  border: none;
+  box-shadow: none;
+}
+
+.tour-chip-green {
+  background: rgba(105, 205, 130, 0.16);
+  color: #84e89b;
+}
+
+.tour-chip-red {
+  background: rgba(220, 85, 85, 0.18);
+  color: #ff9494;
+}
+
+.tour-chip-gold {
+  background: rgba(235, 195, 95, 0.15);
+  color: #f5d17a;
+}
+
+.tour-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 14px;
+  background: rgba(240, 235, 216, 0.06);
+  border: none;
+  box-shadow: none;
+  margin-top: 6px;
+}
+
+.tour-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}

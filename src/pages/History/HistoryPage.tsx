@@ -24,7 +24,7 @@ import {
   DownloadSimpleIcon,
   ShareNetworkIcon,
   TrashIcon,
-  TrophyIcon,
+  ClockCounterClockwiseIcon,
   UploadSimpleIcon,
 } from '@phosphor-icons/react';
 import {
@@ -539,7 +539,7 @@ export function HistoryPage() {
 
       {savedMatches.length === 0 ? (
         <div className="bg-background/80 flex flex-col items-center justify-center gap-3 rounded-2xl p-8 text-center backdrop-blur-lg">
-          <TrophyIcon className="size-12 opacity-40" />
+          <ClockCounterClockwiseIcon className="size-12 opacity-40" />
           <p className="text-lg font-medium">История пока пуста</p>
           <p className="text-sm opacity-60">
             Завершите хотя бы одну партию или импортируйте сохраненную историю.

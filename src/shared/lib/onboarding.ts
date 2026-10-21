@@ -2,18 +2,20 @@ import { driver, type DriveStep } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import type { GameMode } from '@/shared/store/gameStore';
 
-const badgeStyle = (bg: string, color: string) =>
-  `display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-weight:700;font-size:11px;background:${bg};color:${color};`;
+const ARROW_UP_SVG = `<svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="#84e89b" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"><line x1="128" y1="216" x2="128" y2="40"/><polyline points="56 112 128 40 200 112"/></svg>`;
 
-const rowCardStyle =
-  'display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:14px;background:rgba(240,235,216,0.06);margin-top:6px;';
+const ARROW_DOWN_SVG = `<svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="#ff9494" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"><line x1="128" y1="40" x2="128" y2="216"/><polyline points="56 144 128 216 200 144"/></svg>`;
+
+const FIRE_SVG = `<svg width="13" height="13" viewBox="0 0 256 256" fill="currentColor"><path d="M185.82,53.19A159.4,159.4,0,0,0,141.45,17a8,8,0,0,0-11,5.24l-13,44.33L94.39,46.46a8,8,0,0,0-12.56,2.14C62.21,82.5,44,113.84,44,140a84,84,0,0,0,168,0C212,107.09,202.94,77,185.82,53.19Z"/></svg>`;
+
+const UNDO_SVG = `<svg width="17" height="17" viewBox="0 0 256 256" fill="none" stroke="#f5d17a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"><polyline points="88 136 40 88 88 40"/><path d="M40,88H168a56,56,0,0,1,0,112H112"/></svg>`;
+
+const QUESTION_SVG = `<svg width="17" height="17" viewBox="0 0 256 256" fill="none" stroke="#f5d17a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"><circle cx="128" cy="128" r="96"/><path d="M104,100a24,24,0,1,1,32,22.62V140"/><circle cx="128" cy="180" r="6" fill="#f5d17a"/></svg>`;
 
 const MODE_TOUR_INFO: Record<
   GameMode,
   {
     title: string;
-    subtitle: string;
-    targetText: string;
     rulesHtml: string;
     scoringHtml: string;
     penaltyHtml: string;
@@ -21,127 +23,117 @@ const MODE_TOUR_INFO: Record<
 > = {
   'free-pyramid': {
     title: 'Американка',
-    subtitle: 'Свободная пирамида',
-    targetText: 'Партия до 8 шаров',
     rulesHtml: `
-      <div style="margin-bottom:8px;">
-        <span style="${badgeStyle('rgba(110,200,130,0.2)', '#7be092')}">До 8 шаров</span>
-        <span style="${badgeStyle('rgba(240,235,216,0.12)', '#f0ebd8')};margin-left:4px;">Любой шар</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+        <span class="tour-chip tour-chip-green">До 8 шаров</span>
+        <span class="tour-chip tour-chip-gold">Любой шар битком</span>
       </div>
-      Бить можно <b>любым шаром по любому</b>. В зачет идут как чужие шары, так и свояки (биток, упавший в лузу от прицельного шара).
+      Игра ведется любым шаром по любому. В зачет идут как <b>чужие шары</b>, так и <b>свояки</b>
     `,
     scoringHtml: `
-      <div style="${rowCardStyle}">
-        <span style="${badgeStyle('rgba(110,200,130,0.22)', '#7be092')}">↑ Вверх</span>
-        <div><b>+1 шар</b> — свайпните вверх по полке забившего игрока.</div>
+      <div class="tour-card">
+        <span class="tour-icon">${ARROW_UP_SVG}</span>
+        <div><b>Свайп вверх</b> по полке игрока начисляет <b>+1 шар</b></div>
       </div>
-      <div style="${rowCardStyle}">
-        <span style="${badgeStyle('rgba(210,85,85,0.25)', '#ff8a8a')}">↓ Вниз</span>
-        <div><b>-1 шар</b> — свайпните вниз, если начислили шар случайно.</div>
+      <div class="tour-card">
+        <span class="tour-icon">${ARROW_DOWN_SVG}</span>
+        <div><b>Свайп вниз</b> убирает <b>-1 шар</b>, если нажали случайно</div>
       </div>
     `,
     penaltyHtml: `
-      Если игрок нарушил правила (выскочил шар, туш или промах мимо всех шаров), нажмите <b>«Штраф»</b> на его карточке — <b>сопернику прибавится 1 шар</b>.
+      За фол (шар выскочил за борт, промах мимо всех шаров и т.д.) нажмите <span class="tour-chip tour-chip-red">Штраф</span> у нарушителя - <b>сопернику прибавится 1 шар</b>
     `,
   },
   'combined-pyramid': {
     title: 'Московка',
-    subtitle: 'Комбинированная пирамида',
-    targetText: 'Партия до 8 шаров',
     rulesHtml: `
-      <div style="margin-bottom:8px;">
-        <span style="${badgeStyle('rgba(110,200,130,0.2)', '#7be092')}">До 8 шаров</span>
-        <span style="${badgeStyle('rgba(240,235,216,0.12)', '#f0ebd8')};margin-left:4px;">Один биток</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+        <span class="tour-chip tour-chip-green">До 8 шаров</span>
+        <span class="tour-chip tour-chip-gold">Один биток</span>
       </div>
-      Удары выполняются <b>только одним цветным битком</b>. После забитого свояка биток выставляется в дом, а судья/игрок снимает со стола любой белый шар на полку.
+      Удары наносятся <b>только одним цветным битком</b>. Забитый свояк выставляется на точку в доме, а со стола на полку снимается любой белый шар
     `,
     scoringHtml: `
-      <div style="${rowCardStyle}">
-        <span style="${badgeStyle('rgba(110,200,130,0.22)', '#7be092')}">↑ Вверх</span>
-        <div><b>+1 шар</b> — свайпните вверх по полке игрока.</div>
+      <div class="tour-card">
+        <span class="tour-icon">${ARROW_UP_SVG}</span>
+        <div><b>Свайп вверх</b> по полке игрока добавляет <b>+1 шар</b></div>
       </div>
-      <div style="${rowCardStyle}">
-        <span style="${badgeStyle('rgba(210,85,85,0.25)', '#ff8a8a')}">↓ Вниз</span>
-        <div><b>-1 шар</b> — свайпните вниз для отмены шара.</div>
+      <div class="tour-card">
+        <span class="tour-icon">${ARROW_DOWN_SVG}</span>
+        <div><b>Свайп вниз</b> списывает <b>-1 шар</b> с полки</div>
       </div>
     `,
     penaltyHtml: `
-      Нажмите <b>«Штраф»</b> на карточке нарушителя — сопернику автоматически начислится <b>+1 штрафной шар</b>, а активная серия прервется.
+      Нажмите <span class="tour-chip tour-chip-red">Штраф</span> на карточке нарушителя - соперник получит <b>+1 штрафной шар</b>, а серия нарушителя прервется
     `,
   },
   'dynamic-pyramid': {
     title: 'Невская',
-    subtitle: 'Динамичная пирамида',
-    targetText: 'Партия до 8 шаров',
     rulesHtml: `
-      <div style="margin-bottom:8px;">
-        <span style="${badgeStyle('rgba(110,200,130,0.2)', '#7be092')}">До 8 шаров</span>
-        <span style="${badgeStyle('rgba(240,235,216,0.12)', '#f0ebd8')};margin-left:4px;">Биток с руки</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+        <span class="tour-chip tour-chip-green">До 8 шаров</span>
+        <span class="tour-chip tour-chip-gold">Биток с руки</span>
       </div>
-      Игра идет одним битком. Забив свояк, игрок снимает со стола чужой шар и бьет битком <b>с руки из любой точки стола</b>, но только по чужому шару.
+      Игра одним битком. После забитого свояка игрок снимает со стола чужой шар и бьет битком <b>с руки из любой точки стола</b> (забивать с руки можно только чужой шар)
     `,
     scoringHtml: `
-      <div style="${rowCardStyle}">
-        <span style="${badgeStyle('rgba(110,200,130,0.22)', '#7be092')}">↑ Вверх</span>
-        <div><b>+1 шар</b> — свайпните вверх по полке игрока.</div>
+      <div class="tour-card">
+        <span class="tour-icon">${ARROW_UP_SVG}</span>
+        <div><b>Свайп вверх</b> по полке игрока добавляет <b>+1 шар</b></div>
       </div>
-      <div style="${rowCardStyle}">
-        <span style="${badgeStyle('rgba(210,85,85,0.25)', '#ff8a8a')}">↓ Вниз</span>
-        <div><b>-1 шар</b> — свайпните вниз для отмены шара.</div>
+      <div class="tour-card">
+        <span class="tour-icon">${ARROW_DOWN_SVG}</span>
+        <div><b>Свайп вниз</b> отменяет шар (<b>-1</b>)</div>
       </div>
     `,
     penaltyHtml: `
-      Нажмите <b>«Штраф»</b> на карточке нарушившего игрока — соперник получит <b>+1 шар</b> и право удара с руки.
+      При нажатии на <span class="tour-chip tour-chip-red">Штраф</span> сопернику начисляется <b>+1 шар</b> и переходит право удара
     `,
   },
   'classic-pyramid': {
-    title: 'Классика',
-    subtitle: 'Русская пирамида (71 очко)',
-    targetText: 'Партия до 71 очка',
+    title: 'Классика (71 очко)',
     rulesHtml: `
-      <div style="margin-bottom:8px;">
-        <span style="${badgeStyle('rgba(110,200,130,0.2)', '#7be092')}">До 71 очка</span>
-        <span style="${badgeStyle('rgba(240,235,216,0.12)', '#f0ebd8')};margin-left:4px;">Номиналы шаров</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+        <span class="tour-chip tour-chip-green">До 71 очка</span>
+        <span class="tour-chip tour-chip-gold">По номерам</span>
       </div>
-      Каждый шар приносит очки по своему номеру (2–15). <b>Шар №1 (туз) дает 11 очков</b>, а последний 15-й шар на столе приносит <b>+10 бонусных очков</b>.
+      Шары считаются по номиналу номера (2-15). <b>Шар №1 (туз) дает 11 очков</b>, а последний оставшийся на столе шар приносит <b>+10 бонусных очков</b>
     `,
     scoringHtml: `
-      <div style="${rowCardStyle}">
-        <span style="${badgeStyle('rgba(110,200,130,0.22)', '#7be092')}">↑ Вверх</span>
-        <div>Откроется <b>выбор номера забитого шара (1–15)</b>. Очки посчитаются сами.</div>
+      <div class="tour-card">
+        <span class="tour-icon">${ARROW_UP_SVG}</span>
+        <div><b>Свайп вверх</b> открывает выбор номера забитого шара (1-15)</div>
       </div>
-      <div style="${rowCardStyle}">
-        <span style="${badgeStyle('rgba(210,85,85,0.25)', '#ff8a8a')}">↓ Вниз</span>
-        <div>Отменяет последний забитый шар этого игрока и возвращает его на стол.</div>
+      <div class="tour-card">
+        <span class="tour-icon">${ARROW_DOWN_SVG}</span>
+        <div><b>Свайп вниз</b> возвращает последний забитый шар обратно на стол</div>
       </div>
     `,
     penaltyHtml: `
-      В классике при нажатии на <b>«Штраф»</b> со счета нарушителя <b>списывается 5 очков</b>, а сопернику <b>прибавляется 5 очков</b>.
+      В классике кнопка <span class="tour-chip tour-chip-red">Штраф</span> <b>списывает 5 очков</b> у нарушителя и <b>прибавляет 5 очков</b> сопернику
     `,
   },
   'continuous-free-pyramid': {
     title: 'С продолжением',
-    subtitle: 'Игра на серии без лимита',
-    targetText: 'Без лимита очков',
     rulesHtml: `
-      <div style="margin-bottom:8px;">
-        <span style="${badgeStyle('rgba(110,200,130,0.2)', '#7be092')}">Без лимита</span>
-        <span style="${badgeStyle('rgba(240,235,216,0.12)', '#f0ebd8')};margin-left:4px;">Длинные серии</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+        <span class="tour-chip tour-chip-green">Без лимита</span>
+        <span class="tour-chip tour-chip-gold">Игра на серии</span>
       </div>
-      Когда на столе остается последний шар, 14 забитых шаров снова выставляются в пирамиду, а серия продолжается без остановки. Завершить матч можно в любой момент через кнопку выхода.
+      Когда на столе остается последний шар, 14 забитых шаров снова выставляются в пирамиду, а серия продолжается без остановки
     `,
     scoringHtml: `
-      <div style="${rowCardStyle}">
-        <span style="${badgeStyle('rgba(110,200,130,0.22)', '#7be092')}">↑ Вверх</span>
-        <div><b>+1 шар</b> — свайпните вверх по карточке игрока.</div>
+      <div class="tour-card">
+        <span class="tour-icon">${ARROW_UP_SVG}</span>
+        <div><b>Свайп вверх</b> по карточке игрока прибавляет <b>+1 шар</b></div>
       </div>
-      <div style="${rowCardStyle}">
-        <span style="${badgeStyle('rgba(210,85,85,0.25)', '#ff8a8a')}">↓ Вниз</span>
-        <div><b>-1 шар</b> — свайпните вниз для отмены.</div>
+      <div class="tour-card">
+        <span class="tour-icon">${ARROW_DOWN_SVG}</span>
+        <div><b>Свайп вниз</b> убавляет <b>-1 шар</b></div>
       </div>
     `,
     penaltyHtml: `
-      При нажатии на <b>«Штраф»</b> сопернику начисляется <b>+1 очко</b>, а текущая серия нарушителя закрывается.
+      При нажатии на <span class="tour-chip tour-chip-red">Штраф</span> сопернику прибавляется <b>+1 очко</b>, а серия нарушителя завершается
     `,
   },
 };
@@ -154,11 +146,7 @@ function findMainPlayButton(): Element | null {
     (btn) => !btn.closest('a[href="/history"]') && !btn.closest('nav')
   );
 
-  if (buttons.length > 0) {
-    return buttons[0];
-  }
-
-  return null;
+  return buttons[0] ?? null;
 }
 
 export function startMainOnboardingTour(onComplete?: () => void) {
@@ -169,9 +157,12 @@ export function startMainOnboardingTour(onComplete?: () => void) {
     {
       element: playBtn ?? '#tour-main-play-area',
       popover: {
-        title: 'Добро пожаловать в Пирамиду! 🎱',
+        title: 'Добро пожаловать в Пирамиду',
         description: `
-          Нажмите на <b>главный шар</b>, чтобы начать партию: выбрать дисциплину (<i>Американка, Московка, Невская, Классика</i>), вписать имена игроков и разбить пирамиду.
+          <div style="margin-bottom:8px;">
+            <span class="tour-chip tour-chip-gold">Вспомогательный дисплей для матча</span>
+          </div>
+          Нажмите на <b>главный шар</b>, чтобы выбрать дисциплину, указать имена игроков и начать партию. Вы сможете отмечать забитые шары и штрафы, чтобы в итоге получить <b>подробную статистику</b>
         `,
         side: 'bottom',
         align: 'center',
@@ -182,12 +173,12 @@ export function startMainOnboardingTour(onComplete?: () => void) {
           {
             element: historyBtn,
             popover: {
-              title: 'История и статистика',
+              title: 'История и аналитика',
               description: `
-                Здесь хранятся все сыгранные партии: <b>график хода игры, максимальные серии, среднее время на шар</b> и красивые карточки матча, которыми можно поделиться с друзьями.
+                Все сыгранные матчи сохраняются здесь: <b>график набора очков, лучшие серии, темп ударов</b> и готовая карточка результата, которой легко поделиться
               `,
               side: 'top',
-              align: 'end',
+              align: 'center',
             },
           },
         ] as DriveStep[])
@@ -195,31 +186,31 @@ export function startMainOnboardingTour(onComplete?: () => void) {
     {
       element: '#tour-nav-lectures',
       popover: {
-        title: 'Лекции и 2D-тренажер',
+        title: 'Правила',
         description: `
-          Раздел с наглядными правилами русского бильярда, разбором свояков и чужих, а также <b>интерактивным физическим столом</b> для тренировки ударов.
+          Иллюстрированные лекции по русскому бильярду ждут вас там
         `,
         side: 'top',
-        align: 'start',
+        align: 'center',
       },
     },
     {
       element: '#tour-nav-menu',
       popover: {
-        title: 'Темы оформления и меню',
+        title: 'Темы стола и настройки',
         description: `
-          Здесь можно поменять <b>цвет сукна, шаров и бортов</b>, включить залипательный режим <b>«Созерцать»</b>, открыть FAQ или заново запустить это обучение.
+          Настройте <b>тему</b> под свой вкус, включите режим созерцания или перезапустите это обучение в любой момент
         `,
         side: 'top',
-        align: 'end',
+        align: 'center',
       },
     },
     {
       element: '#tour-discipline-switcher',
       popover: {
-        title: 'Переключение разделов',
+        title: 'Переключение дисциплин',
         description: `
-          Свайпайте главный экран влево-вправо или нажимайте на полоски сверху для переключения между бильярдными дисциплинами.
+          Свайпайте главный экран влево-вправо или нажимайте на индикаторы сверху для перехода между бильярдными режимами
         `,
         side: 'bottom',
         align: 'center',
@@ -241,12 +232,12 @@ export function startMainOnboardingTour(onComplete?: () => void) {
     animate: true,
     allowClose: true,
     overlayColor: '#070605',
-    overlayOpacity: 0.78,
+    overlayOpacity: 0.8,
     stagePadding: 10,
-    stageRadius: 24,
-    nextBtnText: 'Далее →',
+    stageRadius: 28,
+    nextBtnText: 'Далее',
     prevBtnText: 'Назад',
-    doneBtnText: 'Начать!',
+    doneBtnText: 'Играть!',
     progressText: '{{current}} из {{total}}',
     steps,
     onDestroyed: () => {
@@ -268,7 +259,7 @@ export function startGameModeOnboardingTour(
     {
       element: '#tour-game-header',
       popover: {
-        title: `${info.title} — правила режима`,
+        title: info.title,
         description: info.rulesHtml,
         side: 'bottom',
         align: 'center',
@@ -277,7 +268,7 @@ export function startGameModeOnboardingTour(
     {
       element: '#tour-player-board',
       popover: {
-        title: 'Как считать шары',
+        title: 'Управление счетом',
         description: info.scoringHtml,
         side: 'bottom',
         align: 'center',
@@ -286,22 +277,22 @@ export function startGameModeOnboardingTour(
     {
       element: '#tour-player-name-row',
       popover: {
-        title: 'Учет серий (подходов)',
+        title: 'Как фиксировать серии',
         description: `
-          Когда игрок забивает шары подряд, рядом с именем загорается кнопка <span style="${badgeStyle('rgba(110,200,130,0.22)', '#7be092')}">🔥 Серия</span>.<br/><br/>
-          Если игрок <b>промахнулся или отыгрался</b>, нажмите на эту кнопку, чтобы завершить подход — так статистика серий в истории будет идеально точной!
+          Когда игрок забивает шары подряд, рядом с его именем загорается бейдж <span class="tour-chip tour-chip-green">${FIRE_SVG} Серия</span>.<br/><br/>
+          Как только подход завершился, <b>нажмите на этот бейдж</b> - он пропадет, серия закончится и сохранится в статистику
         `,
         side: 'bottom',
-        align: 'start',
+        align: 'center',
       },
     },
     {
       element: '#tour-penalty-btn',
       popover: {
-        title: 'Штрафы за фол',
+        title: 'Штраф за нарушение',
         description: info.penaltyHtml,
         side: 'bottom',
-        align: 'end',
+        align: 'center',
       },
     },
     {
@@ -309,20 +300,25 @@ export function startGameModeOnboardingTour(
       popover: {
         title: 'Таймер и пауза',
         description: `
-          Приложение считает чистое время партии и среднюю скорость забития шаров. <b>Нажмите на время</b>, если хотите поставить матч на паузу.
+          Нажмите на время партии вверху экрана, если нужно <b>поставить матч на паузу</b>
         `,
         side: 'bottom',
-        align: 'end',
+        align: 'center',
       },
     },
     {
       element: '#tour-bottom-actions',
       popover: {
-        title: 'Панель управления матчем',
+        title: 'Нижняя панель',
         description: `
-          • <b>Выход (слева)</b> — завершить партию досрочно или выйти в меню на паузе.<br/>
-          • <b>Отмена действия</b> — вернуть счет на шаг назад.<br/>
-          • <b>Кнопка «?» (справа)</b> — всегда откроет эти правила снова.
+          <div class="tour-card">
+            <span class="tour-icon">${UNDO_SVG}</span>
+            <div><b>Отмена действия</b> возвращает счет на шаг назад</div>
+          </div>
+          <div class="tour-card">
+            <span class="tour-icon">${QUESTION_SVG}</span>
+            <div>Кнопка справа всегда повторно покажет правила <b>${info.title}</b></div>
+          </div>
         `,
         side: 'top',
         align: 'center',
@@ -344,12 +340,12 @@ export function startGameModeOnboardingTour(
     animate: true,
     allowClose: true,
     overlayColor: '#070605',
-    overlayOpacity: 0.78,
+    overlayOpacity: 0.8,
     stagePadding: 6,
-    stageRadius: 18,
-    nextBtnText: 'Далее →',
+    stageRadius: 20,
+    nextBtnText: 'Далее',
     prevBtnText: 'Назад',
-    doneBtnText: 'К столу! 🎱',
+    doneBtnText: 'К столу!',
     progressText: '{{current}} из {{total}}',
     steps,
     onDestroyed: () => {
