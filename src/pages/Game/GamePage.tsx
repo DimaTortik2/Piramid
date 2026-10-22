@@ -97,6 +97,22 @@ const STREAK_ANIMATION_STYLES = `
   .board-snake-red::after {
     background: conic-gradient(from var(--snake-angle), rgba(239, 68, 68, 0) 0%, rgba(239, 68, 68, 0) 10%, rgba(239, 68, 68, 1) 45%, rgba(239, 68, 68, 0) 50%, rgba(239, 68, 68, 0) 60%, rgba(239, 68, 68, 1) 95%, rgba(239, 68, 68, 0) 100%);
   }
+     @keyframes shelf-bump-green {
+    0% { transform: translateY(0); }
+    25% { transform: translateY(-6px); }
+    50% { transform: translateY(3px); }
+    75% { transform: translateY(-1px); }
+    100% { transform: translateY(0); }
+  }
+  @keyframes shelf-bump-red {
+    0% { transform: translateY(0); }
+    25% { transform: translateY(6px); }
+    50% { transform: translateY(-3px); }
+    75% { transform: translateY(1px); }
+    100% { transform: translateY(0); }
+  }
+  .bump-green { animation: shelf-bump-green 0.4s ease-out; }
+  .bump-red { animation: shelf-bump-red 0.4s ease-out; }
 `;
 const stopSwipePropagation = (e: SyntheticEvent) => {
   e.stopPropagation();
@@ -429,7 +445,7 @@ const UserGameBoard = ({
           </div>
         </div>
         <div className="flex flex-1 flex-col justify-center gap-2">
-          <Button
+         <Button
             variant="ghostApprove"
             className="text-foreground/20 mx-auto hidden w-fit lg:flex pointer-fine:flex"
             onClick={onAdd}
@@ -437,16 +453,26 @@ const UserGameBoard = ({
             +1
           </Button>
 
-          {showNumberOnly ? (
-            <div className="my-4 flex flex-col items-center justify-center">
-              <span className="text-7xl font-bold">{score}</span>
-            </div>
-          ) : (
-            <>
-              <Shelf className="mb-4" ScoredBallsCount={firstShelfScore} />
-              <Shelf ScoredBallsCount={secondShelfScore} />
-            </>
-          )}
+       
+          <div
+            key={snakeCount}
+            className={cn(
+              'flex w-full flex-col items-center justify-center',
+              (snakeCount ?? 0) > 0 &&
+                (snakeType === 'green' ? 'bump-green' : 'bump-red')
+            )}
+          >
+            {showNumberOnly ? (
+              <div className="my-4 flex flex-col items-center justify-center">
+                <span className="text-7xl font-bold">{score}</span>
+              </div>
+            ) : (
+              <>
+                <Shelf className="mb-4" ScoredBallsCount={firstShelfScore} />
+                <Shelf ScoredBallsCount={secondShelfScore} />
+              </>
+            )}
+          </div>
 
           <Button
             variant="ghostDestructive"
@@ -720,7 +746,7 @@ export function GamePage({}: GamePageProps) {
     ].includes(storeMode);
     const playerName = playerId === 'p1' ? p1.name : p2.name;
     if (isStandard && nextScore === 7) {
-      toast.info(`Судья: 7 шаров у игрока ${playerName}`);
+      toast.info(`7 шаров у игрока ${playerName}`);
     }
   };
 
@@ -770,7 +796,6 @@ export function GamePage({}: GamePageProps) {
     setRecentlyPenalized(target);
     setTimeout(() => setRecentlyPenalized(null), 1500);
 
-    triggerSnake(target, 'red');
     triggerSnake(beneficiaryId, 'green');
   };
 
