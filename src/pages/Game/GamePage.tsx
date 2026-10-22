@@ -770,7 +770,6 @@ export function GamePage({}: GamePageProps) {
   const handleEndVisit = (playerId: 'p1' | 'p2') => {
     withPauseCheck(() => {
       endCurrentVisit(playerId);
-      triggerHaptic('tab');
     });
   };
 
