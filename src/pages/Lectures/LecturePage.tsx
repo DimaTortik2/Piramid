@@ -33,9 +33,8 @@ export function LecturePage() {
     () => loaderData?.MdxComponent ?? null
   );
   const [isLoading, setIsLoading] = useState(!loaderData?.MdxComponent);
-
   const [isAtTop, setIsAtTop] = useState(true);
-  const [isMobileControlsVisible, setIsMobileControlsVisible] = useState(true);
+  const [isScrollingUp, setIsScrollingUp] = useState(false);
   const lastScrollY = useRef(0);
 
   const isLecturesZenMode = useSettingsStore(
@@ -57,14 +56,14 @@ export function LecturePage() {
       const currentY = Math.max(0, window.scrollY);
       const diff = currentY - lastScrollY.current;
 
-      setIsAtTop(currentY < 120);
+      setIsAtTop(currentY < 100);
 
-      if (currentY < 48) {
-        setIsMobileControlsVisible(true);
+      if (currentY < 100) {
+        setIsScrollingUp(false);
       } else if (diff > 8) {
-        setIsMobileControlsVisible(false);
+        setIsScrollingUp(false);
       } else if (diff < -8) {
-        setIsMobileControlsVisible(true);
+        setIsScrollingUp(true);
       }
 
       lastScrollY.current = currentY;
@@ -117,30 +116,27 @@ export function LecturePage() {
   const currentDisciplineLabel =
     DISCIPLINES.find((d) => d.id === discipline)?.label ?? 'Теория';
 
+  const isMobileUpVisible = !isAtTop && isScrollingUp;
+
   return (
     <div className="bg-reader-background relative min-h-screen w-full px-3 pt-3 pb-[40dvh]">
       <ScrollProgressBar />
 
       <main className="relative mx-auto w-full max-w-125">
-        <div
-          className={cn(
-            'sticky top-3 z-40 mb-3 flex items-center justify-between gap-2 transition-all duration-300 lg:hidden',
-            isMobileControlsVisible
-              ? 'translate-y-0 opacity-100'
-              : 'pointer-events-none -translate-y-12 opacity-0'
-          )}
-        >
-          <BackButton />
+        <div className="pointer-events-none sticky top-3 z-40 mb-3 flex items-center justify-between gap-2 lg:hidden">
+          <div className="pointer-events-auto">
+            <BackButton />
+          </div>
 
           <button
             type="button"
             onClick={scrollToTop}
             aria-label="Наверх"
             className={cn(
-              'bg-foreground/5 hover:bg-foreground/10 active:bg-foreground/15 text-foreground/80 hover:text-foreground group inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-all duration-300 select-none active:scale-95',
-              isAtTop
-                ? 'pointer-events-none scale-75 opacity-0'
-                : 'scale-100 opacity-100'
+              'bg-foreground/5 hover:bg-foreground/10 active:bg-foreground/15 text-foreground/80 hover:text-foreground group pointer-events-auto inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-all duration-300 select-none active:scale-95',
+              isMobileUpVisible
+                ? 'scale-100 opacity-100'
+                : 'pointer-events-none scale-75 opacity-0'
             )}
           >
             <ArrowFatUpIcon
