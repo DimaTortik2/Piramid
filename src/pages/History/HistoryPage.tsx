@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, lazy, Suspense, type ChangeEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
@@ -9,10 +9,7 @@ import {
 } from '@/shared/store/gameStore';
 import { Button } from '@/shared/Button';
 import { InfoDrawer } from '@/shared/InfoDrawer';
-import {
-  ShareSessionDrawer,
-  normalizeMatchWinnerLeft,
-} from '@/shared/ShareSessionDrawer';
+import { normalizeMatchWinnerLeft } from '@/shared/ShareSessionDrawer';
 import { cn } from '@/shared/lib/utils/cn';
 import {
   ArrowsLeftRightIcon,
@@ -27,17 +24,15 @@ import {
   ClockCounterClockwiseIcon,
   UploadSimpleIcon,
 } from '@phosphor-icons/react';
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from 'recharts';
 import { toast } from 'sonner';
 import { PageHeader } from '@/shared/PageHeader';
+
+const MatchScoreChart = lazy(() => import('./MatchScoreChart'));
+const ShareSessionDrawer = lazy(() =>
+  import('@/shared/ShareSessionDrawer').then((m) => ({
+    default: m.ShareSessionDrawer,
+  }))
+);
 
 const MODE_LABELS: Record<GameMode, string> = {
   'free-pyramid': 'Свободная пирамида',
@@ -94,65 +89,6 @@ function formatTime(ms: number | null) {
   const s = totalSec % 60;
   if (h > 0) return `${h}ч ${m}м`;
   return m > 0 ? `${m}м ${s}с` : `${s}с`;
-}
-
-function MatchScoreChart({ match }: { match: MatchRecord }) {
-  const data = [
-    { step: '0', [match.p1.name]: 0, [match.p2.name]: 0 },
-    ...match.events.map((ev, idx) => ({
-      step: `${idx + 1}`,
-      [match.p1.name]: ev.scoreAfterP1,
-      [match.p2.name]: ev.scoreAfterP2,
-    })),
-  ];
-
-  if (match.events.length === 0) {
-    return (
-      <p className="py-4 text-center text-xs opacity-50">
-        Нет результативных действий в этой партии
-      </p>
-    );
-  }
-
-  return (
-    <div className="h-44 w-full pt-2">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
-          data={data}
-          margin={{ top: 5, right: 5, left: -25, bottom: 0 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" opacity={0.12} />
-          <XAxis dataKey="step" tick={{ fontSize: 10 }} opacity={0.5} />
-          <YAxis allowDecimals={false} tick={{ fontSize: 10 }} opacity={0.5} />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: 'var(--neutral)',
-              color: 'var(--neutral-foreground)',
-              borderRadius: '14px',
-              border: 'none',
-              fontSize: '12px',
-            }}
-          />
-          <Area
-            type="monotone"
-            dataKey={match.p1.name}
-            stroke="var(--approve)"
-            fill="var(--approve)"
-            fillOpacity={0.25}
-            strokeWidth={2.5}
-          />
-          <Area
-            type="monotone"
-            dataKey={match.p2.name}
-            stroke="var(--piramid-ball-shadow)"
-            fill="var(--piramid-ball-mid)"
-            fillOpacity={0.2}
-            strokeWidth={2.5}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
 }
 
 function StatComparisonRow({
@@ -336,7 +272,13 @@ function MatchAccordionItem({
               <span>Ход набора очков</span>
             </div>
 
-            <MatchScoreChart match={match} />
+            <Suspense
+              fallback={
+                <div className="h-44 w-full animate-pulse rounded-xl bg-foreground/5" />
+              }
+            >
+              <MatchScoreChart match={match} />
+            </Suspense>
 
             <div className="border-foreground/10 mt-2 grid grid-cols-2 gap-2 border-t pt-2 text-xs">
               <div>
@@ -591,13 +533,17 @@ export function HistoryPage() {
           document.body
         )}
 
-      <ShareSessionDrawer
-        match={shareMatch}
-        isOpen={shareMatch !== null}
-        onOpenChange={(open) => {
-          if (!open) setShareMatch(null);
-        }}
-      />
+      {shareMatch !== null && (
+        <Suspense fallback={null}>
+          <ShareSessionDrawer
+            match={shareMatch}
+            isOpen={true}
+            onOpenChange={(open) => {
+              if (!open) setShareMatch(null);
+            }}
+          />
+        </Suspense>
+      )}
 
       <InfoDrawer
         isOpen={isBackupDrawerOpen}
