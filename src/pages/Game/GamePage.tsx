@@ -43,6 +43,22 @@ const MODE_TITLES: Record<GameMode, string> = {
   'continuous-free-pyramid': 'С продолжением',
 };
 
+const STREAK_ANIMATION_STYLES = `
+  @keyframes badge-pop {
+    0% { transform: scale(0.5); opacity: 0; }
+    15% { transform: scale(1.3); opacity: 1; filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.8)); }
+    30% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 0 rgba(34, 197, 94, 0)); }
+    80% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(0.5); opacity: 0; }
+  }
+  @keyframes check-pop {
+    0% { transform: scale(0) rotate(-45deg); }
+    35% { transform: scale(1.3) rotate(15deg); }
+    55% { transform: scale(1) rotate(0); }
+    100% { transform: scale(1) rotate(0); }
+  }
+`;
+
 const stopSwipePropagation = (e: SyntheticEvent) => {
   e.stopPropagation();
 };
@@ -251,6 +267,29 @@ const UserGameBoard = ({
   const pullUpProgress = Math.max(0, Math.min(swipeOffset / threshold, 1));
   const pullDownProgress = Math.max(0, Math.min(-swipeOffset / threshold, 1));
 
+  const [savingStreak, setSavingStreak] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const handleEndVisitClick = (e: SyntheticEvent) => {
+    e.stopPropagation();
+    if (isPaused) {
+      onEndVisit?.();
+      return;
+    }
+    setSavingStreak(true);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      setSavingStreak(false);
+    }, 1200);
+    onEndVisit?.();
+  };
+
   return (
     <div
       id={boardId}
@@ -273,23 +312,33 @@ const UserGameBoard = ({
         <div className="flex w-full items-center justify-between gap-2">
           <div id={nameRowId} className="flex min-w-0 items-center gap-2">
             <span className="truncate font-medium">{name}</span>
-            {activeStreak >= 1 && (
-              <button
-                type="button"
-                title="Завершить подход (прервать серию)"
-                {...swipeIgnoreProps}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEndVisit?.();
-                }}
-                className="bg-approve/20 text-approve hover:bg-approve/30 flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all active:scale-95"
-              >
-                <FireIcon weight="fill" className="size-3.5" />
-                <span>Серия {activeStreak}</span>
-                <span className="bg-approve/25 flex size-4 items-center justify-center rounded-full">
-                  <CheckIcon weight="bold" className="size-2.5" />
-                </span>
-              </button>
+           {(activeStreak >= 1 || savingStreak) && (
+              savingStreak ? (
+                <div
+                  className="text-approve flex h-4 shrink-0 items-center justify-center px-2"
+                  style={{ animation: 'badge-pop 1.2s ease-in-out forwards' }}
+                >
+                  <CheckIcon 
+                    weight="bold" 
+                    className="size-4" 
+                    style={{ animation: 'check-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' }} 
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  title="Завершить подход (прервать серию)"
+                  {...swipeIgnoreProps}
+                  onClick={handleEndVisitClick}
+                  className="bg-approve/20 text-approve hover:bg-approve/30 flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-all active:scale-95"
+                >
+                  <FireIcon weight="fill" className="size-3.5" />
+                  <span>Серия {activeStreak}</span>
+                  <span className="bg-approve/25 flex size-4 items-center justify-center rounded-full">
+                    <CheckIcon weight="bold" className="size-2.5" />
+                  </span>
+                </button>
+              )
             )}
           </div>
           <div id={penaltyBtnId} {...swipeIgnoreProps} className="shrink-0">
@@ -596,7 +645,6 @@ export function GamePage({}: GamePageProps) {
     withPauseCheck(() => {
       endCurrentVisit(playerId);
       triggerHaptic('tab');
-      toast.success('Серия сохранена');
     });
   };
 
@@ -670,6 +718,7 @@ export function GamePage({}: GamePageProps) {
 
   return (
     <div className="mx-auto flex min-h-[100dvh] w-full max-w-125 flex-col gap-4 p-3">
+      <style>{STREAK_ANIMATION_STYLES}</style>
       <HeaderDisplay
         mode={storeMode}
         isTimerDrawerOpen={isTimerDrawerOpen}
