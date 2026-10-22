@@ -189,11 +189,18 @@ const MODE_TOUR_INFO: Record<
 };
 
 function findMainPlayButton(): Element | null {
+  const directBtn = document.querySelector('#tour-main-play-btn');
+  if (directBtn) return directBtn;
+
   const area = document.querySelector('#tour-main-play-area');
   if (!area) return null;
 
   const buttons = Array.from(area.querySelectorAll('button')).filter(
-    (btn) => !btn.closest('a[href="/history"]') && !btn.closest('nav')
+    (btn) =>
+      !btn.closest('a[href="/history"]') &&
+      !btn.closest('nav') &&
+      !btn.classList.contains('text-destructive') &&
+      !btn.closest('.text-destructive')
   );
 
   return buttons[0] ?? null;

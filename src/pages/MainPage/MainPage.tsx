@@ -13,10 +13,7 @@ import {
   useSettingsStore,
   resolveSlotColor,
 } from '@/shared/store/useSettingsStore';
-import {
-  ClockCounterClockwiseIcon,
-  TrashIcon,
-} from '@phosphor-icons/react';
+import { ClockCounterClockwiseIcon, TrashIcon } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -40,10 +37,8 @@ function PlayBallGraphic({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn(
-        'size-[150px] select-none transition-transform duration-150 ease-out',
-        isPressed
-          ? 'scale-90'
-          : 'group-hover:scale-105 group-active:scale-90'
+        'size-[150px] transition-transform duration-150 ease-out select-none',
+        isPressed ? 'scale-90' : 'group-hover:scale-105 group-active:scale-90'
       )}
     >
       <circle cx="174" cy="91" r="88" fill="url(#playBallGradDynamic)" />
@@ -149,6 +144,7 @@ export function MainPage() {
           <ActionCard
             title="Дисплей для матча"
             desc="Вы можете сыграть, а мы будем вам помогать"
+            id="tour-main-play-btn"
             actions={
               <ChooseGameDrawer
                 trigger={<Button className="w-full">Играть</Button>}
@@ -202,6 +198,7 @@ export function MainPage() {
               trigger={
                 <button
                   type="button"
+                  id="tour-main-play-btn"
                   aria-label="Новая игра"
                   onPointerDown={triggerBallPress}
                   className="group relative flex items-center justify-center rounded-full focus:outline-none"
@@ -252,7 +249,7 @@ export function MainPage() {
               >
                 Завершить и сохранить в историю
               </Button>
-             <Button
+              <Button
                 variant="destructive"
                 className="w-full"
                 onClick={() => {
