@@ -121,9 +121,12 @@ const HeaderDisplay = ({
   onTogglePause?: () => void;
 } & HTMLAttributes<HTMLDivElement>) => {
   return (
-    <div
+   <div
       id="tour-game-header"
-      className="bg-background/80 text-foreground flex h-11 items-center justify-between rounded-xl px-4 py-2.5 backdrop-blur-lg"
+      className={cn(
+        'bg-background/80 text-foreground flex h-11 items-center justify-between rounded-xl px-4 py-2.5 backdrop-blur-lg transition-all duration-300',
+        isPaused && 'pause-header-snake'
+      )}
     >
       <span
         className={cn(
@@ -251,9 +254,9 @@ const UserGameBoard = ({
     <div
       id={boardId}
       {...handlers}
-      className={cn(
+     className={cn(
         'bg-background/80 text-foreground relative flex flex-1 touch-none flex-col overflow-hidden rounded-xl p-4 backdrop-blur-lg transition-all duration-300 select-none',
-        isPaused && 'opacity-40 grayscale'
+        isPaused && 'opacity-25 grayscale'
       )}
     >
       <div
@@ -405,13 +408,13 @@ const BottomActions = ({
         }
       />
 
-      <Button
+   <Button
         variant="ghost"
         size="sm"
         onClick={onUndo}
         className={cn(
           'transition-all duration-300',
-          isPaused && 'opacity-35 grayscale'
+          isPaused && 'pointer-events-none opacity-10 grayscale'
         )}
       >
         <ArrowArcLeftIcon /> {'Отмена действия'}
@@ -426,7 +429,7 @@ const BottomActions = ({
         }}
         className={cn(
           'transition-all duration-300',
-          isPaused && 'opacity-35 grayscale'
+          isPaused && 'pointer-events-none opacity-10 grayscale'
         )}
       >
         <Circle className="text-foreground hover:bg-foreground/20 size-9 bg-transparent">

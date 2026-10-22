@@ -8,6 +8,7 @@ import {
   resolveSlotColor,
 } from '@/shared/store/useSettingsStore';
 import { useDisciplineStore } from '@/shared/store/useDisciplineStore';
+import { useGameStore } from '@/shared/store/gameStore';
 
 const NOISE_SVG = `data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E`;
 
@@ -38,7 +39,9 @@ export function TableSideRails({
   railColor: string;
 }) {
   const isLight = isLightColor(railColor);
-  const dotColor = isLight ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.15)';
+  const dotColor = isLight
+    ? 'rgba(0, 0, 0, 0.15)'
+    : 'rgba(255, 255, 255, 0.15)';
   const pocketColor = '#060608';
 
   const renderDots = () => (
@@ -65,24 +68,24 @@ export function TableSideRails({
     >
       <div
         ref={railMeasureRef}
-        className="absolute inset-y-0 left-0 w-2.5 sm:w-3.5 lg:w-4 transition-colors duration-300"
+        className="absolute inset-y-0 left-0 w-2.5 transition-colors duration-300 sm:w-3.5 lg:w-4"
         style={{
           backgroundColor: railColor,
           boxShadow: '2px 0 8px rgba(0, 0, 0, 0.15)',
         }}
       >
         <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent" />
-        
-        <div className="absolute top-[12%] bottom-[55%] left-0 right-0 z-10 flex flex-col items-center justify-evenly">
+
+        <div className="absolute top-[12%] right-0 bottom-[55%] left-0 z-10 flex flex-col items-center justify-evenly">
           {renderDots()}
         </div>
-        <div className="absolute top-[55%] bottom-[12%] left-0 right-0 z-10 flex flex-col items-center justify-evenly">
+        <div className="absolute top-[55%] right-0 bottom-[12%] left-0 z-10 flex flex-col items-center justify-evenly">
           {renderDots()}
         </div>
       </div>
 
       <div
-        className="absolute top-0 left-0 h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 rounded-br-full"
+        className="absolute top-0 left-0 h-3 w-3 rounded-br-full sm:h-4 sm:w-4 lg:h-5 lg:w-5"
         style={{
           backgroundColor: pocketColor,
           boxShadow: 'inset 1px 1px 2px rgba(0,0,0,0.5)',
@@ -96,7 +99,7 @@ export function TableSideRails({
         }}
       />
       <div
-        className="absolute bottom-0 left-0 h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 rounded-tr-full"
+        className="absolute bottom-0 left-0 h-3 w-3 rounded-tr-full sm:h-4 sm:w-4 lg:h-5 lg:w-5"
         style={{
           backgroundColor: pocketColor,
           boxShadow: 'inset 1px -1px 2px rgba(0,0,0,0.5)',
@@ -104,7 +107,7 @@ export function TableSideRails({
       />
 
       <div
-        className="absolute inset-y-0 right-0 w-2.5 sm:w-3.5 lg:w-4 transition-colors duration-300"
+        className="absolute inset-y-0 right-0 w-2.5 transition-colors duration-300 sm:w-3.5 lg:w-4"
         style={{
           backgroundColor: railColor,
           boxShadow: '-2px 0 8px rgba(0, 0, 0, 0.15)',
@@ -112,16 +115,16 @@ export function TableSideRails({
       >
         <div className="absolute inset-0 bg-gradient-to-l from-black/10 to-transparent" />
 
-        <div className="absolute top-[12%] bottom-[55%] left-0 right-0 z-10 flex flex-col items-center justify-evenly">
+        <div className="absolute top-[12%] right-0 bottom-[55%] left-0 z-10 flex flex-col items-center justify-evenly">
           {renderDots()}
         </div>
-        <div className="absolute top-[55%] bottom-[12%] left-0 right-0 z-10 flex flex-col items-center justify-evenly">
+        <div className="absolute top-[55%] right-0 bottom-[12%] left-0 z-10 flex flex-col items-center justify-evenly">
           {renderDots()}
         </div>
       </div>
 
       <div
-        className="absolute top-0 right-0 h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 rounded-bl-full"
+        className="absolute top-0 right-0 h-3 w-3 rounded-bl-full sm:h-4 sm:w-4 lg:h-5 lg:w-5"
         style={{
           backgroundColor: pocketColor,
           boxShadow: 'inset -1px 1px 2px rgba(0,0,0,0.5)',
@@ -135,7 +138,7 @@ export function TableSideRails({
         }}
       />
       <div
-        className="absolute bottom-0 right-0 h-3 w-3 sm:h-4 sm:w-4 lg:h-5 lg:w-5 rounded-tl-full"
+        className="absolute right-0 bottom-0 h-3 w-3 rounded-tl-full sm:h-4 sm:w-4 lg:h-5 lg:w-5"
         style={{
           backgroundColor: pocketColor,
           boxShadow: 'inset -1px -1px 2px rgba(0,0,0,0.5)',
@@ -144,7 +147,6 @@ export function TableSideRails({
     </div>
   );
 }
-
 
 function useInit<T extends HTMLElement = HTMLElement>(
   sceneRef: RefObject<T | null>,
@@ -536,10 +538,17 @@ export function BilliardsBackground({
   const isStaticCloth = backgroundMode === 'static';
   const isBallsDisabled = backgroundMode !== 'full';
 
+  const isGamePausedState = useGameStore((state) => state.isPaused);
+  const showAbstractPause = !!(
+    location.pathname.match(/^\/game\/.+/) && isGamePausedState
+  );
+
+  const shouldSleepEngine = isPaused || showAbstractPause;
+
   const { isPausedRef, engineRef, railWidthRef } = useInit(
     sceneRef,
     railMeasureRef,
-    isPaused,
+    shouldSleepEngine,
     isBallsDisabled,
     showTableBorders
   );
@@ -559,7 +568,6 @@ export function BilliardsBackground({
             0% { transform: translate3d(0, 0, 0); }
             100% { transform: translate3d(0, ${CONFIG.DRIFT_PX}px, 0); }
           }
-          
           .cloth-texture {
             background-image: 
               repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 4px),
@@ -568,10 +576,22 @@ export function BilliardsBackground({
             background-size: 4px 4px, 4px 4px, 200px 200px;
             opacity: 0.18;
           }
-
           .cloth-texture-animated {
             will-change: transform;
             animation: slideFelt ${CONFIG.DRIFT_MS}ms linear infinite;
+        }
+
+         @keyframes abstractFloat1 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-30%, 30%) scale(1.4); }
+          }
+          @keyframes abstractFloat2 {
+            0%, 100% { transform: translate(0, 0) scale(1.2); }
+            50% { transform: translate(30%, -30%) scale(0.8); }
+          }
+          @keyframes abstractFloat3 {
+            0%, 100% { transform: translate(0, 0) scale(0.8); }
+            50% { transform: translate(-20%, -40%) scale(1.3); }
           }
         `}
       </style>
@@ -580,7 +600,7 @@ export function BilliardsBackground({
         style={{ backgroundColor: clothColor }}
         className={cn(
           'fixed inset-0 -z-10 overflow-hidden transition-colors duration-700 ease-in-out',
-          isPaused && 'invisible opacity-0',
+          isPaused && !showAbstractPause && 'invisible opacity-0',
           className
         )}
       >
@@ -626,6 +646,34 @@ export function BilliardsBackground({
             railColor={railColor}
           />
         )}
+
+        <div
+          className={cn(
+            'pointer-events-none absolute inset-0 z-30 overflow-hidden bg-[#070709] transition-opacity duration-700',
+            showAbstractPause ? 'opacity-100' : 'opacity-0'
+          )}
+        >
+          <div
+            className="absolute inset-0 z-10 opacity-30 mix-blend-overlay"
+            style={{
+              backgroundImage: `url("${NOISE_SVG}")`,
+              backgroundSize: '150px',
+            }}
+          />
+
+          <div
+            className="absolute -top-[10%] -left-[10%] h-[80vw] w-[80vw] rounded-full bg-[#f0ebd8]/10 blur-[45px] sm:top-[15%] sm:left-[25%] sm:h-[20vw] sm:w-[20vw] sm:blur-[90px]"
+            style={{ animation: 'abstractFloat1 12s ease-in-out infinite' }}
+          />
+          <div
+            className="absolute top-[20%] -right-[10%] h-[90vw] w-[90vw] rounded-full bg-white/5 blur-[50px] sm:top-[25%] sm:right-[25%] sm:h-[22vw] sm:w-[22vw] sm:blur-[100px]"
+            style={{ animation: 'abstractFloat2 15s ease-in-out infinite' }}
+          />
+          <div
+            className="absolute -bottom-[20%] left-[10%] h-[85vw] w-[85vw] rounded-full bg-[#d6cfb7]/10 blur-[45px] sm:bottom-[20%] sm:left-[35%] sm:h-[18vw] sm:w-[18vw] sm:blur-[90px]"
+            style={{ animation: 'abstractFloat3 14s ease-in-out infinite' }}
+          />
+        </div>
       </div>
     </>
   );

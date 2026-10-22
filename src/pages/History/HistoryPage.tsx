@@ -285,7 +285,7 @@ function MatchAccordionItem({
             </span>
           </div>
 
-          <span className="bg-foreground/8 shrink-0 rounded-full px-3 py-0.5 text-sm font-extrabold whitespace-nowrap">
+          <span className="shrink-0 px-3 py-0.5 text-sm font-extrabold whitespace-nowrap">
             {match.p1.finalScore} : {match.p2.finalScore}
           </span>
 

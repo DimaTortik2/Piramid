@@ -230,15 +230,6 @@ export function MainPage() {
       <InfoDrawer
         isOpen={isDeleteDrawerOpen}
         onOpenChange={setIsDeleteDrawerOpen}
-        closeBtn={
-          <Button
-            variant="primary"
-            className="w-full"
-            onClick={() => setIsDeleteDrawerOpen(false)}
-          >
-            Отмена
-          </Button>
-        }
         content={
           <div className="flex flex-col items-center gap-4 py-4 text-center">
             <p className="text-xl font-medium">Завершить или удалить матч?</p>
