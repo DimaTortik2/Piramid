@@ -123,9 +123,14 @@ const HeaderDisplay = ({
   return (
     <div
       id="tour-game-header"
-      className="bg-background/80 text-foreground flex items-center justify-between rounded-xl px-4 py-2.5 backdrop-blur-lg"
+      className="bg-background/80 text-foreground flex h-11 items-center justify-between rounded-xl px-4 py-2.5 backdrop-blur-lg"
     >
-      <span className="text-sm font-medium opacity-75">
+      <span
+        className={cn(
+          'text-sm font-medium transition-all duration-300',
+          isPaused ? ' opacity-35 grayscale' : 'opacity-75'
+        )}
+      >
         {MODE_TITLES[mode]}
       </span>
 
@@ -146,7 +151,7 @@ const HeaderDisplay = ({
             <button
               id="tour-game-timer"
               type="button"
-              className="flex items-center justify-center text-sm opacity-80 transition-opacity hover:opacity-100"
+              className="flex items-center justify-center py-1 text-sm opacity-80 transition-opacity hover:opacity-100"
             >
               {roundHours > 0 ? (
                 <p>
@@ -202,6 +207,7 @@ const UserGameBoard = ({
   name,
   score = 0,
   activeStreak = 0,
+  isPaused = false,
   onAdd,
   onRemove,
   onPenalty,
@@ -213,12 +219,13 @@ const UserGameBoard = ({
   name?: string;
   score?: number;
   activeStreak?: number;
+  isPaused?: boolean;
   onAdd: () => void;
   onRemove: () => void;
   onPenalty?: () => void;
   onEndVisit?: () => void;
   showNumberOnly?: boolean;
-  nameRowId?: string
+  nameRowId?: string;
 } & HTMLAttributes<HTMLDivElement>) => {
   let firstShelfScore = 0;
   let secondShelfScore = 0;
@@ -244,7 +251,10 @@ const UserGameBoard = ({
     <div
       id={boardId}
       {...handlers}
-      className="bg-background/80 text-foreground relative flex flex-1 touch-none flex-col overflow-hidden rounded-xl p-4 backdrop-blur-lg select-none"
+      className={cn(
+        'bg-background/80 text-foreground relative flex flex-1 touch-none flex-col overflow-hidden rounded-xl p-4 backdrop-blur-lg transition-all duration-300 select-none',
+        isPaused && 'opacity-40 grayscale'
+      )}
     >
       <div
         className="from-approve/40 pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b to-transparent transition-opacity duration-75"
@@ -292,7 +302,7 @@ const UserGameBoard = ({
         <div className="flex flex-1 flex-col justify-center gap-2">
           <Button
             variant="ghostApprove"
-            className="text-foreground/20 mx-auto hidden w-fit lg:flex pointer-fine:flex"
+            className="text-foreground/20 pointer-fine:flex mx-auto hidden w-fit lg:flex"
             onClick={onAdd}
           >
             +1
@@ -311,7 +321,7 @@ const UserGameBoard = ({
 
           <Button
             variant="ghostDestructive"
-            className="text-foreground/20 mx-auto hidden w-fit lg:flex pointer-fine:flex"
+            className="text-foreground/20 pointer-fine:flex mx-auto hidden w-fit lg:flex"
             onClick={onRemove}
           >
             -1
@@ -329,6 +339,7 @@ const BottomActions = ({
   onEmptyExit,
   onStartTour,
   hasEvents = false,
+  isPaused = false,
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement> & {
@@ -338,6 +349,7 @@ const BottomActions = ({
   onEmptyExit: () => void;
   onStartTour: () => void;
   hasEvents?: boolean;
+  isPaused?: boolean;
 }) => {
   const [isExitDrawerOpen, setIsExitDrawerOpen] = useState(false);
 
@@ -393,7 +405,15 @@ const BottomActions = ({
         }
       />
 
-      <Button variant="ghost" size="sm" onClick={onUndo}>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onUndo}
+        className={cn(
+          'transition-all duration-300',
+          isPaused && 'opacity-35 grayscale'
+        )}
+      >
         <ArrowArcLeftIcon /> {'Отмена действия'}
       </Button>
 
@@ -404,6 +424,10 @@ const BottomActions = ({
           triggerHaptic('light');
           onStartTour();
         }}
+        className={cn(
+          'transition-all duration-300',
+          isPaused && 'opacity-35 grayscale'
+        )}
       >
         <Circle className="text-foreground hover:bg-foreground/20 size-9 bg-transparent">
           <QuestionMarkIcon />
@@ -486,7 +510,13 @@ export function GamePage({}: GamePageProps) {
     }, 450);
 
     return () => clearTimeout(timer);
-  }, [mode, storeMode, seenGameModeTours, lastCompletedRound, completeGameModeTour]);
+  }, [
+    mode,
+    storeMode,
+    seenGameModeTours,
+    lastCompletedRound,
+    completeGameModeTour,
+  ]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -562,6 +592,7 @@ export function GamePage({}: GamePageProps) {
     withPauseCheck(() => {
       endCurrentVisit(playerId);
       triggerHaptic('tab');
+      toast.success('Серия сохранена');
     });
   };
 
@@ -651,6 +682,7 @@ export function GamePage({}: GamePageProps) {
         name={p1.name}
         score={p1.score}
         activeStreak={p1ActiveStreak}
+        isPaused={isPaused}
         onAdd={() => withPauseCheck(() => handleAddScore('p1'))}
         onRemove={() => {
           withPauseCheck(() => removeScore('p1'));
@@ -664,6 +696,7 @@ export function GamePage({}: GamePageProps) {
         name={p2.name}
         score={p2.score}
         activeStreak={p2ActiveStreak}
+        isPaused={isPaused}
         onAdd={() => withPauseCheck(() => handleAddScore('p2'))}
         onRemove={() => {
           withPauseCheck(() => removeScore('p2'));
@@ -683,6 +716,7 @@ export function GamePage({}: GamePageProps) {
         onEmptyExit={handleEmptyExit}
         onStartTour={handleReplayTour}
         hasEvents={eventsList.length > 0}
+        isPaused={isPaused}
       />
 
       <InfoDrawer

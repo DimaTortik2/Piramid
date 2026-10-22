@@ -11,14 +11,43 @@ export interface LectureTopicMeta {
   description?: string;
 }
 
+const COMPLETED_STORAGE_KEY = 'piramid:lectures-completed';
+const OPEN_STORAGE_KEY = 'piramid:lectures-open';
+
+const loadMapFromStorage = (storageKey: string): Record<string, boolean> => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveMapToStorage = (storageKey: string, map: Record<string, boolean>) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(map));
+  } catch {
+    return;
+  }
+};
+
+const getTopicStorageKey = (id: string) => {
+  const discipline = useDisciplineStore.getState().discipline;
+  return `${discipline}:${id}`;
+};
+
 interface LectureStoreState {
   topics: LectureTopicMeta[];
   openMap: Record<string, boolean>;
+  completedMap: Record<string, boolean>;
   scanSections: () => void;
   isSectionOpen: (id: string) => boolean;
   toggleSection: (id: string) => void;
-  expandAll: () => void;
-  collapseAll: () => void;
+  isSectionCompleted: (id: string) => boolean;
+  markSectionCompleted: (id: string) => void;
+  toggleSectionCompleted: (id: string) => void;
   navigateToTopic: (id: string) => void;
   copyTopicLink: (id: string) => void;
 }
@@ -42,7 +71,8 @@ const scrollToTopicById = (id: string) => {
 
 export const useLectureStore = create<LectureStoreState>((set, get) => ({
   topics: [],
-  openMap: {},
+  openMap: loadMapFromStorage(OPEN_STORAGE_KEY),
+  completedMap: loadMapFromStorage(COMPLETED_STORAGE_KEY),
 
   scanSections: () => {
     if (typeof document === 'undefined') return;
@@ -57,62 +87,70 @@ export const useLectureStore = create<LectureStoreState>((set, get) => ({
       description: node.dataset.sectionDesc || undefined,
     }));
 
-    set((state) => {
-      const nextOpenMap: Record<string, boolean> = {};
-      for (const item of extracted) {
-        nextOpenMap[item.id] = state.openMap[item.id] ?? true;
-      }
-      return {
-        topics: extracted,
-        openMap: nextOpenMap,
-      };
-    });
+    set({ topics: extracted });
   },
 
   isSectionOpen: (id: string) => {
-    return get().openMap[id] ?? true;
+    const key = getTopicStorageKey(id);
+    return get().openMap[key] ?? true;
   },
 
   toggleSection: (id: string) => {
     triggerHaptic('light');
-    set((state) => ({
-      openMap: {
-        ...state.openMap,
-        [id]: !(state.openMap[id] ?? true),
-      },
-    }));
-  },
+    const key = getTopicStorageKey(id);
 
-  expandAll: () => {
-    triggerHaptic('light');
     set((state) => {
-      const next: Record<string, boolean> = {};
-      for (const t of state.topics) {
-        next[t.id] = true;
-      }
+      const current = state.openMap[key] ?? true;
+      const next = {
+        ...state.openMap,
+        [key]: !current,
+      };
+      saveMapToStorage(OPEN_STORAGE_KEY, next);
       return { openMap: next };
     });
   },
 
-  collapseAll: () => {
-    triggerHaptic('light');
+  isSectionCompleted: (id: string) => {
+    const key = getTopicStorageKey(id);
+    return Boolean(get().completedMap[key]);
+  },
+
+  markSectionCompleted: (id: string) => {
+    const key = getTopicStorageKey(id);
+    if (get().completedMap[key]) return;
+
     set((state) => {
-      const next: Record<string, boolean> = {};
-      for (const t of state.topics) {
-        next[t.id] = false;
-      }
-      return { openMap: next };
+      const next = { ...state.completedMap, [key]: true };
+      saveMapToStorage(COMPLETED_STORAGE_KEY, next);
+      return { completedMap: next };
+    });
+  },
+
+  toggleSectionCompleted: (id: string) => {
+    triggerHaptic('light');
+    const key = getTopicStorageKey(id);
+
+    set((state) => {
+      const next = {
+        ...state.completedMap,
+        [key]: !state.completedMap[key],
+      };
+      saveMapToStorage(COMPLETED_STORAGE_KEY, next);
+      return { completedMap: next };
     });
   },
 
   navigateToTopic: (id: string) => {
     triggerHaptic('light');
     const discipline = useDisciplineStore.getState().discipline;
-    const wasClosed = !(get().openMap[id] ?? true);
+    const key = getTopicStorageKey(id);
+    const wasClosed = !(get().openMap[key] ?? true);
 
-    set((state) => ({
-      openMap: { ...state.openMap, [id]: true },
-    }));
+    set((state) => {
+      const next = { ...state.openMap, [key]: true };
+      saveMapToStorage(OPEN_STORAGE_KEY, next);
+      return { openMap: next };
+    });
 
     const url = new URL(window.location.href);
     url.searchParams.set('discipline', discipline);
@@ -173,9 +211,13 @@ export function LectureProvider({
     const exists = topics.some((t) => t.id === rawId);
     if (!exists) return;
 
-    useLectureStore.setState((state) => ({
-      openMap: { ...state.openMap, [rawId]: true },
-    }));
+    const key = getTopicStorageKey(rawId);
+
+    useLectureStore.setState((state) => {
+      const next = { ...state.openMap, [key]: true };
+      saveMapToStorage(OPEN_STORAGE_KEY, next);
+      return { openMap: next };
+    });
 
     const timer = window.setTimeout(() => {
       scrollToTopicById(rawId);

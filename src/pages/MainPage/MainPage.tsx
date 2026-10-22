@@ -79,7 +79,13 @@ function PlayBallGraphic({
 }
 
 export function MainPage() {
-  const { isActiveGame, mode, endGame, finishCurrentRound } = useGameStore();
+  const {
+    isActiveGame,
+    mode,
+    endGame,
+    finishCurrentRound,
+    restoreAbandonedGame,
+  } = useGameStore();
   const [isDeleteDrawerOpen, setIsDeleteDrawerOpen] = useState(false);
   const [isBallPressed, setIsBallPressed] = useState(false);
 
@@ -255,13 +261,22 @@ export function MainPage() {
               >
                 Завершить и сохранить в историю
               </Button>
-              <Button
+             <Button
                 variant="destructive"
                 className="w-full"
                 onClick={() => {
                   endGame();
                   setIsDeleteDrawerOpen(false);
-                  toast.success('Партия удалена');
+                  toast('Партия удалена', {
+                    duration: 5000,
+                    action: {
+                      label: 'Отмена',
+                      onClick: () => {
+                        restoreAbandonedGame();
+                        triggerHaptic('undo');
+                      },
+                    },
+                  });
                 }}
               >
                 Удалить без сохранения

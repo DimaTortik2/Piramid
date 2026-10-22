@@ -1,4 +1,4 @@
-import { type ComponentType, useEffect, useState } from 'react';
+import { type ComponentType, useEffect, useRef, useState } from 'react';
 import {
   useLoaderData,
   useOutletContext,
@@ -9,6 +9,7 @@ import { BackButton } from '@/shared/BackButton';
 import type { useZenMode } from '@/shared/hooks/useZenMode';
 import { getMdxContent } from '@/shared/lib/getMdxContent';
 import { triggerHaptic } from '@/shared/lib/telegram';
+import { cn } from '@/shared/lib/utils/cn';
 import { ScrollProgressBar } from '@/shared/ScrollProgressBar';
 import {
   DISCIPLINES,
@@ -33,6 +34,10 @@ export function LecturePage() {
   );
   const [isLoading, setIsLoading] = useState(!loaderData?.MdxComponent);
 
+  const [isAtTop, setIsAtTop] = useState(true);
+  const [isMobileControlsVisible, setIsMobileControlsVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
   const isLecturesZenMode = useSettingsStore(
     (state) => state.isLecturesZenMode
   );
@@ -44,6 +49,31 @@ export function LecturePage() {
       outletContext.enableZenMode();
     }
   }, [isLecturesZenMode, outletContext]);
+
+  useEffect(() => {
+    lastScrollY.current = window.scrollY;
+
+    const handleScroll = () => {
+      const currentY = Math.max(0, window.scrollY);
+      const diff = currentY - lastScrollY.current;
+
+      setIsAtTop(currentY < 120);
+
+      if (currentY < 48) {
+        setIsMobileControlsVisible(true);
+      } else if (diff > 8) {
+        setIsMobileControlsVisible(false);
+      } else if (diff < -8) {
+        setIsMobileControlsVisible(true);
+      }
+
+      lastScrollY.current = currentY;
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     const paramDiscipline = searchParams.get(
@@ -92,14 +122,26 @@ export function LecturePage() {
       <ScrollProgressBar />
 
       <main className="relative mx-auto w-full max-w-125">
-        <div className="sticky top-3 z-40 mb-3 flex items-center justify-between gap-2 lg:hidden">
+        <div
+          className={cn(
+            'sticky top-3 z-40 mb-3 flex items-center justify-between gap-2 transition-all duration-300 lg:hidden',
+            isMobileControlsVisible
+              ? 'translate-y-0 opacity-100'
+              : 'pointer-events-none -translate-y-12 opacity-0'
+          )}
+        >
           <BackButton />
 
           <button
             type="button"
             onClick={scrollToTop}
             aria-label="Наверх"
-            className="bg-foreground/5 hover:bg-foreground/10 active:bg-foreground/15 text-foreground/80 hover:text-foreground group inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-all duration-300 select-none active:scale-95"
+            className={cn(
+              'bg-foreground/5 hover:bg-foreground/10 active:bg-foreground/15 text-foreground/80 hover:text-foreground group inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-all duration-300 select-none active:scale-95',
+              isAtTop
+                ? 'pointer-events-none scale-75 opacity-0'
+                : 'scale-100 opacity-100'
+            )}
           >
             <ArrowFatUpIcon
               weight="fill"
@@ -121,7 +163,12 @@ export function LecturePage() {
               onClick={scrollToTop}
               aria-label="Наверх"
               title="Наверх"
-              className="bg-foreground/5 hover:bg-foreground/10 active:bg-foreground/15 text-foreground/80 hover:text-foreground group inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-all duration-300 select-none active:scale-95"
+              className={cn(
+                'bg-foreground/5 hover:bg-foreground/10 active:bg-foreground/15 text-foreground/80 hover:text-foreground group inline-flex size-9 cursor-pointer items-center justify-center rounded-full transition-all duration-300 select-none active:scale-95',
+                isAtTop
+                  ? 'pointer-events-none scale-75 opacity-0'
+                  : 'scale-100 opacity-100'
+              )}
             >
               <ArrowFatUpIcon
                 weight="fill"

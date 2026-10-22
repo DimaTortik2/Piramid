@@ -127,6 +127,11 @@ interface GameStateData {
   lastCompletedRound: MatchRecord | null;
 }
 
+interface AbandonedGameBackup extends GameStateData {
+  history: GameStateData[];
+  startTime: number | null;
+}
+
 interface GameStore extends GameStateData {
   history: GameStateData[];
   savedMatches: MatchRecord[];
@@ -137,6 +142,7 @@ interface GameStore extends GameStateData {
   lastTickTimestamp: number | null;
   isPaused: boolean;
   isActiveGame: boolean;
+  abandonedGame: AbandonedGameBackup | null;
 
   startGame: (
     mode: GameMode,
@@ -162,6 +168,7 @@ interface GameStore extends GameStateData {
   togglePause: () => void;
   setPause: (forcePause: boolean) => void;
   endGame: () => void;
+  restoreAbandonedGame: () => void;
 }
 
 const MAX_HISTORY = 30;
@@ -526,6 +533,7 @@ export const useGameStore = create<GameStore>()(
       roundElapsedMs: 0,
       currentRoundStartTime: null,
       currentRoundEvents: [],
+      abandonedGame: null,
 
       startTime: null,
       lastTickTimestamp: null,
@@ -552,6 +560,7 @@ export const useGameStore = create<GameStore>()(
           mode,
           initialBreaker,
           lastCompletedRound: null,
+          abandonedGame: null,
           defaultP1Name: cleanP1 !== 'Вы' ? cleanP1 : get().defaultP1Name,
           p1: { id: 'p1', name: cleanP1, score: 0, roundsWon: 0 },
           p2: { id: 'p2', name: cleanP2, score: 0, roundsWon: 0 },
@@ -610,20 +619,55 @@ export const useGameStore = create<GameStore>()(
         }),
 
       endGame: () =>
-        set((state) => ({
-          isActiveGame: false,
-          startTime: null,
-          lastTickTimestamp: null,
-          isPaused: false,
-          roundElapsedMs: 0,
-          lastCompletedRound: null,
-          currentRoundStartTime: null,
-          currentRoundEvents: [],
-          pottedBalls: [],
-          history: [],
-          p1: { ...state.p1, score: 0, roundsWon: 0 },
-          p2: { ...state.p2, score: 0, roundsWon: 0 },
-        })),
+        set((state) => {
+          const now = Date.now();
+          const backup: AbandonedGameBackup | null = state.isActiveGame
+            ? {
+                p1: state.p1,
+                p2: state.p2,
+                pottedBalls: state.pottedBalls,
+                mode: state.mode,
+                initialBreaker: state.initialBreaker,
+                roundElapsedMs: computeActiveElapsedMs(state, now),
+                currentRoundStartTime: state.currentRoundStartTime,
+                currentRoundEvents: state.currentRoundEvents,
+                lastCompletedRound: null,
+                history: state.history,
+                startTime: state.startTime,
+              }
+            : state.abandonedGame;
+
+          return {
+            abandonedGame: backup,
+            isActiveGame: false,
+            startTime: null,
+            lastTickTimestamp: null,
+            isPaused: false,
+            roundElapsedMs: 0,
+            lastCompletedRound: null,
+            currentRoundStartTime: null,
+            currentRoundEvents: [],
+            pottedBalls: [],
+            history: [],
+            p1: { ...state.p1, score: 0, roundsWon: 0 },
+            p2: { ...state.p2, score: 0, roundsWon: 0 },
+          };
+        }),
+
+      restoreAbandonedGame: () =>
+        set((state) => {
+          if (!state.abandonedGame) return state;
+          const { history, startTime, ...gameState } = state.abandonedGame;
+          return {
+            ...gameState,
+            history,
+            startTime,
+            abandonedGame: null,
+            isActiveGame: true,
+            isPaused: true,
+            lastTickTimestamp: null,
+          };
+        }),
 
       dismissRoundModal: () => set({ lastCompletedRound: null }),
 
