@@ -121,7 +121,7 @@ const HeaderDisplay = ({
   onTogglePause?: () => void;
 } & HTMLAttributes<HTMLDivElement>) => {
   return (
-   <div
+    <div
       id="tour-game-header"
       className={cn(
         'bg-background/80 text-foreground flex h-11 items-center justify-between rounded-xl px-4 py-2.5 backdrop-blur-lg transition-all duration-300',
@@ -131,74 +131,75 @@ const HeaderDisplay = ({
       <span
         className={cn(
           'text-sm font-medium transition-all duration-300',
-          isPaused ? ' opacity-35 grayscale' : 'opacity-75'
+          isPaused ? 'opacity-35 grayscale' : 'opacity-75'
         )}
       >
         {MODE_TITLES[mode]}
       </span>
 
-      <InfoDrawer
-        isOpen={isTimerDrawerOpen}
-        onOpenChange={setIsTimerDrawerOpen}
-        trigger={
-          isPaused ? (
-            <button
-              id="tour-game-timer"
-              type="button"
-              className="bg-destructive/15 text-destructive flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors"
-            >
-              <PlayIcon weight="fill" className="size-3.5" />
-              <span>На паузе</span>
-            </button>
+      {isPaused ? (
+        <button
+          id="tour-game-timer"
+          type="button"
+          className="bg-destructive/15 text-destructive flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors"
+          onClick={onTogglePause}
+        >
+          <PlayIcon weight="fill" className="size-3.5" />
+          <span>На паузе</span>
+        </button>
+      ) : (
+        <button
+          id="tour-game-timer"
+          type="button"
+          onClick={onTogglePause}
+          className="flex items-center justify-center py-1 text-sm opacity-80 transition-opacity hover:opacity-100"
+        >
+          {roundHours > 0 ? (
+            <p>
+              <span>{roundHours}</span>
+              <span className="text-[0.75em]"> ч. </span>
+              <span>{roundMinutes}</span>
+              <span className="text-[0.75em]"> мин.</span>
+            </p>
           ) : (
-            <button
-              id="tour-game-timer"
-              type="button"
-              className="flex items-center justify-center py-1 text-sm opacity-80 transition-opacity hover:opacity-100"
-            >
-              {roundHours > 0 ? (
+            <p>
+              <span>{roundMinutes}</span>
+              <span className="text-[0.75em]"> мин. </span>
+              <span>{roundSeconds}</span>
+              <span className="text-[0.75em]"> сек.</span>
+            </p>
+          )}
+        </button>
+      )}
+       <InfoDrawer
+          isOpen={isTimerDrawerOpen}
+          onOpenChange={setIsTimerDrawerOpen}
+          content={
+            <div className="flex flex-col items-center gap-2 py-4 text-center">
+              {isPaused ? (
                 <p>
-                  <span>{roundHours}</span>
-                  <span className="text-[0.75em]"> ч. </span>
-                  <span>{roundMinutes}</span>
-                  <span className="text-[0.75em]"> мин.</span>
+                  Партия на паузе. Нажмите кнопку ниже, чтобы продолжить отсчет
+                  времени.
                 </p>
               ) : (
                 <p>
-                  <span>{roundMinutes}</span>
-                  <span className="text-[0.75em]"> мин. </span>
-                  <span>{roundSeconds}</span>
-                  <span className="text-[0.75em]"> сек.</span>
+                  Время партии: {roundHours > 0 && `${roundHours} ч. `}
+                  {roundMinutes} мин.{' '}
+                  {roundHours === 0 && `${roundSeconds} сек.`}
                 </p>
               )}
-            </button>
-          )
-        }
-        content={
-          <div className="flex flex-col items-center gap-2 py-4 text-center">
-            {isPaused ? (
-              <p>
-                Партия на паузе. Нажмите кнопку ниже, чтобы продолжить отсчет
-                времени.
-              </p>
-            ) : (
-              <p>
-                Время партии: {roundHours > 0 && `${roundHours} ч. `}
-                {roundMinutes} мин. {roundHours === 0 && `${roundSeconds} сек.`}
-              </p>
-            )}
-            <Drawer.Close asChild>
-              <Button
-                variant={isPaused ? 'approve' : 'primary'}
-                onClick={onTogglePause}
-                className="mt-4 w-full"
-              >
-                {isPaused ? 'Возобновить партию' : 'Поставить на паузу'}
-              </Button>
-            </Drawer.Close>
-          </div>
-        }
-      />
+              <Drawer.Close asChild>
+                <Button
+                  variant={isPaused ? 'approve' : 'primary'}
+                  onClick={onTogglePause}
+                  className="mt-4 w-full"
+                >
+                  {isPaused ? 'Возобновить партию' : 'Поставить на паузу'}
+                </Button>
+              </Drawer.Close>
+            </div>
+          }
+        />
     </div>
   );
 };
@@ -254,7 +255,7 @@ const UserGameBoard = ({
     <div
       id={boardId}
       {...handlers}
-     className={cn(
+      className={cn(
         'bg-background/80 text-foreground relative flex flex-1 touch-none flex-col overflow-hidden rounded-xl p-4 backdrop-blur-lg transition-all duration-300 select-none',
         isPaused && 'opacity-25 grayscale'
       )}
@@ -305,7 +306,7 @@ const UserGameBoard = ({
         <div className="flex flex-1 flex-col justify-center gap-2">
           <Button
             variant="ghostApprove"
-            className="text-foreground/20 pointer-fine:flex mx-auto hidden w-fit lg:flex"
+            className="text-foreground/20 mx-auto hidden w-fit lg:flex pointer-fine:flex"
             onClick={onAdd}
           >
             +1
@@ -324,7 +325,7 @@ const UserGameBoard = ({
 
           <Button
             variant="ghostDestructive"
-            className="text-foreground/20 pointer-fine:flex mx-auto hidden w-fit lg:flex"
+            className="text-foreground/20 mx-auto hidden w-fit lg:flex pointer-fine:flex"
             onClick={onRemove}
           >
             -1
@@ -408,7 +409,7 @@ const BottomActions = ({
         }
       />
 
-   <Button
+      <Button
         variant="ghost"
         size="sm"
         onClick={onUndo}
@@ -611,6 +612,7 @@ export function GamePage({}: GamePageProps) {
     applyPenalty(penaltyTarget);
     setPenaltyTarget(null);
     triggerHaptic('penalty');
+    toast.success('Штраф наложен')
   };
 
   const handleSelectClassicBall = (num: number) => {
@@ -727,15 +729,6 @@ export function GamePage({}: GamePageProps) {
         onOpenChange={(open) => {
           if (!open) setPenaltyTarget(null);
         }}
-        closeBtn={
-          <Button
-            variant="primary"
-            className="w-full"
-            onClick={() => setPenaltyTarget(null)}
-          >
-            Отмена
-          </Button>
-        }
         content={
           <div className="flex flex-col items-center gap-4 py-4 text-center">
             <p className="text-xl font-medium">Назначить штраф?</p>

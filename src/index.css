@@ -200,13 +200,19 @@ html.no-blur [class*="backdrop-blur"] {
 }
 
 
+[data-sonner-toaster] {
+  z-index: 100001 !important;
+}
+
 .driver-popover.billiard-tour-popover {
   position: fixed !important;
   z-index: 100000 !important;
   box-sizing: border-box !important;
-  width: calc(100vw - 32px) !important;
+  left: 16px !important;
+  right: 16px !important;
+  width: auto !important;
   max-width: 328px !important;
-  left: max(16px, min(var(--driver-popover-left, 16px), calc(100vw - 344px))) !important;
+  margin-inline: auto !important;
   padding: 1.25rem !important;
   border-radius: 1.5rem !important;
   background-color: #171513 !important;
@@ -215,16 +221,6 @@ html.no-blur [class*="backdrop-blur"] {
   box-shadow: none !important;
   outline: none !important;
   animation: tour-popover-in 0.2s ease-out forwards !important;
-}
-
-@media (max-width: 480px) {
-  .driver-popover.billiard-tour-popover {
-    left: 16px !important;
-    right: 16px !important;
-    width: auto !important;
-    max-width: calc(100vw - 32px) !important;
-    margin-inline: auto !important;
-  }
 }
 
 .driver-popover.billiard-tour-popover .driver-popover-title {

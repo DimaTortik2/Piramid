@@ -1,5 +1,6 @@
 import { driver, type DriveStep } from 'driver.js';
 import 'driver.js/dist/driver.css';
+import { toast } from 'sonner';
 import type { GameMode } from '@/shared/store/gameStore';
 
 const ARROW_UP_SVG = `<svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="#84e89b" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"><line x1="128" y1="216" x2="128" y2="40"/><polyline points="56 112 128 40 200 112"/></svg>`;
@@ -11,6 +12,55 @@ const FIRE_SVG = `<svg width="13" height="13" viewBox="0 0 256 256" fill="curren
 const UNDO_SVG = `<svg width="17" height="17" viewBox="0 0 256 256" fill="none" stroke="#f5d17a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"><polyline points="88 136 40 88 88 40"/><path d="M40,88H168a56,56,0,0,1,0,112H112"/></svg>`;
 
 const QUESTION_SVG = `<svg width="17" height="17" viewBox="0 0 256 256" fill="none" stroke="#f5d17a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"><circle cx="128" cy="128" r="96"/><path d="M104,100a24,24,0,1,1,32,22.62V140"/><circle cx="128" cy="180" r="6" fill="#f5d17a"/></svg>`;
+
+const BLOCKED_EVENTS = [
+  'pointerdown',
+  'pointermove',
+  'pointerup',
+  'touchstart',
+  'touchmove',
+  'touchend',
+  'mousedown',
+  'mouseup',
+  'click',
+] as const;
+
+function lockTourInteractions() {
+  const handler = (e: Event) => {
+    const target = e.target as Element | null;
+    if (!target) return;
+
+    if (
+      target.closest('.driver-popover') ||
+      target.closest('[data-sonner-toaster]')
+    ) {
+      return;
+    }
+
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    if (e.cancelable) {
+      e.preventDefault();
+    }
+
+    if (e.type === 'pointerdown' && !target.closest('.driver-overlay')) {
+      toast.info('Попробуйте после обучения', { id: 'tour-lock-toast' });
+    }
+  };
+
+  BLOCKED_EVENTS.forEach((eventName) => {
+    window.addEventListener(eventName, handler, {
+      capture: true,
+      passive: false,
+    });
+  });
+
+  return () => {
+    BLOCKED_EVENTS.forEach((eventName) => {
+      window.removeEventListener(eventName, handler, { capture: true });
+    });
+  };
+}
 
 const MODE_TOUR_INFO: Record<
   GameMode,
@@ -226,11 +276,15 @@ export function startMainOnboardingTour(onComplete?: () => void) {
     return true;
   });
 
+  const unlockInteractions = lockTourInteractions();
+
   const driverObj = driver({
     popoverClass: 'billiard-tour-popover',
     showProgress: true,
     animate: true,
-    allowClose: true,
+    allowClose: false,
+    allowKeyboardControl: false,
+    showButtons: ['next', 'previous'],
     overlayColor: '#070605',
     overlayOpacity: 0.8,
     stagePadding: 10,
@@ -240,7 +294,21 @@ export function startMainOnboardingTour(onComplete?: () => void) {
     doneBtnText: 'Играть!',
     progressText: '{{current}} из {{total}}',
     steps,
+    onPopoverRender: (popover, { state }) => {
+      if (state.activeIndex === 0) {
+        popover.previousButton.removeAttribute('disabled');
+        popover.previousButton.classList.remove('driver-popover-btn-disabled');
+      }
+    },
+    onPrevClick: (_element, _step, { state, driver: drv }) => {
+      if (state.activeIndex === 0) {
+        drv.destroy();
+      } else {
+        drv.movePrevious();
+      }
+    },
     onDestroyed: () => {
+      unlockInteractions();
       onComplete?.();
     },
   });
@@ -334,11 +402,15 @@ export function startGameModeOnboardingTour(
     return true;
   });
 
+  const unlockInteractions = lockTourInteractions();
+
   const driverObj = driver({
     popoverClass: 'billiard-tour-popover',
     showProgress: true,
     animate: true,
-    allowClose: true,
+    allowClose: false,
+    allowKeyboardControl: false,
+    showButtons: ['next', 'previous'],
     overlayColor: '#070605',
     overlayOpacity: 0.8,
     stagePadding: 6,
@@ -348,7 +420,21 @@ export function startGameModeOnboardingTour(
     doneBtnText: 'К столу!',
     progressText: '{{current}} из {{total}}',
     steps,
+    onPopoverRender: (popover, { state }) => {
+      if (state.activeIndex === 0) {
+        popover.previousButton.removeAttribute('disabled');
+        popover.previousButton.classList.remove('driver-popover-btn-disabled');
+      }
+    },
+    onPrevClick: (_element, _step, { state, driver: drv }) => {
+      if (state.activeIndex === 0) {
+        drv.destroy();
+      } else {
+        drv.movePrevious();
+      }
+    },
     onDestroyed: () => {
+      unlockInteractions();
       onComplete?.();
     },
   });
