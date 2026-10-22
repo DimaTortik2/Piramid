@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { create } from 'zustand';
 import { triggerHaptic } from '@/shared/lib/telegram';
@@ -13,8 +13,11 @@ export interface LectureTopicMeta {
 
 const COMPLETED_STORAGE_KEY = 'piramid:lectures-completed';
 const OPEN_STORAGE_KEY = 'piramid:lectures-open';
+const SCROLL_STORAGE_KEY = 'piramid:lectures-scroll';
 
-const loadMapFromStorage = (storageKey: string): Record<string, boolean> => {
+const loadMapFromStorage = <T = boolean,>(
+  storageKey: string
+): Record<string, T> => {
   if (typeof window === 'undefined') return {};
   try {
     const raw = window.localStorage.getItem(storageKey);
@@ -24,7 +27,10 @@ const loadMapFromStorage = (storageKey: string): Record<string, boolean> => {
   }
 };
 
-const saveMapToStorage = (storageKey: string, map: Record<string, boolean>) => {
+const saveMapToStorage = <T = boolean,>(
+  storageKey: string,
+  map: Record<string, T>
+) => {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(storageKey, JSON.stringify(map));
@@ -71,8 +77,8 @@ const scrollToTopicById = (id: string) => {
 
 export const useLectureStore = create<LectureStoreState>((set, get) => ({
   topics: [],
-  openMap: loadMapFromStorage(OPEN_STORAGE_KEY),
-  completedMap: loadMapFromStorage(COMPLETED_STORAGE_KEY),
+  openMap: loadMapFromStorage<boolean>(OPEN_STORAGE_KEY),
+  completedMap: loadMapFromStorage<boolean>(COMPLETED_STORAGE_KEY),
 
   scanSections: () => {
     if (typeof document === 'undefined') return;
@@ -131,12 +137,26 @@ export const useLectureStore = create<LectureStoreState>((set, get) => ({
     const key = getTopicStorageKey(id);
 
     set((state) => {
-      const next = {
+      const nextCompletedState = !state.completedMap[key];
+      const nextCompletedMap = {
         ...state.completedMap,
-        [key]: !state.completedMap[key],
+        [key]: nextCompletedState,
       };
-      saveMapToStorage(COMPLETED_STORAGE_KEY, next);
-      return { completedMap: next };
+      saveMapToStorage(COMPLETED_STORAGE_KEY, nextCompletedMap);
+
+      if (nextCompletedState) {
+        const nextOpenMap = {
+          ...state.openMap,
+          [key]: false,
+        };
+        saveMapToStorage(OPEN_STORAGE_KEY, nextOpenMap);
+        return {
+          completedMap: nextCompletedMap,
+          openMap: nextOpenMap,
+        };
+      }
+
+      return { completedMap: nextCompletedMap };
     });
   },
 
@@ -197,10 +217,57 @@ export function LectureProvider({
   const location = useLocation();
   const scanSections = useLectureStore((state) => state.scanSections);
   const topics = useLectureStore((state) => state.topics);
+  const isScrollRestoredRef = useRef(false);
+
+  const activeDiscipline =
+    disciplineKey || useDisciplineStore.getState().discipline;
 
   useLayoutEffect(() => {
     scanSections();
-  }, [disciplineKey, scanSections]);
+  }, [activeDiscipline, scanSections]);
+
+  useEffect(() => {
+    isScrollRestoredRef.current = false;
+
+    if (window.location.hash) {
+      isScrollRestoredRef.current = true;
+      return;
+    }
+
+    const scrollMap = loadMapFromStorage<number>(SCROLL_STORAGE_KEY);
+    const savedY = scrollMap[activeDiscipline];
+
+    const rafId = window.requestAnimationFrame(() => {
+      if (typeof savedY === 'number' && savedY > 0) {
+        window.scrollTo({ top: savedY, behavior: 'instant' });
+      }
+      isScrollRestoredRef.current = true;
+    });
+
+    return () => window.cancelAnimationFrame(rafId);
+  }, [activeDiscipline]);
+
+  useEffect(() => {
+    let rafId: number | null = null;
+
+    const handleScroll = () => {
+      if (!isScrollRestoredRef.current) return;
+      if (rafId !== null) return;
+
+      rafId = window.requestAnimationFrame(() => {
+        const scrollMap = loadMapFromStorage<number>(SCROLL_STORAGE_KEY);
+        scrollMap[activeDiscipline] = Math.round(window.scrollY);
+        saveMapToStorage(SCROLL_STORAGE_KEY, scrollMap);
+        rafId = null;
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [activeDiscipline]);
 
   useEffect(() => {
     if (!location.hash || topics.length === 0) return;

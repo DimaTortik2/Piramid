@@ -31,6 +31,7 @@ export function LectureSection({
 
   const isOpen = isSectionOpen(id);
   const isCompleted = isSectionCompleted(id);
+  const isDimmed = isCompleted && !isOpen;
   const endSentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -69,19 +70,27 @@ export function LectureSection({
       data-section-title={title}
       data-section-desc={description ?? ''}
     >
-      <div className="bg-reader-accent-foreground h-px w-full" />
+      <div
+        className={cn(
+          'h-px w-full transition-colors duration-300 ease-out',
+          isDimmed
+            ? 'bg-reader-accent-foreground/30'
+            : 'bg-reader-accent-foreground'
+        )}
+      />
 
       <div className="not-prose flex items-start justify-between gap-3 py-5">
         <button
           type="button"
           onClick={() => toggleSection(id)}
           aria-expanded={isOpen}
-          className="flex flex-1 items-start gap-3 text-left"
+          className="group flex flex-1 items-start gap-3 text-left"
         >
           <span
             className={cn(
-              'text-reader-accent-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center transition-transform duration-200',
-              isOpen && 'rotate-180', isCompleted && !isOpen && 'opacity-45'
+              'text-reader-accent-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center transition-[transform,opacity] duration-300 ease-out',
+              isOpen && 'rotate-180',
+              isDimmed && 'opacity-40 group-hover:opacity-75'
             )}
           >
             <CaretDownIcon size={16} weight="bold" />
@@ -90,17 +99,23 @@ export function LectureSection({
           <div className="flex-1">
             <h2
               className={cn(
-                'text-base font-semibold leading-snug transition-colors sm:text-lg',
-                isCompleted && !isOpen
-                  ? 'text-reader-foreground/35'
-                  : 'text-reader-foreground',
-                  
+                'text-base font-semibold leading-snug transition-colors duration-300 ease-out sm:text-lg',
+                isDimmed
+                  ? 'text-reader-foreground/40 group-hover:text-reader-foreground/75'
+                  : 'text-reader-foreground'
               )}
             >
               {title}
             </h2>
             {description && (
-              <p className={cn("text-reader-muted-foreground mt-1 text-xs leading-relaxed", isCompleted && !isOpen && 'text-reader-muted-foreground/30')}>
+              <p
+                className={cn(
+                  'mt-1 text-xs leading-relaxed transition-colors duration-300 ease-out',
+                  isDimmed
+                    ? 'text-reader-muted-foreground/30 group-hover:text-reader-muted-foreground/60'
+                    : 'text-reader-muted-foreground'
+                )}
+              >
                 {description}
               </p>
             )}
@@ -122,11 +137,11 @@ export function LectureSection({
                 : 'Отметить как прочитанное'
             }
             className={cn(
-              'flex size-8 items-center justify-center transition-colors',
+              'flex size-8 items-center justify-center transition-[color,opacity] duration-300 ease-out',
               isCompleted
                 ? 'text-reader-accent-foreground'
                 : 'text-reader-muted-foreground/45 hover:text-reader-foreground',
-               isCompleted && !isOpen && 'opacity-45'
+              isDimmed && 'opacity-45 hover:opacity-100'
             )}
           >
             <CheckIcon size={16} weight="bold" />
@@ -137,7 +152,10 @@ export function LectureSection({
             onClick={() => copyTopicLink(id)}
             title="Скопировать ссылку на тему"
             aria-label="Скопировать ссылку на тему"
-            className={cn("text-reader-muted-foreground hover:text-reader-accent-foreground flex size-8 items-center justify-center transition-colors", isCompleted && 'opacity-50', isCompleted && isOpen && 'opacity-100')}
+            className={cn(
+              'text-reader-muted-foreground hover:text-reader-accent-foreground flex size-8 items-center justify-center transition-[color,opacity] duration-300 ease-out',
+              isDimmed && 'opacity-40 hover:opacity-100'
+            )}
           >
             <LinkSimpleIcon size={16} weight="bold" />
           </button>

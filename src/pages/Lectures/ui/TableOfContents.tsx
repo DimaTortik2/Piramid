@@ -32,11 +32,8 @@ export function TableOfContents({
     >
       <div className="flex items-center justify-between gap-2 px-1">
         <div className="text-reader-foreground flex items-center gap-2 text-sm font-semibold tracking-wider uppercase">
-          
           <span>{title}</span>
         </div>
-
-       
       </div>
 
       <ol className="flex flex-col gap-1">
@@ -51,14 +48,14 @@ export function TableOfContents({
                   e.preventDefault();
                   navigateToTopic(topic.id);
                 }}
-                className="group flex items-center justify-between gap-3 px-1 py-2.5 transition-colors"
+                className="group flex items-center justify-between gap-3 px-1 py-2.5 transition-colors duration-300 ease-out"
               >
                 <div className="flex items-baseline gap-3">
                   <span
                     className={cn(
-                      'shrink-0 text-xs font-semibold tabular-nums transition-colors',
+                      'shrink-0 text-xs font-semibold tabular-nums transition-colors duration-300 ease-out',
                       isCompleted
-                        ? 'text-reader-accent-foreground/35'
+                        ? 'text-reader-accent-foreground/40 group-hover:text-reader-accent-foreground'
                         : 'text-reader-muted-foreground/60 group-hover:text-reader-accent-foreground'
                     )}
                   >
@@ -67,16 +64,23 @@ export function TableOfContents({
                   <div>
                     <p
                       className={cn(
-                        'text-sm font-medium leading-snug transition-colors',
+                        'text-sm font-medium leading-snug transition-colors duration-300 ease-out',
                         isCompleted
-                          ? 'text-reader-foreground/35 group-hover:text-reader-foreground'
+                          ? 'text-reader-foreground/40 group-hover:text-reader-foreground'
                           : 'text-reader-foreground group-hover:text-reader-accent-foreground'
                       )}
                     >
                       {topic.title}
                     </p>
                     {topic.description && (
-                      <p className={cn("text-reader-muted-foreground mt-0.5 text-xs leading-relaxed", isCompleted && 'text-reader-muted-foreground/50')}>
+                      <p
+                        className={cn(
+                          'mt-0.5 text-xs leading-relaxed transition-colors duration-300 ease-out',
+                          isCompleted
+                            ? 'text-reader-muted-foreground/30 group-hover:text-reader-muted-foreground/65'
+                            : 'text-reader-muted-foreground'
+                        )}
+                      >
                         {topic.description}
                       </p>
                     )}
@@ -87,13 +91,13 @@ export function TableOfContents({
                   <CheckIcon
                     size={15}
                     weight="bold"
-                    className="text-reader-accent-foreground shrink-0 transition-transform group-hover:scale-110"
+                    className="text-reader-accent-foreground/45 group-hover:text-reader-accent-foreground shrink-0 transition-[color,transform] duration-300 ease-out group-hover:scale-110"
                   />
                 ) : (
                   <CaretRightIcon
                     size={14}
                     weight="bold"
-                    className="text-reader-muted-foreground group-hover:text-reader-accent-foreground shrink-0 transition-transform group-hover:translate-x-0.5"
+                    className="text-reader-muted-foreground group-hover:text-reader-accent-foreground shrink-0 transition-[color,transform] duration-300 ease-out group-hover:translate-x-0.5"
                   />
                 )}
               </a>
