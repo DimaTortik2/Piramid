@@ -14,6 +14,7 @@ import {
   PlayIcon,
   FireIcon,
   CheckIcon,
+  WarningIcon,
 } from '@phosphor-icons/react';
 import { Circle } from '@/shared/Circle';
 import { Button } from '@/shared/Button';
@@ -45,7 +46,7 @@ const MODE_TITLES: Record<GameMode, string> = {
 
 const STREAK_ANIMATION_STYLES = `
   @keyframes badge-pop {
-    0% { transform: scale(0.5); opacity: 0; }
+    0% { transform: scale(0.5); opacity: 0; filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.8)); }
     15% { transform: scale(1.3); opacity: 1; filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.8)); }
     30% { transform: scale(1); opacity: 1; filter: drop-shadow(0 0 0 rgba(34, 197, 94, 0)); }
     80% { transform: scale(1); opacity: 1; }
@@ -57,8 +58,46 @@ const STREAK_ANIMATION_STYLES = `
     55% { transform: scale(1) rotate(0); }
     100% { transform: scale(1) rotate(0); }
   }
+  @keyframes penalty-pop {
+    0% { transform: scale(0.5) rotate(-15deg); opacity: 0; filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)); }
+    15% { transform: scale(1.3) rotate(15deg); opacity: 1; filter: drop-shadow(0 0 12px rgba(239, 68, 68, 0.8)); }
+    30% { transform: scale(1) rotate(0deg); opacity: 1; filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)); }
+    80% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(0.5); opacity: 0; }
+  }
+  
+ @property --snake-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+  @keyframes snake-spin {
+    0% { --snake-angle: 0deg; opacity: 0; }
+    15% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { --snake-angle: 200deg; opacity: 0; } 
+  }
+  .board-snake-base::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 4px; /* Сделали толще */
+    pointer-events: none;
+    z-index: 50;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    /* Убрали forwards, так как opacity 0 в конце и так скроет её */
+    animation: snake-spin 0.7s ease-out forwards; 
+  }
+  .board-snake-green::after {
+    background: conic-gradient(from var(--snake-angle), rgba(34, 197, 94, 0) 0%, rgba(34, 197, 94, 0) 10%, rgba(34, 197, 94, 1) 45%, rgba(34, 197, 94, 0) 50%, rgba(34, 197, 94, 0) 60%, rgba(34, 197, 94, 1) 95%, rgba(34, 197, 94, 0) 100%);
+  }
+  .board-snake-red::after {
+    background: conic-gradient(from var(--snake-angle), rgba(239, 68, 68, 0) 0%, rgba(239, 68, 68, 0) 10%, rgba(239, 68, 68, 1) 45%, rgba(239, 68, 68, 0) 50%, rgba(239, 68, 68, 0) 60%, rgba(239, 68, 68, 1) 95%, rgba(239, 68, 68, 0) 100%);
+  }
 `;
-
 const stopSwipePropagation = (e: SyntheticEvent) => {
   e.stopPropagation();
 };
@@ -187,35 +226,34 @@ const HeaderDisplay = ({
           )}
         </button>
       )}
-       <InfoDrawer
-          isOpen={isTimerDrawerOpen}
-          onOpenChange={setIsTimerDrawerOpen}
-          content={
-            <div className="flex flex-col items-center gap-2 py-4 text-center">
-              {isPaused ? (
-                <p>
-                  Партия на паузе. Нажмите кнопку ниже, чтобы продолжить отсчет
-                  времени.
-                </p>
-              ) : (
-                <p>
-                  Время партии: {roundHours > 0 && `${roundHours} ч. `}
-                  {roundMinutes} мин.{' '}
-                  {roundHours === 0 && `${roundSeconds} сек.`}
-                </p>
-              )}
-              <Drawer.Close asChild>
-                <Button
-                  variant={isPaused ? 'approve' : 'primary'}
-                  onClick={onTogglePause}
-                  className="mt-4 w-full"
-                >
-                  {isPaused ? 'Возобновить партию' : 'Поставить на паузу'}
-                </Button>
-              </Drawer.Close>
-            </div>
-          }
-        />
+      <InfoDrawer
+        isOpen={isTimerDrawerOpen}
+        onOpenChange={setIsTimerDrawerOpen}
+        content={
+          <div className="flex flex-col items-center gap-2 py-4 text-center">
+            {isPaused ? (
+              <p>
+                Партия на паузе. Нажмите кнопку ниже, чтобы продолжить отсчет
+                времени.
+              </p>
+            ) : (
+              <p>
+                Время партии: {roundHours > 0 && `${roundHours} ч. `}
+                {roundMinutes} мин. {roundHours === 0 && `${roundSeconds} сек.`}
+              </p>
+            )}
+            <Drawer.Close asChild>
+              <Button
+                variant={isPaused ? 'approve' : 'primary'}
+                onClick={onTogglePause}
+                className="mt-4 w-full"
+              >
+                {isPaused ? 'Возобновить партию' : 'Поставить на паузу'}
+              </Button>
+            </Drawer.Close>
+          </div>
+        }
+      />
     </div>
   );
 };
@@ -233,6 +271,9 @@ const UserGameBoard = ({
   onPenalty,
   onEndVisit,
   showNumberOnly = false,
+  isRecentlyPenalized = false,
+  snakeType,
+  snakeCount,
 }: {
   boardId?: string;
   penaltyBtnId?: string;
@@ -245,7 +286,10 @@ const UserGameBoard = ({
   onPenalty?: () => void;
   onEndVisit?: () => void;
   showNumberOnly?: boolean;
+  isRecentlyPenalized?: boolean;
   nameRowId?: string;
+  snakeType?: 'green' | 'red';
+  snakeCount?: number;
 } & HTMLAttributes<HTMLDivElement>) => {
   let firstShelfScore = 0;
   let secondShelfScore = 0;
@@ -299,6 +343,16 @@ const UserGameBoard = ({
         isPaused && 'opacity-25 grayscale'
       )}
     >
+      {(snakeCount ?? 0) > 0 && (
+        <div
+          key={snakeCount}
+          className={cn(
+            'board-snake-base pointer-events-none absolute inset-0 rounded-xl',
+            snakeType === 'green' ? 'board-snake-green' : 'board-snake-red'
+          )}
+        />
+      )}
+
       <div
         className="from-approve/40 pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b to-transparent transition-opacity duration-75"
         style={{ opacity: pullUpProgress }}
@@ -312,16 +366,19 @@ const UserGameBoard = ({
         <div className="flex w-full items-center justify-between gap-2">
           <div id={nameRowId} className="flex min-w-0 items-center gap-2">
             <span className="truncate font-medium">{name}</span>
-           {(activeStreak >= 1 || savingStreak) && (
-              savingStreak ? (
+            {(activeStreak >= 1 || savingStreak) &&
+              (savingStreak ? (
                 <div
                   className="text-approve flex h-4 shrink-0 items-center justify-center px-2"
                   style={{ animation: 'badge-pop 1.2s ease-in-out forwards' }}
                 >
-                  <CheckIcon 
-                    weight="bold" 
-                    className="size-4" 
-                    style={{ animation: 'check-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' }} 
+                  <CheckIcon
+                    weight="bold"
+                    className="size-4"
+                    style={{
+                      animation:
+                        'check-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                    }}
                   />
                 </div>
               ) : (
@@ -338,18 +395,37 @@ const UserGameBoard = ({
                     <CheckIcon weight="bold" className="size-2.5" />
                   </span>
                 </button>
-              )
-            )}
+              ))}
           </div>
-          <div id={penaltyBtnId} {...swipeIgnoreProps} className="shrink-0">
+          <div
+            id={penaltyBtnId}
+            {...swipeIgnoreProps}
+            className="relative flex shrink-0 items-center justify-center"
+          >
+            {/* Сама кнопка теперь не удаляется, а становится невидимой. Это 100% решает прыжки верстки! */}
             <Button
               onClick={onPenalty}
               variant="destructive"
               size="sm"
-              className="w-fit"
+              className={cn(
+                'w-fit transition-opacity duration-200',
+                isRecentlyPenalized
+                  ? 'pointer-events-none opacity-0'
+                  : 'opacity-100'
+              )}
             >
               Штраф
             </Button>
+
+            {/* Иконка всплывает поверх пустого места */}
+            {isRecentlyPenalized && (
+              <div
+                className="text-destructive pointer-events-none absolute inset-0 flex items-center justify-center"
+                style={{ animation: 'penalty-pop 1.5s ease-in-out forwards' }}
+              >
+                <WarningIcon weight="fill" className="size-6" />
+              </div>
+            )}
           </div>
         </div>
         <div className="flex flex-1 flex-col justify-center gap-2">
@@ -532,6 +608,25 @@ export function GamePage({}: GamePageProps) {
     'p1' | 'p2'
   >('p1');
   const [penaltyTarget, setPenaltyTarget] = useState<'p1' | 'p2' | null>(null);
+  const [recentlyPenalized, setRecentlyPenalized] = useState<
+    'p1' | 'p2' | null
+  >(null);
+  const [p1Snake, setP1Snake] = useState({
+    count: 0,
+    type: 'green' as 'green' | 'red',
+  });
+  const [p2Snake, setP2Snake] = useState({
+    count: 0,
+    type: 'green' as 'green' | 'red',
+  });
+  const triggerSnake = (playerId: 'p1' | 'p2', type: 'green' | 'red') => {
+    if (playerId === 'p1') {
+      setP1Snake((prev) => ({ count: prev.count + 1, type }));
+    } else {
+      setP2Snake((prev) => ({ count: prev.count + 1, type }));
+    }
+  };
+ 
   const [isTimerDrawerOpen, setIsTimerDrawerOpen] = useState(false);
 
   const withPauseCheck = (action: () => void) => {
@@ -637,8 +732,18 @@ export function GamePage({}: GamePageProps) {
       const currentScore = playerId === 'p1' ? p1.score : p2.score;
       checkSeventhBallWarning(playerId, currentScore + 1);
       addScore(playerId, 1);
+      triggerSnake(playerId, 'green');
     }
     triggerHaptic('pot');
+  };
+
+  const handleRemoveScore = (playerId: 'p1' | 'p2') => {
+    const currentScore = playerId === 'p1' ? p1.score : p2.score;
+    if (currentScore > 0) {
+      triggerSnake(playerId, 'red');
+    }
+    removeScore(playerId);
+    triggerHaptic('undo');
   };
 
   const handleEndVisit = (playerId: 'p1' | 'p2') => {
@@ -654,13 +759,19 @@ export function GamePage({}: GamePageProps) {
 
   const handleConfirmPenalty = () => {
     if (!penaltyTarget) return;
+    const target = penaltyTarget;
     const beneficiaryId = penaltyTarget === 'p1' ? 'p2' : 'p1';
     const currentScore = beneficiaryId === 'p1' ? p1.score : p2.score;
     checkSeventhBallWarning(beneficiaryId, currentScore + 1);
     applyPenalty(penaltyTarget);
     setPenaltyTarget(null);
     triggerHaptic('penalty');
-    toast.success('Штраф наложен')
+
+    setRecentlyPenalized(target);
+    setTimeout(() => setRecentlyPenalized(null), 1500);
+
+    triggerSnake(target, 'red');
+    triggerSnake(beneficiaryId, 'green');
   };
 
   const handleSelectClassicBall = (num: number) => {
@@ -672,6 +783,7 @@ export function GamePage({}: GamePageProps) {
     addScore(activePlayerForClassic, points, num);
     setClassicDrawerOpen(false);
     triggerHaptic('pot');
+    triggerSnake(activePlayerForClassic, 'green');
   };
 
   const handleUndoCompletedMatch = () => {
@@ -738,10 +850,10 @@ export function GamePage({}: GamePageProps) {
         activeStreak={p1ActiveStreak}
         isPaused={isPaused}
         onAdd={() => withPauseCheck(() => handleAddScore('p1'))}
-        onRemove={() => {
-          withPauseCheck(() => removeScore('p1'));
-          triggerHaptic('undo');
-        }}
+        onRemove={() => withPauseCheck(() => handleRemoveScore('p1'))}
+       isRecentlyPenalized={recentlyPenalized === 'p1'}
+        snakeType={p1Snake.type}
+        snakeCount={p1Snake.count}
         onPenalty={() => withPauseCheck(() => handlePenalty('p1'))}
         onEndVisit={() => handleEndVisit('p1')}
         showNumberOnly={showNumberOnly}
@@ -752,10 +864,10 @@ export function GamePage({}: GamePageProps) {
         activeStreak={p2ActiveStreak}
         isPaused={isPaused}
         onAdd={() => withPauseCheck(() => handleAddScore('p2'))}
-        onRemove={() => {
-          withPauseCheck(() => removeScore('p2'));
-          triggerHaptic('undo');
-        }}
+        onRemove={() => withPauseCheck(() => handleRemoveScore('p2'))}
+   isRecentlyPenalized={recentlyPenalized === 'p2'}
+        snakeType={p2Snake.type}
+        snakeCount={p2Snake.count}
         onPenalty={() => withPauseCheck(() => handlePenalty('p2'))}
         onEndVisit={() => handleEndVisit('p2')}
         showNumberOnly={showNumberOnly}
