@@ -257,6 +257,7 @@ export function MainPage() {
                   setIsDeleteDrawerOpen(false);
                   toast('Партия удалена', {
                     duration: 5000,
+                    className: 'toast-snake',
                     action: {
                       label: 'Отмена',
                       onClick: () => {

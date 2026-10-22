@@ -12,6 +12,7 @@ createRoot(document.getElementById('root')!).render(
     <Toaster
       position="top-center"
       theme="dark"
+       duration={1500}
       toastOptions={{
         classNames: {
           toast:

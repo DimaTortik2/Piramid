@@ -404,20 +404,19 @@ html.no-blur [class*="backdrop-blur"] {
 .pause-header-snake::after {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   border-radius: inherit;
-  padding: 1.5px;
+  box-sizing: border-box !important;
   
-  background: conic-gradient(
-    from var(--pause-angle),
-    rgba(225, 80, 55, 0) 0%,
-    rgba(225, 80, 55, 0) 10%,
-    rgba(225, 80, 55, 1) 45%,
-    rgba(225, 80, 55, 0) 50%,
-    rgba(225, 80, 55, 0) 60%,
-    rgba(225, 80, 55, 1) 95%,
-    rgba(225, 80, 55, 0) 100%
-  );
+  padding: 3px; 
+  
+  transform: translateZ(0); 
+  
+  z-index: 50;
+  
   background: conic-gradient(
     from var(--pause-angle),
     oklch(62% 0.19 25 / 0) 0%,
@@ -433,6 +432,7 @@ html.no-blur [class*="backdrop-blur"] {
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
+  
   pointer-events: none;
   animation: pause-snake-spin 3s linear infinite;
 }
@@ -440,4 +440,25 @@ html.no-blur [class*="backdrop-blur"] {
 @keyframes pause-snake-spin {
   0% { --pause-angle: 0deg; }
   100% { --pause-angle: 360deg; }
+}
+
+[data-sonner-toast].toast-snake {
+  border: 3px solid transparent !important;
+  border-radius: var(--radius) !important;
+  box-shadow: none !important;
+
+  background: 
+    linear-gradient(var(--background), var(--background)) padding-box,
+    conic-gradient(
+      from var(--pause-angle),
+      oklch(62% 0.19 25 / 0) 0%,
+      oklch(62% 0.19 25 / 0) 10%,
+      oklch(62.183% 0.18906 25.467 / 0.486) 45%,
+      oklch(62% 0.19 25 / 0) 50%,
+      oklch(62% 0.19 25 / 0) 60%,
+      oklch(62.183% 0.18906 25.467 / 0.486) 95%,
+      oklch(62% 0.19 25 / 0) 100%
+    ) border-box !important;
+
+  animation: pause-snake-spin 3s linear infinite;
 }

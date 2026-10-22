@@ -343,6 +343,7 @@ const UserGameBoard = ({
       return;
     }
     setSavingStreak(true);
+    triggerHaptic('pot');
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       setSavingStreak(false);
@@ -407,9 +408,6 @@ const UserGameBoard = ({
                 >
                   <FireIcon weight="fill" className="size-3.5" />
                   <span>Серия {activeStreak}</span>
-                  <span className="bg-approve/25 flex size-4 items-center justify-center rounded-full">
-                    <CheckIcon weight="bold" className="size-2.5" />
-                  </span>
                 </button>
               ))}
           </div>
@@ -418,7 +416,6 @@ const UserGameBoard = ({
             {...swipeIgnoreProps}
             className="relative flex shrink-0 items-center justify-center"
           >
-            {/* Сама кнопка теперь не удаляется, а становится невидимой. Это 100% решает прыжки верстки! */}
             <Button
               onClick={onPenalty}
               variant="destructive"
@@ -433,7 +430,6 @@ const UserGameBoard = ({
               Штраф
             </Button>
 
-            {/* Иконка всплывает поверх пустого места */}
             {isRecentlyPenalized && (
               <div
                 className="text-destructive pointer-events-none absolute inset-0 flex items-center justify-center"
@@ -445,7 +441,7 @@ const UserGameBoard = ({
           </div>
         </div>
         <div className="flex flex-1 flex-col justify-center gap-2">
-         <Button
+          <Button
             variant="ghostApprove"
             className="text-foreground/20 mx-auto hidden w-fit lg:flex pointer-fine:flex"
             onClick={onAdd}
@@ -453,7 +449,6 @@ const UserGameBoard = ({
             +1
           </Button>
 
-       
           <div
             key={snakeCount}
             className={cn(
@@ -652,7 +647,7 @@ export function GamePage({}: GamePageProps) {
       setP2Snake((prev) => ({ count: prev.count + 1, type }));
     }
   };
- 
+
   const [isTimerDrawerOpen, setIsTimerDrawerOpen] = useState(false);
 
   const withPauseCheck = (action: () => void) => {
@@ -876,7 +871,7 @@ export function GamePage({}: GamePageProps) {
         isPaused={isPaused}
         onAdd={() => withPauseCheck(() => handleAddScore('p1'))}
         onRemove={() => withPauseCheck(() => handleRemoveScore('p1'))}
-       isRecentlyPenalized={recentlyPenalized === 'p1'}
+        isRecentlyPenalized={recentlyPenalized === 'p1'}
         snakeType={p1Snake.type}
         snakeCount={p1Snake.count}
         onPenalty={() => withPauseCheck(() => handlePenalty('p1'))}
@@ -890,7 +885,7 @@ export function GamePage({}: GamePageProps) {
         isPaused={isPaused}
         onAdd={() => withPauseCheck(() => handleAddScore('p2'))}
         onRemove={() => withPauseCheck(() => handleRemoveScore('p2'))}
-   isRecentlyPenalized={recentlyPenalized === 'p2'}
+        isRecentlyPenalized={recentlyPenalized === 'p2'}
         snakeType={p2Snake.type}
         snakeCount={p2Snake.count}
         onPenalty={() => withPauseCheck(() => handlePenalty('p2'))}

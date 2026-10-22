@@ -335,8 +335,11 @@ function useInit<T extends HTMLElement = HTMLElement>(
     }
 
     if (isPaused) {
-      Matter.Runner.stop(runnerRef.current);
-      Matter.Render.stop(renderRef.current);
+      const timer = setTimeout(() => {
+        if (runnerRef.current) Matter.Runner.stop(runnerRef.current);
+        if (renderRef.current) Matter.Render.stop(renderRef.current);
+      }, 300);
+      return () => clearTimeout(timer);
     } else {
       Matter.Runner.stop(runnerRef.current);
       Matter.Render.stop(renderRef.current);
@@ -599,7 +602,7 @@ export function BilliardsBackground({
       <div
         style={{ backgroundColor: clothColor }}
         className={cn(
-          'fixed inset-0 -z-10 overflow-hidden transition-colors duration-700 ease-in-out',
+          'fixed inset-0 -z-10 overflow-hidden transition-colors duration-300 ease-in-out',
           isPaused && !showAbstractPause && 'invisible opacity-0',
           className
         )}
@@ -630,14 +633,14 @@ export function BilliardsBackground({
           style={{
             background: `radial-gradient(ellipse at 50% 50%, ${clothGlow} 0%, transparent 55%)`,
           }}
-          className="pointer-events-none absolute inset-0 transition-opacity duration-700"
+          className="pointer-events-none absolute inset-0 transition-opacity duration-300"
         />
 
         <div
           style={{
             background: `linear-gradient(to bottom, rgba(0,0,0,0.12), rgba(0,0,0,0.45), ${bottomVignette})`,
           }}
-          className="pointer-events-none absolute inset-0 transition-colors duration-700"
+          className="pointer-events-none absolute inset-0 transition-colors duration-300"
         />
 
         {showTableBorders && (
@@ -647,14 +650,15 @@ export function BilliardsBackground({
           />
         )}
 
-        <div
+      <div
           className={cn(
-            'pointer-events-none absolute inset-0 z-30 overflow-hidden bg-[#070709] transition-opacity duration-700',
+            'pointer-events-none absolute inset-0 z-30 overflow-hidden bg-[#070709] transition-opacity duration-300 ease-in-out transform-gpu',
             showAbstractPause ? 'opacity-100' : 'opacity-0'
           )}
+          style={{ willChange: 'opacity' }}
         >
           <div
-            className="absolute inset-0 z-10 opacity-30 mix-blend-overlay"
+            className="absolute inset-0 z-10 opacity-10"
             style={{
               backgroundImage: `url("${NOISE_SVG}")`,
               backgroundSize: '150px',
@@ -662,16 +666,25 @@ export function BilliardsBackground({
           />
 
           <div
-            className="absolute -top-[10%] -left-[10%] h-[80vw] w-[80vw] rounded-full bg-[#f0ebd8]/10 blur-[45px] sm:top-[15%] sm:left-[25%] sm:h-[20vw] sm:w-[20vw] sm:blur-[90px]"
-            style={{ animation: 'abstractFloat1 12s ease-in-out infinite' }}
+            className="absolute -top-[10%] -left-[10%] h-[80vw] w-[80vw] rounded-full bg-[#f0ebd8]/10 blur-[45px] sm:top-[15%] sm:left-[25%] sm:h-[20vw] sm:w-[20vw] sm:blur-[90px] will-change-transform"
+            style={{ 
+              animation: 'abstractFloat1 12s ease-in-out infinite',
+              animationPlayState: showAbstractPause ? 'running' : 'paused'
+            }}
           />
           <div
-            className="absolute top-[20%] -right-[10%] h-[90vw] w-[90vw] rounded-full bg-white/5 blur-[50px] sm:top-[25%] sm:right-[25%] sm:h-[22vw] sm:w-[22vw] sm:blur-[100px]"
-            style={{ animation: 'abstractFloat2 15s ease-in-out infinite' }}
+            className="absolute top-[20%] -right-[10%] h-[90vw] w-[90vw] rounded-full bg-white/5 blur-[50px] sm:top-[25%] sm:right-[25%] sm:h-[22vw] sm:w-[22vw] sm:blur-[100px] will-change-transform"
+            style={{ 
+              animation: 'abstractFloat2 15s ease-in-out infinite',
+              animationPlayState: showAbstractPause ? 'running' : 'paused'
+            }}
           />
           <div
-            className="absolute -bottom-[20%] left-[10%] h-[85vw] w-[85vw] rounded-full bg-[#d6cfb7]/10 blur-[45px] sm:bottom-[20%] sm:left-[35%] sm:h-[18vw] sm:w-[18vw] sm:blur-[90px]"
-            style={{ animation: 'abstractFloat3 14s ease-in-out infinite' }}
+            className="absolute -bottom-[20%] left-[10%] h-[85vw] w-[85vw] rounded-full bg-[#d6cfb7]/10 blur-[45px] sm:bottom-[20%] sm:left-[35%] sm:h-[18vw] sm:w-[18vw] sm:blur-[90px] will-change-transform"
+            style={{ 
+              animation: 'abstractFloat3 14s ease-in-out infinite',
+              animationPlayState: showAbstractPause ? 'running' : 'paused'
+            }}
           />
         </div>
       </div>
