@@ -52,20 +52,23 @@ interface LectureStoreState {
   isSectionOpen: (id: string) => boolean;
   toggleSection: (id: string) => void;
   isSectionCompleted: (id: string) => boolean;
-  markSectionCompleted: (id: string) => void;
   toggleSectionCompleted: (id: string) => void;
+  completeAndOpenNext: (id: string) => void;
   navigateToTopic: (id: string) => void;
   copyTopicLink: (id: string) => void;
 }
 
-export const scrollWithOffset = (element: HTMLElement) => {
+export const scrollWithOffset = (
+  element: HTMLElement,
+  behavior: ScrollBehavior = 'smooth'
+) => {
   const isDesktop = window.innerWidth >= 1024;
   const topOffset = isDesktop ? 32 : 64;
   const elementTop = element.getBoundingClientRect().top + window.scrollY;
 
   window.scrollTo({
     top: Math.max(0, elementTop - topOffset),
-    behavior: 'smooth',
+    behavior,
   });
 };
 
@@ -121,17 +124,6 @@ export const useLectureStore = create<LectureStoreState>((set, get) => ({
     return Boolean(get().completedMap[key]);
   },
 
-  markSectionCompleted: (id: string) => {
-    const key = getTopicStorageKey(id);
-    if (get().completedMap[key]) return;
-
-    set((state) => {
-      const next = { ...state.completedMap, [key]: true };
-      saveMapToStorage(COMPLETED_STORAGE_KEY, next);
-      return { completedMap: next };
-    });
-  },
-
   toggleSectionCompleted: (id: string) => {
     triggerHaptic('light');
     const key = getTopicStorageKey(id);
@@ -158,6 +150,69 @@ export const useLectureStore = create<LectureStoreState>((set, get) => ({
 
       return { completedMap: nextCompletedMap };
     });
+  },
+
+  completeAndOpenNext: (id: string) => {
+    triggerHaptic('light');
+    const { topics } = get();
+    const currentIndex = topics.findIndex((t) => t.id === id);
+    const nextTopic =
+      currentIndex >= 0 ? topics[currentIndex + 1] : undefined;
+
+    const currentKey = getTopicStorageKey(id);
+
+    set((state) => {
+      const nextCompletedMap = {
+        ...state.completedMap,
+        [currentKey]: true,
+      };
+      const nextOpenMap = {
+        ...state.openMap,
+        [currentKey]: false,
+      };
+
+      if (nextTopic) {
+        const nextKey = getTopicStorageKey(nextTopic.id);
+        nextOpenMap[nextKey] = true;
+      }
+
+      saveMapToStorage(COMPLETED_STORAGE_KEY, nextCompletedMap);
+      saveMapToStorage(OPEN_STORAGE_KEY, nextOpenMap);
+
+      return {
+        completedMap: nextCompletedMap,
+        openMap: nextOpenMap,
+      };
+    });
+
+    const currentSection = document.getElementById(id);
+    if (!currentSection) return;
+
+    const bodyEl = currentSection.querySelector<HTMLElement>(
+      '[data-section-body]'
+    );
+    const collapsedHeight = bodyEl ? bodyEl.offsetHeight : 0;
+
+    const isDesktop = window.innerWidth >= 1024;
+    const topOffset = isDesktop ? 32 : 64;
+
+    if (nextTopic) {
+      const nextSection = document.getElementById(nextTopic.id);
+      if (nextSection) {
+        const nextTop =
+          nextSection.getBoundingClientRect().top +
+          window.scrollY -
+          collapsedHeight;
+
+        window.scrollTo({
+          top: Math.max(0, nextTop - topOffset),
+          behavior: 'instant',
+        });
+        return;
+      }
+    }
+
+    scrollWithOffset(currentSection, 'instant');
   },
 
   navigateToTopic: (id: string) => {

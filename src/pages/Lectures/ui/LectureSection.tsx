@@ -1,6 +1,7 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   CaretDownIcon,
+  CaretRightIcon,
   CheckIcon,
   LinkSimpleIcon,
 } from '@phosphor-icons/react';
@@ -21,46 +22,22 @@ export function LectureSection({
   children,
 }: LectureSectionProps) {
   const {
+    topics,
     isSectionOpen,
     toggleSection,
     isSectionCompleted,
-    markSectionCompleted,
     toggleSectionCompleted,
+    completeAndOpenNext,
     copyTopicLink,
   } = useLectureContext();
 
   const isOpen = isSectionOpen(id);
   const isCompleted = isSectionCompleted(id);
   const isDimmed = isCompleted && !isOpen;
-  const endSentinelRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    const node = endSentinelRef.current;
-    if (!node || !isOpen || isCompleted) return;
-
-    let timer: number | undefined;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && window.scrollY > 80) {
-          timer = window.setTimeout(() => {
-            markSectionCompleted(id);
-          }, 550);
-        } else if (timer) {
-          window.clearTimeout(timer);
-          timer = undefined;
-        }
-      },
-      { threshold: 0.9 }
-    );
-
-    observer.observe(node);
-
-    return () => {
-      if (timer) window.clearTimeout(timer);
-      observer.disconnect();
-    };
-  }, [id, isOpen, isCompleted, markSectionCompleted]);
+  const currentIndex = topics.findIndex((t) => t.id === id);
+  const hasNextTopic =
+    currentIndex === -1 || currentIndex < topics.length - 1;
 
   return (
     <section
@@ -69,6 +46,7 @@ export function LectureSection({
       data-section-id={id}
       data-section-title={title}
       data-section-desc={description ?? ''}
+      className="[overflow-anchor:none]"
     >
       <div
         className={cn(
@@ -163,6 +141,7 @@ export function LectureSection({
       </div>
 
       <div
+        data-section-body
         className={cn(
           'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
           isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
@@ -171,11 +150,23 @@ export function LectureSection({
         <div className="overflow-hidden">
           <div className="pb-6">
             {children}
-            <div
-              ref={endSentinelRef}
-              aria-hidden="true"
-              className="h-1 w-full"
-            />
+
+            <div className="not-prose mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => completeAndOpenNext(id)}
+                className="text-reader-accent-foreground hover:text-reader-accent-foreground/80 inline-flex items-center gap-1.5 py-1.5 text-xs font-medium transition-colors duration-300 ease-out"
+              >
+                <span>
+                  {hasNextTopic ? 'К следующей теме' : 'Завершить тему'}
+                </span>
+                {hasNextTopic ? (
+                  <CaretRightIcon size={14} weight="bold" />
+                ) : (
+                  <CheckIcon size={14} weight="bold" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
