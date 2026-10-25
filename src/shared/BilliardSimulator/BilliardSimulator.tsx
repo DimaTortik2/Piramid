@@ -79,12 +79,36 @@ export interface SimulatorWallsConfig {
   right?: boolean;
 }
 
+export interface SimulatorZoneConfig {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color?: string;
+  borderColor?: string;
+  label?: string;
+  labelPosition?: 'top' | 'bottom' | 'center' | 'bottom-right';
+}
+
+export interface SimulatorLineConfig {
+  from: [number, number];
+  to: [number, number];
+  color?: string;
+  dashed?: boolean;
+  label?: string;
+  labelOffset?: { x: number; y: number };
+}
+
 export interface SimulatorMarkerConfig {
   x: number;
   y: number;
   radius?: number;
   color?: string;
+  fillColor?: string;
+  strokeColor?: string;
   label?: string;
+  labelPosition?: 'top' | 'bottom' | 'left' | 'right';
+  labelOffset?: { x: number; y: number };
 }
 
 export interface SimulatorArrowConfig {
@@ -108,6 +132,8 @@ export interface BilliardSimulatorSlide {
   shots?: SimulatorShotConfig[];
   walls?: 'all' | 'none' | SimulatorWallsConfig;
   pockets?: boolean | SimulatorPocketConfig[];
+  zones?: SimulatorZoneConfig[];
+  lines?: SimulatorLineConfig[];
   markers?: SimulatorMarkerConfig[];
   arrows?: SimulatorArrowConfig[];
   verdict?: SimulatorVerdictConfig;
@@ -123,6 +149,8 @@ export interface BilliardSimulatorProps {
   shots?: SimulatorShotConfig[];
   walls?: 'all' | 'none' | SimulatorWallsConfig;
   pockets?: boolean | SimulatorPocketConfig[];
+  zones?: SimulatorZoneConfig[];
+  lines?: SimulatorLineConfig[];
   markers?: SimulatorMarkerConfig[];
   arrows?: SimulatorArrowConfig[];
   verdict?: SimulatorVerdictConfig;
@@ -443,6 +471,8 @@ export function BilliardSimulator({
   shots = [],
   walls = 'all',
   pockets = true,
+  zones = [],
+  lines = [],
   markers = [],
   arrows = [],
   verdict,
@@ -465,9 +495,9 @@ export function BilliardSimulator({
     null
   );
 
-const disciplineThemes = useSettingsStore((state) => state.disciplineThemes);
-const ballColor = resolveSlotColor(disciplineThemes, 'pyramid', 'pyramidBalls');
-const isDarkBalls = !isLightColor(ballColor);
+  const disciplineThemes = useSettingsStore((state) => state.disciplineThemes);
+  const ballColor = resolveSlotColor(disciplineThemes, 'pyramid', 'pyramidBalls');
+  const isDarkBalls = !isLightColor(ballColor);
   const autoRotateSimulator = useSettingsStore(
     (state) => state.autoRotateSimulator
   );
@@ -499,6 +529,8 @@ const isDarkBalls = !isLightColor(ballColor);
   const activePockets = currentSlide
     ? (currentSlide.pockets ?? pockets)
     : pockets;
+  const activeZones = currentSlide ? (currentSlide.zones ?? zones) : zones;
+  const activeLines = currentSlide ? (currentSlide.lines ?? lines) : lines;
   const activeMarkers = currentSlide ? (currentSlide.markers ?? []) : markers;
   const activeArrows = currentSlide ? (currentSlide.arrows ?? []) : arrows;
   const activeVerdict = currentSlide ? currentSlide.verdict : verdict;
@@ -628,52 +660,22 @@ const isDarkBalls = !isLightColor(ballColor);
       );
     } else if (activePockets) {
       if (resolvedWalls.top && resolvedWalls.left) {
-        resolvedPockets.push({
-          x: 20,
-          y: 20,
-          radius: 16,
-          captureRadius: 18,
-        });
+        resolvedPockets.push({ x: 20, y: 20, radius: 16, captureRadius: 18 });
       }
       if (resolvedWalls.top && resolvedWalls.right) {
-        resolvedPockets.push({
-          x: width - 20,
-          y: 20,
-          radius: 16,
-          captureRadius: 18,
-        });
+        resolvedPockets.push({ x: width - 20, y: 20, radius: 16, captureRadius: 18 });
       }
       if (resolvedWalls.bottom && resolvedWalls.left) {
-        resolvedPockets.push({
-          x: 20,
-          y: height - 20,
-          radius: 16,
-          captureRadius: 18,
-        });
+        resolvedPockets.push({ x: 20, y: height - 20, radius: 16, captureRadius: 18 });
       }
       if (resolvedWalls.bottom && resolvedWalls.right) {
-        resolvedPockets.push({
-          x: width - 20,
-          y: height - 20,
-          radius: 16,
-          captureRadius: 18,
-        });
+        resolvedPockets.push({ x: width - 20, y: height - 20, radius: 16, captureRadius: 18 });
       }
       if (resolvedWalls.top && width >= 520) {
-        resolvedPockets.push({
-          x: width / 2,
-          y: 16,
-          radius: 15,
-          captureRadius: 16,
-        });
+        resolvedPockets.push({ x: width / 2, y: 16, radius: 15, captureRadius: 16 });
       }
       if (resolvedWalls.bottom && width >= 520) {
-        resolvedPockets.push({
-          x: width / 2,
-          y: height - 16,
-          radius: 15,
-          captureRadius: 16,
-        });
+        resolvedPockets.push({ x: width / 2, y: height - 16, radius: 15, captureRadius: 16 });
       }
     }
 
@@ -701,78 +703,29 @@ const isDarkBalls = !isLightColor(ballColor);
         railPolygons.push([
           { x: width / 2 + midOuter, y: 0 },
           { x: hasPockets ? width - cornerOuter : width, y: 0 },
-          {
-            x: hasPockets ? width - cornerOuter : width,
-            y: hasPockets ? 10 : c,
-          },
+          { x: hasPockets ? width - cornerOuter : width, y: hasPockets ? 10 : c },
           { x: width - cornerCut, y: c },
           { x: width / 2 + midCut, y: c },
           { x: width / 2 + midOuter, y: 10 },
         ]);
-
         railSegments.push(
-          {
-            x1: cornerCut,
-            y1: c,
-            x2: width / 2 - midCut,
-            y2: c,
-            sideTag: 'top',
-          },
-          {
-            x1: width / 2 + midCut,
-            y1: c,
-            x2: width - cornerCut,
-            y2: c,
-            sideTag: 'top',
-          },
-          {
-            x1: cornerOuter,
-            y1: 10,
-            x2: cornerCut,
-            y2: c,
-            sideTag: 'jaw',
-          },
-          {
-            x1: width / 2 - midCut,
-            y1: c,
-            x2: width / 2 - midOuter,
-            y2: 10,
-            sideTag: 'jaw',
-          },
-          {
-            x1: width / 2 + midOuter,
-            y1: 10,
-            x2: width / 2 + midCut,
-            y2: c,
-            sideTag: 'jaw',
-          },
-          {
-            x1: width - cornerCut,
-            y1: c,
-            x2: width - cornerOuter,
-            y2: 10,
-            sideTag: 'jaw',
-          }
+          { x1: cornerCut, y1: c, x2: width / 2 - midCut, y2: c, sideTag: 'top' },
+          { x1: width / 2 + midCut, y1: c, x2: width - cornerCut, y2: c, sideTag: 'top' },
+          { x1: cornerOuter, y1: 10, x2: cornerCut, y2: c, sideTag: 'jaw' },
+          { x1: width / 2 - midCut, y1: c, x2: width / 2 - midOuter, y2: 10, sideTag: 'jaw' },
+          { x1: width / 2 + midOuter, y1: 10, x2: width / 2 + midCut, y2: c, sideTag: 'jaw' },
+          { x1: width - cornerCut, y1: c, x2: width - cornerOuter, y2: 10, sideTag: 'jaw' }
         );
       } else {
         railPolygons.push([
           { x: hasPockets ? cornerOuter : 0, y: 0 },
           { x: hasPockets ? width - cornerOuter : width, y: 0 },
-          {
-            x: hasPockets ? width - cornerOuter : width,
-            y: hasPockets ? 10 : c,
-          },
+          { x: hasPockets ? width - cornerOuter : width, y: hasPockets ? 10 : c },
           { x: width - cornerCut, y: c },
           { x: cornerCut, y: c },
           { x: hasPockets ? cornerOuter : 0, y: hasPockets ? 10 : c },
         ]);
-        railSegments.push({
-          x1: cornerCut,
-          y1: c,
-          x2: width - cornerCut,
-          y2: c,
-          sideTag: 'top',
-        });
+        railSegments.push({ x1: cornerCut, y1: c, x2: width - cornerCut, y2: c, sideTag: 'top' });
       }
     }
 
@@ -784,89 +737,34 @@ const isDarkBalls = !isLightColor(ballColor);
           { x: width / 2 - midOuter, y: height - 10 },
           { x: width / 2 - midCut, y: height - c },
           { x: cornerCut, y: height - c },
-          {
-            x: hasPockets ? cornerOuter : 0,
-            y: hasPockets ? height - 10 : height - c,
-          },
+          { x: hasPockets ? cornerOuter : 0, y: hasPockets ? height - 10 : height - c },
         ]);
         railPolygons.push([
           { x: width / 2 + midOuter, y: height },
           { x: hasPockets ? width - cornerOuter : width, y: height },
-          {
-            x: hasPockets ? width - cornerOuter : width,
-            y: hasPockets ? height - 10 : height - c,
-          },
+          { x: hasPockets ? width - cornerOuter : width, y: hasPockets ? height - 10 : height - c },
           { x: width - cornerCut, y: height - c },
           { x: width / 2 + midCut, y: height - c },
           { x: width / 2 + midOuter, y: height - 10 },
         ]);
-
         railSegments.push(
-          {
-            x1: cornerCut,
-            y1: height - c,
-            x2: width / 2 - midCut,
-            y2: height - c,
-            sideTag: 'bottom',
-          },
-          {
-            x1: width / 2 + midCut,
-            y1: height - c,
-            x2: width - cornerCut,
-            y2: height - c,
-            sideTag: 'bottom',
-          },
-          {
-            x1: cornerOuter,
-            y1: height - 10,
-            x2: cornerCut,
-            y2: height - c,
-            sideTag: 'jaw',
-          },
-          {
-            x1: width / 2 - midCut,
-            y1: height - c,
-            x2: width / 2 - midOuter,
-            y2: height - 10,
-            sideTag: 'jaw',
-          },
-          {
-            x1: width / 2 + midOuter,
-            y1: height - 10,
-            x2: width / 2 + midCut,
-            y2: height - c,
-            sideTag: 'jaw',
-          },
-          {
-            x1: width - cornerCut,
-            y1: height - c,
-            x2: width - cornerOuter,
-            y2: height - 10,
-            sideTag: 'jaw',
-          }
+          { x1: cornerCut, y1: height - c, x2: width / 2 - midCut, y2: height - c, sideTag: 'bottom' },
+          { x1: width / 2 + midCut, y1: height - c, x2: width - cornerCut, y2: height - c, sideTag: 'bottom' },
+          { x1: cornerOuter, y1: height - 10, x2: cornerCut, y2: height - c, sideTag: 'jaw' },
+          { x1: width / 2 - midCut, y1: height - c, x2: width / 2 - midOuter, y2: height - 10, sideTag: 'jaw' },
+          { x1: width / 2 + midOuter, y1: height - 10, x2: width / 2 + midCut, y2: height - c, sideTag: 'jaw' },
+          { x1: width - cornerCut, y1: height - c, x2: width - cornerOuter, y2: height - 10, sideTag: 'jaw' }
         );
       } else {
         railPolygons.push([
           { x: hasPockets ? cornerOuter : 0, y: height },
           { x: hasPockets ? width - cornerOuter : width, y: height },
-          {
-            x: hasPockets ? width - cornerOuter : width,
-            y: hasPockets ? height - 10 : height - c,
-          },
+          { x: hasPockets ? width - cornerOuter : width, y: hasPockets ? height - 10 : height - c },
           { x: width - cornerCut, y: height - c },
           { x: cornerCut, y: height - c },
-          {
-            x: hasPockets ? cornerOuter : 0,
-            y: hasPockets ? height - 10 : height - c,
-          },
+          { x: hasPockets ? cornerOuter : 0, y: hasPockets ? height - 10 : height - c },
         ]);
-        railSegments.push({
-          x1: cornerCut,
-          y1: height - c,
-          x2: width - cornerCut,
-          y2: height - c,
-          sideTag: 'bottom',
-        });
+        railSegments.push({ x1: cornerCut, y1: height - c, x2: width - cornerCut, y2: height - c, sideTag: 'bottom' });
       }
     }
 
@@ -876,29 +774,14 @@ const isDarkBalls = !isLightColor(ballColor);
         { x: hasPockets ? 10 : c, y: hasPockets ? cornerOuter : 0 },
         { x: c, y: cornerCut },
         { x: c, y: height - cornerCut },
-        {
-          x: hasPockets ? 10 : c,
-          y: hasPockets ? height - cornerOuter : height,
-        },
+        { x: hasPockets ? 10 : c, y: hasPockets ? height - cornerOuter : height },
         { x: 0, y: hasPockets ? height - cornerOuter : height },
       ]);
-      railSegments.push({
-        x1: c,
-        y1: cornerCut,
-        x2: c,
-        y2: height - cornerCut,
-        sideTag: 'left',
-      });
+      railSegments.push({ x1: c, y1: cornerCut, x2: c, y2: height - cornerCut, sideTag: 'left' });
       if (hasPockets) {
         railSegments.push(
           { x1: 10, y1: cornerOuter, x2: c, y2: cornerCut, sideTag: 'jaw' },
-          {
-            x1: c,
-            y1: height - cornerCut,
-            x2: 10,
-            y2: height - cornerOuter,
-            sideTag: 'jaw',
-          }
+          { x1: c, y1: height - cornerCut, x2: 10, y2: height - cornerOuter, sideTag: 'jaw' }
         );
       }
     }
@@ -906,41 +789,17 @@ const isDarkBalls = !isLightColor(ballColor);
     if (resolvedWalls.right) {
       railPolygons.push([
         { x: width, y: hasPockets ? cornerOuter : 0 },
-        {
-          x: hasPockets ? width - 10 : width - c,
-          y: hasPockets ? cornerOuter : 0,
-        },
+        { x: hasPockets ? width - 10 : width - c, y: hasPockets ? cornerOuter : 0 },
         { x: width - c, y: cornerCut },
         { x: width - c, y: height - cornerCut },
-        {
-          x: hasPockets ? width - 10 : width - c,
-          y: hasPockets ? height - cornerOuter : height,
-        },
+        { x: hasPockets ? width - 10 : width - c, y: hasPockets ? height - cornerOuter : height },
         { x: width, y: hasPockets ? height - cornerOuter : height },
       ]);
-      railSegments.push({
-        x1: width - c,
-        y1: cornerCut,
-        x2: width - c,
-        y2: height - cornerCut,
-        sideTag: 'right',
-      });
+      railSegments.push({ x1: width - c, y1: cornerCut, x2: width - c, y2: height - cornerCut, sideTag: 'right' });
       if (hasPockets) {
         railSegments.push(
-          {
-            x1: width - 10,
-            y1: cornerOuter,
-            x2: width - c,
-            y2: cornerCut,
-            sideTag: 'jaw',
-          },
-          {
-            x1: width - c,
-            y1: height - cornerCut,
-            x2: width - 10,
-            y2: height - cornerOuter,
-            sideTag: 'jaw',
-          }
+          { x1: width - 10, y1: cornerOuter, x2: width - c, y2: cornerCut, sideTag: 'jaw' },
+          { x1: width - c, y1: height - cornerCut, x2: width - 10, y2: height - cornerOuter, sideTag: 'jaw' }
         );
       }
     }
@@ -1061,9 +920,7 @@ const isDarkBalls = !isLightColor(ballColor);
           const newSpeed = Math.max(0, speed - decel);
           if (
             newSpeed < 0.075 &&
-            (!meta.hasHitBall ||
-              meta.ticksAfterHit > 16 ||
-              Math.abs(meta.topSpin) < 0.04)
+            (!meta.hasHitBall || meta.ticksAfterHit > 16 || Math.abs(meta.topSpin) < 0.04)
           ) {
             meta.vx = 0;
             meta.vy = 0;
@@ -1087,10 +944,7 @@ const isDarkBalls = !isLightColor(ballColor);
         if (!meta.isAirborne) {
           for (const pocket of resolvedPockets) {
             const capR = pocket.captureRadius ?? 17.5;
-            const distHole = Math.hypot(
-              body.position.x - pocket.x,
-              body.position.y - pocket.y
-            );
+            const distHole = Math.hypot(body.position.x - pocket.x, body.position.y - pocket.y);
 
             if (distHole <= capR) {
               meta.potted = true;
@@ -1111,14 +965,7 @@ const isDarkBalls = !isLightColor(ballColor);
         if (meta.potted || meta.jumpOffTable) continue;
 
         for (const seg of railSegments) {
-          const closest = closestPointOnSegment(
-            body.position.x,
-            body.position.y,
-            seg.x1,
-            seg.y1,
-            seg.x2,
-            seg.y2
-          );
+          const closest = closestPointOnSegment(body.position.x, body.position.y, seg.x1, seg.y1, seg.x2, seg.y2);
           const dx = body.position.x - closest.x;
           const dy = body.position.y - closest.y;
           const dist = Math.hypot(dx, dy);
@@ -1144,9 +991,7 @@ const isDarkBalls = !isLightColor(ballColor);
 
               if (Math.abs(meta.sideSpin) > 0.04 && seg.sideTag !== 'jaw') {
                 const curSpeed = Math.hypot(meta.vx, meta.vy);
-                const boost =
-                  meta.sideSpin *
-                  Math.max(curSpeed * 0.48, meta.spinEnergy * 0.22);
+                const boost = meta.sideSpin * Math.max(curSpeed * 0.48, meta.spinEnergy * 0.22);
                 let tx = 0;
                 let ty = 0;
                 if (seg.sideTag === 'top') tx = 1;
@@ -1224,24 +1069,14 @@ const isDarkBalls = !isLightColor(ballColor);
               }
 
               const restitution = 0.96;
-              let nextVAn =
-                0.5 * (1 - restitution) * vAn + 0.5 * (1 + restitution) * vBn;
-              let nextVBn =
-                0.5 * (1 + restitution) * vAn + 0.5 * (1 - restitution) * vBn;
+              let nextVAn = 0.5 * (1 - restitution) * vAn + 0.5 * (1 + restitution) * vBn;
+              let nextVBn = 0.5 * (1 + restitution) * vAn + 0.5 * (1 - restitution) * vBn;
 
-              if (
-                aWasFirstHit &&
-                Math.abs(metaA.topSpin) < 0.08 &&
-                Math.hypot(metaB.vx, metaB.vy) < 0.05
-              ) {
+              if (aWasFirstHit && Math.abs(metaA.topSpin) < 0.08 && Math.hypot(metaB.vx, metaB.vy) < 0.05) {
                 nextVAn = 0;
                 nextVBn = vAn * restitution;
               }
-              if (
-                bWasFirstHit &&
-                Math.abs(metaB.topSpin) < 0.08 &&
-                Math.hypot(metaA.vx, metaA.vy) < 0.05
-              ) {
+              if (bWasFirstHit && Math.abs(metaB.topSpin) < 0.08 && Math.hypot(metaA.vx, metaA.vy) < 0.05) {
                 nextVBn = 0;
                 nextVAn = vBn * restitution;
               }
@@ -1259,8 +1094,7 @@ const isDarkBalls = !isLightColor(ballColor);
     const stepOneFrame = () => {
       activeShots.forEach((shot, idx) => {
         if (shotFiredFlags[idx]) return;
-        const triggerTick =
-          cueLeadInTicks + Math.round(((shot.delayMs ?? 0) / 1000) * 60);
+        const triggerTick = cueLeadInTicks + Math.round(((shot.delayMs ?? 0) / 1000) * 60);
         if (elapsedTicks >= triggerTick) {
           shotFiredFlags[idx] = true;
           fireShot(shot);
@@ -1281,10 +1115,7 @@ const isDarkBalls = !isLightColor(ballColor);
         meta.spinEnergy *= 0.992;
 
         const lastPt = meta.trail[meta.trail.length - 1];
-        if (
-          !lastPt ||
-          Math.hypot(body.position.x - lastPt.x, body.position.y - lastPt.y) > 3
-        ) {
+        if (!lastPt || Math.hypot(body.position.x - lastPt.x, body.position.y - lastPt.y) > 3) {
           meta.trail.push({ x: body.position.x, y: body.position.y });
         }
 
@@ -1332,6 +1163,38 @@ const isDarkBalls = !isLightColor(ballColor);
       feltGrad.addColorStop(1, '#0e2817');
       ctx.fillStyle = feltGrad;
       ctx.fillRect(0, 0, width, height);
+
+      // --- 1. SHAPES (Zones, Lines) ---
+      if (activeZones) {
+        for (const zone of activeZones) {
+          ctx.save();
+          if (zone.color) {
+            ctx.fillStyle = zone.color;
+            ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+          }
+          if (zone.borderColor) {
+            ctx.strokeStyle = zone.borderColor;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([5, 5]);
+            ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+          }
+          ctx.restore();
+        }
+      }
+
+      if (activeLines) {
+        for (const line of activeLines) {
+          ctx.save();
+          ctx.beginPath();
+          if (line.dashed) ctx.setLineDash([5, 5]);
+          ctx.moveTo(line.from[0], line.from[1]);
+          ctx.lineTo(line.to[0], line.to[1]);
+          ctx.strokeStyle = line.color || 'rgba(255,255,255,0.35)';
+          ctx.lineWidth = 1.75;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
 
       ctx.fillStyle = '#24160e';
       for (const poly of railPolygons) {
@@ -1383,12 +1246,7 @@ const isDarkBalls = !isLightColor(ballColor);
           ctx.fillRect(width / 2 - midOuter - 2, 0, (midOuter + 2) * 2, 10);
         }
         if (resolvedWalls.bottom && hasMiddlePockets) {
-          ctx.fillRect(
-            width / 2 - midOuter - 2,
-            height - 10,
-            (midOuter + 2) * 2,
-            10
-          );
+          ctx.fillRect(width / 2 - midOuter - 2, height - 10, (midOuter + 2) * 2, 10);
         }
       }
 
@@ -1403,31 +1261,19 @@ const isDarkBalls = !isLightColor(ballColor);
         ctx.stroke();
       }
 
+      // --- 2. MARKERS (Shapes) ---
       for (const marker of activeMarkers) {
         const mr = marker.radius ?? ballRadius * 1.25;
         ctx.save();
         ctx.beginPath();
         ctx.arc(marker.x, marker.y, mr, 0, Math.PI * 2);
-        ctx.fillStyle = marker.color
-          ? `${marker.color}20`
-          : 'rgba(234, 179, 8, 0.12)';
+        ctx.fillStyle = marker.fillColor || (marker.color ? marker.color : 'rgba(234, 179, 8, 0.12)');
         ctx.fill();
         ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = marker.color || 'rgba(234, 179, 8, 0.65)';
+        ctx.strokeStyle = marker.strokeColor || marker.color || 'rgba(234, 179, 8, 0.65)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
         ctx.restore();
-
-        if (marker.label) {
-          ctx.fillStyle = 'rgba(255,255,255,0.8)';
-          ctx.font = '600 11px sans-serif';
-          ctx.textAlign = 'center';
-          const labelY =
-            marker.y - mr - 8 < CUSHION_SIZE + 10
-              ? marker.y + mr + 14
-              : marker.y - mr - 7;
-          ctx.fillText(marker.label, marker.x, labelY);
-        }
       }
 
       for (const arrow of activeArrows) {
@@ -1446,54 +1292,26 @@ const isDarkBalls = !isLightColor(ballColor);
         ctx.setLineDash([]);
         ctx.beginPath();
         ctx.moveTo(x2, y2);
-        ctx.lineTo(
-          x2 - 8 * Math.cos(angle - Math.PI / 6),
-          y2 - 8 * Math.sin(angle - Math.PI / 6)
-        );
-        ctx.lineTo(
-          x2 - 8 * Math.cos(angle + Math.PI / 6),
-          y2 - 8 * Math.sin(angle + Math.PI / 6)
-        );
+        ctx.lineTo(x2 - 8 * Math.cos(angle - Math.PI / 6), y2 - 8 * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(x2 - 8 * Math.cos(angle + Math.PI / 6), y2 - 8 * Math.sin(angle + Math.PI / 6));
         ctx.closePath();
         ctx.fillStyle = arrow.color || 'rgba(255,255,255,0.35)';
         ctx.fill();
         ctx.restore();
       }
 
-      if (
-        showAimLine &&
-        activeShots.length > 0 &&
-        elapsedTicks <= cueLeadInTicks + 2
-      ) {
+      if (showAimLine && activeShots.length > 0 && elapsedTicks <= cueLeadInTicks + 2) {
         const firstShot = activeShots[0];
         const cueBody = bodyMap.get(firstShot.ballId);
         const cueMeta = cueBody ? metaMap.get(cueBody.id) : undefined;
         if (cueBody && cueMeta) {
           const sx = cueBody.position.x;
           const sy = cueBody.position.y;
-          const {
-            launchAngle,
-            ghostX,
-            ghostY,
-            chordDist,
-            curveRadius,
-            halfTurnAngle,
-          } = computeShotGeometry(
-            firstShot,
-            sx,
-            sy,
-            cueMeta.radius,
-            activeBalls,
-            ballRadius,
-            width,
-            height
-          );
+          const { launchAngle, ghostX, ghostY, chordDist, curveRadius, halfTurnAngle } =
+            computeShotGeometry(firstShot, sx, sy, cueMeta.radius, activeBalls, ballRadius, width, height);
 
           if (Math.abs(halfTurnAngle) > 0.01 && curveRadius) {
-            const totalArc =
-              chordDist !== undefined
-                ? Math.abs(2 * halfTurnAngle * curveRadius)
-                : 340;
+            const totalArc = chordDist !== undefined ? Math.abs(2 * halfTurnAngle * curveRadius) : 340;
             const steps = 36;
             const stepLen = totalArc / steps;
             let px = sx;
@@ -1576,10 +1394,7 @@ const isDarkBalls = !isLightColor(ballColor);
               ctx.beginPath();
               ctx.setLineDash([3, 4]);
               ctx.moveTo(hitBody.position.x, hitBody.position.y);
-              ctx.lineTo(
-                hitBody.position.x + ux * 180,
-                hitBody.position.y + uy * 180
-              );
+              ctx.lineTo(hitBody.position.x + ux * 180, hitBody.position.y + uy * 180);
               ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
               ctx.lineWidth = 1.15;
               ctx.stroke();
@@ -1599,22 +1414,108 @@ const isDarkBalls = !isLightColor(ballColor);
             ctx.lineTo(meta.trail[i].x, meta.trail[i].y);
           }
           ctx.setLineDash([4, 4]);
-          ctx.strokeStyle = meta.config.isCue
-            ? 'rgba(225, 75, 95, 0.68)'
-            : 'rgba(255, 255, 255, 0.35)';
+          ctx.strokeStyle = meta.config.isCue ? 'rgba(225, 75, 95, 0.68)' : 'rgba(255, 255, 255, 0.35)';
           ctx.lineWidth = meta.config.isCue ? 2 : 1.5;
           ctx.stroke();
           ctx.restore();
         });
       }
 
-      const drawSingleBall = (
-        x: number,
-        y: number,
-        r: number,
-        meta: InternalBallMeta,
-        scale = 1
-      ) => {
+      // --- 3. LABELS (Drawn over markers and lines) ---
+      if (activeZones) {
+        for (const zone of activeZones) {
+          if (zone.label) {
+            ctx.save();
+            ctx.font = '700 15px sans-serif';
+            let lx = zone.x + zone.width / 2;
+            let ly = zone.y + zone.height / 2;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            if (zone.labelPosition === 'top') {
+              ly = zone.y + 18;
+            } else if (zone.labelPosition === 'bottom') {
+              ly = zone.y + zone.height - 18;
+            } else if (zone.labelPosition === 'bottom-right') {
+              lx = zone.x + zone.width - 14;
+              ly = zone.y + zone.height - 18;
+              ctx.textAlign = 'right';
+            }
+
+            ctx.lineWidth = 4;
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.strokeText(zone.label, lx, ly);
+
+            ctx.fillStyle = 'rgba(255,255,255,0.95)';
+            ctx.fillText(zone.label, lx, ly);
+            ctx.restore();
+          }
+        }
+      }
+
+      if (activeLines) {
+        for (const line of activeLines) {
+          if (line.label) {
+            ctx.save();
+            ctx.font = '700 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const mx = (line.from[0] + line.to[0]) / 2 + (line.labelOffset?.x ?? 0);
+            const my = (line.from[1] + line.to[1]) / 2 + (line.labelOffset?.y ?? 0);
+
+            ctx.lineWidth = 4;
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.strokeText(line.label, mx, my);
+
+            ctx.fillStyle = line.color || 'rgba(255,255,255,0.95)';
+            ctx.fillText(line.label, mx, my);
+            ctx.restore();
+          }
+        }
+      }
+
+      for (const marker of activeMarkers) {
+        if (marker.label) {
+          ctx.save();
+          const mr = marker.radius ?? ballRadius * 1.25;
+          ctx.font = '700 14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          let lx = marker.x;
+          let ly = marker.y - mr - 14;
+
+          if (marker.labelPosition === 'bottom') {
+            ly = marker.y + mr + 14;
+          } else if (marker.labelPosition === 'left') {
+            lx = marker.x - mr - 10;
+            ly = marker.y;
+            ctx.textAlign = 'right';
+          } else if (marker.labelPosition === 'right') {
+            lx = marker.x + mr + 10;
+            ly = marker.y;
+            ctx.textAlign = 'left';
+          }
+
+          if (marker.labelOffset) {
+            lx += marker.labelOffset.x;
+            ly += marker.labelOffset.y;
+          }
+
+          ctx.lineWidth = 4;
+          ctx.lineJoin = 'round';
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+          ctx.strokeText(marker.label, lx, ly);
+
+          ctx.fillStyle = 'rgba(255,255,255,0.95)';
+          ctx.fillText(marker.label, lx, ly);
+          ctx.restore();
+        }
+      }
+
+      // --- 4. BALLS AND CUE ---
+      const drawSingleBall = (x: number, y: number, r: number, meta: InternalBallMeta, scale = 1) => {
         ctx.save();
         ctx.translate(x, y);
         ctx.scale(scale, scale);
@@ -1624,14 +1525,7 @@ const isDarkBalls = !isLightColor(ballColor);
         ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
         ctx.fill();
 
-        const grad = ctx.createRadialGradient(
-          -r * 0.32,
-          -r * 0.32,
-          r * 0.08,
-          0,
-          0,
-          r
-        );
+        const grad = ctx.createRadialGradient(-r * 0.32, -r * 0.32, r * 0.08, 0, 0, r);
         if (meta.config.isCue) {
           grad.addColorStop(0, '#a8283b');
           grad.addColorStop(0.55, '#6e1222');
@@ -1686,13 +1580,7 @@ const isDarkBalls = !isLightColor(ballColor);
         }
 
         const scale = meta.isAirborne ? 1.22 : 1;
-        drawSingleBall(
-          body.position.x,
-          body.position.y,
-          meta.radius,
-          meta,
-          scale
-        );
+        drawSingleBall(body.position.x, body.position.y, meta.radius, meta, scale);
       }
 
       if (showCue && activeShots.length > 0 && elapsedTicks < cueLeadInTicks) {
@@ -1702,10 +1590,7 @@ const isDarkBalls = !isLightColor(ballColor);
         if (cueBody && cueMeta) {
           const progress = elapsedTicks / cueLeadInTicks;
           const maxPull = 14 + firstShot.power * 1.15;
-          const pullback =
-            progress < 0.74
-              ? (progress / 0.74) * maxPull
-              : (1 - (progress - 0.74) / 0.26) * maxPull;
+          const pullback = progress < 0.74 ? (progress / 0.74) * maxPull : (1 - (progress - 0.74) / 0.26) * maxPull;
 
           const { launchAngle } = computeShotGeometry(
             firstShot,
@@ -1771,30 +1656,17 @@ const isDarkBalls = !isLightColor(ballColor);
       let anyActiveMotion = false;
 
       metaMap.forEach((meta) => {
-        if (
-          meta.potAnimation &&
-          meta.potAnimation.progress > 0 &&
-          meta.potAnimation.progress < 1
-        ) {
+        if (meta.potAnimation && meta.potAnimation.progress > 0 && meta.potAnimation.progress < 1) {
           anyActiveMotion = true;
         }
         if (meta.potted) return;
         const speed = Math.hypot(meta.vx, meta.vy);
-        if (
-          speed > 0.075 ||
-          (meta.hasHitBall &&
-            meta.ticksAfterHit < 18 &&
-            Math.abs(meta.topSpin) > 0.03)
-        ) {
+        if (speed > 0.075 || (meta.hasHitBall && meta.ticksAfterHit < 18 && Math.abs(meta.topSpin) > 0.03)) {
           anyActiveMotion = true;
         }
       });
 
-      if (
-        allPendingShotsFired &&
-        !anyActiveMotion &&
-        elapsedTicks > cueLeadInTicks + 12
-      ) {
+      if (allPendingShotsFired && !anyActiveMotion && elapsedTicks > cueLeadInTicks + 12) {
         if (activeVerdict && !verdictShown) {
           verdictShown = true;
           setShowVerdictBanner(true);
@@ -1846,6 +1718,8 @@ const isDarkBalls = !isLightColor(ballColor);
     activeShots,
     activeWalls,
     activePockets,
+    activeZones,
+    activeLines,
     activeMarkers,
     activeArrows,
     activeVerdict,
@@ -1875,9 +1749,7 @@ const isDarkBalls = !isLightColor(ballColor);
       : (primarySpin?.curve ?? 0) * 0.8;
 
   const renderedExtraControls =
-    typeof extraControls === 'function'
-      ? extraControls(isExpanded)
-      : extraControls;
+    typeof extraControls === 'function' ? extraControls(isExpanded) : extraControls;
 
   const hasMultipleSlides = Boolean(slides && slides.length > 1);
   const showDescription = Boolean(activeDescription && !shouldRotateModal);
@@ -1885,12 +1757,7 @@ const isDarkBalls = !isLightColor(ballColor);
   const simulatorBody = (
     <div className="flex w-full flex-col" data-no-tab-swipe>
       {hasMultipleSlides && slides && (
-        <div
-          className={cn(
-            'mb-2 flex items-center justify-between gap-2 px-0.5',
-            isExpanded && 'pr-8'
-          )}
-        >
+        <div className={cn('mb-2 flex items-center justify-between gap-2 px-0.5', isExpanded && 'pr-8')}>
           <div className="flex items-center gap-1.5">
             {slides.map((s, idx) => (
               <button
@@ -1900,9 +1767,7 @@ const isDarkBalls = !isLightColor(ballColor);
                 aria-label={s.label}
                 className={cn(
                   'h-1.5 rounded-full transition-all duration-300',
-                  activeSlideIdx === idx
-                    ? 'bg-primary w-6'
-                    : 'bg-foreground/20 hover:bg-foreground/40 w-1.5'
+                  activeSlideIdx === idx ? 'bg-primary w-6' : 'bg-foreground/20 hover:bg-foreground/40 w-1.5'
                 )}
               />
             ))}
@@ -1911,9 +1776,7 @@ const isDarkBalls = !isLightColor(ballColor);
           <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
-              onClick={() =>
-                selectSlide((activeSlideIdx - 1 + slides.length) % slides.length)
-              }
+              onClick={() => selectSlide((activeSlideIdx - 1 + slides.length) % slides.length)}
               className="bg-neutral text-neutral-foreground hover:bg-primary hover:text-primary-foreground flex size-7 items-center justify-center rounded-lg transition-colors"
               aria-label="Предыдущий вариант"
             >
@@ -1935,9 +1798,7 @@ const isDarkBalls = !isLightColor(ballColor);
         <div
           className={cn(
             'mb-2.5 flex px-0.5',
-            shouldRotateModal
-              ? 'flex-row items-center justify-between gap-3'
-              : 'flex-col items-start gap-2',
+            shouldRotateModal ? 'flex-row items-center justify-between gap-3' : 'flex-col items-start gap-2',
             isExpanded && !hasMultipleSlides && 'pr-8'
           )}
         >
@@ -2003,24 +1864,17 @@ const isDarkBalls = !isLightColor(ballColor);
       <div
         onPointerDown={handleCanvasPointerDown}
         onPointerUp={handleCanvasPointerUp}
-        style={
-          shouldRotateModal ? { aspectRatio: `${width} / ${height}` } : undefined
-        }
+        style={shouldRotateModal ? { aspectRatio: `${width} / ${height}` } : undefined}
         className={cn(
           'relative overflow-hidden rounded-xl',
-          shouldRotateModal
-            ? 'mx-auto max-h-[calc(100dvw-115px)] w-auto max-w-full'
-            : 'w-full',
+          shouldRotateModal ? 'mx-auto max-h-[calc(100dvw-115px)] w-auto max-w-full' : 'w-full',
           expandable && !isExpanded && 'cursor-pointer'
         )}
       >
         <canvas
           ref={canvasRef}
           style={{ aspectRatio: `${width} / ${height}` }}
-          className={cn(
-            'block select-none',
-            shouldRotateModal ? 'h-full w-full' : 'w-full'
-          )}
+          className={cn('block select-none', shouldRotateModal ? 'h-full w-full' : 'w-full')}
         />
 
         {activeVerdict && (
@@ -2046,9 +1900,7 @@ const isDarkBalls = !isLightColor(ballColor);
                 )}
                 <span>{activeVerdict.title}</span>
               </div>
-              {activeVerdict.subtitle && (
-                <p className="text-xs opacity-90">{activeVerdict.subtitle}</p>
-              )}
+              {activeVerdict.subtitle && <p className="text-xs opacity-90">{activeVerdict.subtitle}</p>}
             </div>
           </div>
         )}
@@ -2063,11 +1915,7 @@ const isDarkBalls = !isLightColor(ballColor);
               aria-label={isPlaying ? 'Пауза' : 'Пуск'}
               className="bg-neutral text-neutral-foreground hover:bg-primary hover:text-primary-foreground flex size-8 items-center justify-center rounded-xl transition-colors"
             >
-              {isPlaying ? (
-                <PauseIcon size={15} weight="fill" />
-              ) : (
-                <PlayIcon size={15} weight="fill" />
-              )}
+              {isPlaying ? <PauseIcon size={15} weight="fill" /> : <PlayIcon size={15} weight="fill" />}
             </button>
 
             <button
@@ -2105,9 +1953,7 @@ const isDarkBalls = !isLightColor(ballColor);
         </div>
       )}
 
-      {renderedExtraControls && (
-        <div className="mt-3">{renderedExtraControls}</div>
-      )}
+      {renderedExtraControls && <div className="mt-3">{renderedExtraControls}</div>}
     </div>
   );
 
@@ -2115,11 +1961,7 @@ const isDarkBalls = !isLightColor(ballColor);
     <>
       <div
         ref={hostRef}
-        style={
-          isExpanded && placeholderHeight
-            ? { minHeight: `${placeholderHeight}px` }
-            : undefined
-        }
+        style={isExpanded && placeholderHeight ? { minHeight: `${placeholderHeight}px` } : undefined}
         className={cn(
           'bg-background/80 flex flex-col overflow-hidden rounded-2xl p-3 backdrop-blur-lg',
           className
@@ -2129,10 +1971,7 @@ const isDarkBalls = !isLightColor(ballColor);
       </div>
 
       {isExpanded && (
-        <SimulatorZoomModal
-          onClose={closeExpanded}
-          shouldRotate={shouldRotateModal}
-        >
+        <SimulatorZoomModal onClose={closeExpanded} shouldRotate={shouldRotateModal}>
           {simulatorBody}
         </SimulatorZoomModal>
       )}
