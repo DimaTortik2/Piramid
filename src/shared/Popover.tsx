@@ -45,7 +45,7 @@ export function Popover({ trigger, children, className }: PopoverProps) {
 
       <div
         className={cn(
-          'bg-background/95 text-foreground absolute right-0 bottom-full z-50 mb-4 max-h-64 min-w-52 origin-bottom-right overflow-y-auto overscroll-contain rounded-2xl p-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-all duration-200',
+          'bg-background text-foreground absolute right-0 bottom-full z-50 mb-4 max-h-64 min-w-52 origin-bottom-right overflow-y-auto overscroll-contain rounded-2xl p-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)] transition-all duration-200',
           isOpen
             ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
             : 'pointer-events-none translate-y-2 scale-95 opacity-0',

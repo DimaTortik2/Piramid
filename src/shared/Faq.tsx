@@ -13,26 +13,43 @@ export function Faq({ answer, children, className, ...props }: FaqProps) {
   return (
     <div
       className={cn(
-        'bg-background/80 text-foreground rounded-lg p-5 shadow-2xl backdrop-blur-lg',
+        'bg-foreground/5 rounded-2xl p-4 transition-colors',
         className
       )}
       {...props}
     >
       <button
         onClick={() => setAnswerVisible((prev) => !prev)}
-        className="flex justify-between w-full group"
+        className="flex w-full items-center justify-between gap-4 group"
       >
-        <p className={cn('text-start transition-colors' ,answerVisible && 'text-muted-foreground ')}>
-        {children}
+        <p 
+          className={cn(
+            'text-start font-medium transition-colors', 
+            answerVisible ? 'text-muted-foreground' : 'text-foreground'
+          )}
+        >
+          {children}
         </p>
-        <Circle className={cn('group-hover:bg-muted-foreground group-hover:translate-y-[-3px] transition-transform', answerVisible && 'bg-muted-foreground group-hover:bg-foreground')}>{ <CaretDownIcon className={cn('transition-transform',answerVisible && 'rotate-180')} />}</Circle>
+        <Circle 
+          className={cn(
+            'shrink-0 transition-transform group-hover:bg-muted-foreground group-hover:translate-y-[-2px]', 
+            answerVisible && 'bg-muted-foreground group-hover:bg-foreground'
+          )}
+        >
+          <CaretDownIcon 
+            className={cn(
+              'transition-transform duration-300',
+              answerVisible && 'rotate-180'
+            )} 
+          />
+        </Circle>
       </button>
-      {answerVisible &&
-      <>
-        <div className='h-[2px] w-full rounded-full bg-foreground/20 mt-4 mb-3' />
-      <p  >{answer}</p>
-      </>
-      }
+      
+      {answerVisible && (
+        <div className="mt-3 animate-app-fade-in text-muted-foreground">
+          <p>{answer}</p>
+        </div>
+      )}
     </div>
   );
 }
