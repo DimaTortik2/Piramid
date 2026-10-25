@@ -638,15 +638,6 @@ export function HistoryPage() {
         onOpenChange={(open) => {
           if (!open) setMatchToDelete(null);
         }}
-        closeBtn={
-          <Button
-            variant="primary"
-            className="w-full"
-            onClick={() => setMatchToDelete(null)}
-          >
-            Отмена
-          </Button>
-        }
         content={
           <div className="flex flex-col items-center gap-4 py-4 text-center">
             <p className="text-xl font-medium">Удалить партию из истории?</p>

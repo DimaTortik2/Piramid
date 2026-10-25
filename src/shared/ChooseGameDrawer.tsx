@@ -36,7 +36,7 @@ const GAME_DATA: {
     title: 'Американка',
     tag: 'Любой шар',
     piramidName: 'free-pyramid',
-    lectureHref: '/lectures?discipline=pyramid#chukhoi-and-svoyak',
+    lectureHref: '/lectures?discipline=pyramid#pyramid-disciplines',
     icon: CirclesThreePlusIcon,
   },
   {
@@ -44,7 +44,7 @@ const GAME_DATA: {
     title: 'Московка',
     tag: 'Один биток',
     piramidName: 'combined-pyramid',
-    lectureHref: '/lectures/first',
+    lectureHref: '/lectures?discipline=pyramid#pyramid-disciplines',
     icon: TargetIcon,
   },
   {
@@ -52,7 +52,7 @@ const GAME_DATA: {
     title: 'Невская',
     tag: 'Биток с руки',
     piramidName: 'dynamic-pyramid',
-    lectureHref: '/lectures/first',
+    lectureHref: '/lectures?discipline=pyramid#pyramid-disciplines',
     icon: LightningIcon,
   },
   {
@@ -60,7 +60,7 @@ const GAME_DATA: {
     title: 'Классика',
     tag: 'До 71 очка',
     piramidName: 'classic-pyramid',
-    lectureHref: '/lectures?discipline=pyramid#fouls-and-penalties',
+    lectureHref: '/lectures?discipline=pyramid#pyramid-disciplines',
     icon: CrownIcon,
   },
   {
@@ -68,7 +68,7 @@ const GAME_DATA: {
     title: 'С продолжением',
     tag: 'Без лимита',
     piramidName: 'continuous-free-pyramid',
-    lectureHref: '/lectures/first',
+    lectureHref: '/lectures?discipline=pyramid#pyramid-disciplines',
     icon: InfinityIcon,
   },
 ];

@@ -940,11 +940,11 @@ export function GamePage({}: GamePageProps) {
         }
       />
 
-      <InfoDrawer
+     <InfoDrawer
         isOpen={classicDrawerOpen}
         onOpenChange={setClassicDrawerOpen}
         content={
-          <div className="flex flex-col items-center py-2">
+          <div className="flex flex-col items-center py-2" data-vaul-no-drag>
             <p className="mb-4 text-xl">Какой шар забит?</p>
             <div className="flex max-w-[280px] flex-wrap justify-center gap-4">
               {balls1to15.map((num) => {
@@ -952,10 +952,21 @@ export function GamePage({}: GamePageProps) {
                 return (
                   <button
                     key={num}
+                    type="button"
                     disabled={isPotted}
-                    onClick={() => handleSelectClassicBall(num)}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerUp={(e) => {
+                      e.stopPropagation();
+                      if (!isPotted) handleSelectClassicBall(num);
+                    }}
+                    onKeyDown={(e) => {
+                      if (!isPotted && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        handleSelectClassicBall(num);
+                      }
+                    }}
                     className={cn(
-                      'flex h-14 w-14 items-center justify-center rounded-full text-lg transition-all',
+                      'flex h-14 w-14 touch-manipulation items-center justify-center rounded-full text-lg transition-transform active:scale-95',
                       isPotted
                         ? 'bg-neutral text-neutral-foreground/30'
                         : 'bg-primary text-primary-foreground hover:scale-105'
